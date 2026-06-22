@@ -12,6 +12,8 @@ export const products: Product[] = [
     gender: "unisex",
     shape: "redondo",
     frameColor: "negro",
+    stock: 10,
+    isActive: true,
   },
   {
     slug: "modelo-moderno",
@@ -24,6 +26,8 @@ export const products: Product[] = [
     gender: "hombre",
     shape: "cuadrado",
     frameColor: "transparente",
+    stock: 10,
+    isActive: true,
   },
   {
     slug: "modelo-premium",
@@ -36,6 +40,8 @@ export const products: Product[] = [
     gender: "mujer",
     shape: "rectangular",
     frameColor: "cafe",
+    stock: 10,
+    isActive: true,
   },
   {
     slug: "sol-clasico",
@@ -48,6 +54,8 @@ export const products: Product[] = [
     gender: "unisex",
     shape: "aviador",
     frameColor: "dorado",
+    stock: 10,
+    isActive: true,
   },
   {
     slug: "sol-urbano",
@@ -60,6 +68,8 @@ export const products: Product[] = [
     gender: "hombre",
     shape: "cuadrado",
     frameColor: "negro",
+    stock: 10,
+    isActive: true,
   },
   {
     slug: "sol-premium",
@@ -72,5 +82,8 @@ export const products: Product[] = [
     gender: "mujer",
     shape: "redondo",
     frameColor: "cafe",
+    stock: 10,
+    isActive: true,
   },
 ];
+

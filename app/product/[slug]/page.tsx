@@ -1,6 +1,6 @@
+import ProductPurchasePanel from "@/components/ProductPurchasePanel";
 import { products } from "@/data/products";
 import { notFound } from "next/navigation";
-import AddToCartButton from "@/components/AddToCartButton";
 
 type ProductPageProps = {
   params: Promise<{
@@ -43,47 +43,20 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <h1 className="mt-3 text-5xl font-bold">{product.name}</h1>
 
           <p className="mt-4 text-2xl">
-            ${product.price.toLocaleString("es-MX")} MXN
+            Desde ${product.price.toLocaleString("es-MX")} MXN
           </p>
 
           <p className="mt-6 max-w-md text-gray-600">
             {product.description}
           </p>
 
-          <div className="mt-8 border-t pt-8">
-            <h2 className="text-lg font-semibold">Selecciona tu tipo de lente</h2>
-
-            <div className="mt-4 grid gap-3">
-              <button className="rounded-2xl border px-5 py-4 text-left hover:border-black">
-                <span className="block font-semibold">Graduación sencilla</span>
-                <span className="text-sm text-gray-600">
-                  Para visión de lejos o cerca.
-                </span>
-              </button>
-
-              <button className="rounded-2xl border px-5 py-4 text-left hover:border-black">
-                <span className="block font-semibold">Lentes sin graduación</span>
-                <span className="text-sm text-gray-600">
-                  Solo armazón con mica transparente.
-                </span>
-              </button>
-
-              <button className="rounded-2xl border px-5 py-4 text-left hover:border-black">
-                <span className="block font-semibold">Lentes de sol</span>
-                <span className="text-sm text-gray-600">
-                  Protección solar con estilo.
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <AddToCartButton
+          <ProductPurchasePanel
             product={{
-                slug: product.slug,
-                name: product.name,
-                price: product.price,
+              slug: product.slug,
+              name: product.name,
+              price: product.price,
             }}
-            />
+          />
 
           <p className="mt-4 text-center text-sm text-gray-500">
             Pago seguro en pesos mexicanos.

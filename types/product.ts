@@ -9,4 +9,7 @@ export type Product = {
   gender: "hombre" | "mujer" | "unisex";
   shape: "redondo" | "cuadrado" | "rectangular" | "aviador";
   frameColor: "negro" | "transparente" | "cafe" | "dorado";
+  stock: number;
+  isActive: boolean;
 };
+

@@ -6,17 +6,25 @@ export default function Navbar() {
           Óptica OLM
         </a>
 
+
         <div className="flex items-center gap-8 text-sm font-medium">
           <a href="/eyeglasses" className="hover:underline">
             Lentes ópticos
           </a>
+
           <a href="/sunglasses" className="hover:underline">
             Lentes de sol
           </a>
+
           <a href="/cart" className="hover:underline">
             Carrito
           </a>
+
+          <a href="/admin/orders" className="hover:underline">
+            Admin
+          </a>
         </div>
+
       </nav>
     </header>
   );
