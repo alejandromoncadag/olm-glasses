@@ -1,7 +1,9 @@
 import CatalogBrowser from "@/components/CatalogBrowser";
 import { products } from "@/data/products";
 
-const eyeglasses = products.filter((product) => product.type === "eyeglasses");
+const eyeglasses = products.filter(
+  (product) => product.type === "eyeglasses" && product.isActive
+);
 
 export default function EyeglassesPage() {
   return (
@@ -18,3 +20,4 @@ export default function EyeglassesPage() {
     </main>
   );
 }
+

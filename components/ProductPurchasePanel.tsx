@@ -20,6 +20,7 @@ type ProductPurchasePanelProps = {
     slug: string;
     name: string;
     price: number;
+    stock: number;
   };
 };
 
@@ -80,13 +81,31 @@ export default function ProductPurchasePanel({
   const [added, setAdded] = useState(false);
 
   const finalPrice = product.price + selectedLens.extraPrice;
+  const isOutOfStock = product.stock <= 0;
 
   function handleAddToCart() {
+    if (isOutOfStock) {
+      alert("Este producto está agotado.");
+      return;
+    }
+
     const currentCart: CartItem[] = JSON.parse(
       localStorage.getItem("olm-cart") || "[]"
     );
 
+
+
+
     const cartSlug = `${product.slug}-${selectedLens.id}-${selectedPrescription.id}`;
+
+    const totalQuantityForProduct = currentCart
+      .filter((item) => item.slug.startsWith(`${product.slug}-`))
+      .reduce((sum, item) => sum + item.quantity, 0);
+
+    if (totalQuantityForProduct >= product.stock) {
+      alert("No hay más piezas disponibles de este producto.");
+      return;
+    }
 
     const existingItem = currentCart.find((item) => item.slug === cartSlug);
 
@@ -131,11 +150,11 @@ export default function ProductPurchasePanel({
             <button
               key={option.id}
               onClick={() => setSelectedLens(option)}
-              className={`rounded-2xl border px-5 py-4 text-left ${
-                selectedLens.id === option.id
+              disabled={isOutOfStock}
+              className={`rounded-2xl border px-5 py-4 text-left disabled:cursor-not-allowed disabled:opacity-50 ${selectedLens.id === option.id
                   ? "border-black bg-gray-50"
                   : "hover:border-black"
-              }`}
+                }`}
             >
               <span className="block font-semibold">{option.label}</span>
               <span className="text-sm text-gray-600">
@@ -160,11 +179,11 @@ export default function ProductPurchasePanel({
             <button
               key={option.id}
               onClick={() => setSelectedPrescription(option)}
-              className={`rounded-2xl border px-5 py-4 text-left ${
-                selectedPrescription.id === option.id
+              disabled={isOutOfStock}
+              className={`rounded-2xl border px-5 py-4 text-left disabled:cursor-not-allowed disabled:opacity-50 ${selectedPrescription.id === option.id
                   ? "border-black bg-gray-50"
                   : "hover:border-black"
-              }`}
+                }`}
             >
               <span className="block font-semibold">{option.label}</span>
               <span className="text-sm text-gray-600">
@@ -182,16 +201,27 @@ export default function ProductPurchasePanel({
             ${finalPrice.toLocaleString("es-MX")} MXN
           </span>
         </div>
+
+        <div className="mt-2 flex justify-between text-sm text-gray-600">
+          <span>Disponibilidad</span>
+          <span>{isOutOfStock ? "Agotado" : `${product.stock} disponibles`}</span>
+        </div>
       </div>
 
       <button
         onClick={handleAddToCart}
-        className="mt-6 w-full rounded-full bg-black px-8 py-4 text-white"
+        disabled={isOutOfStock}
+        className="mt-6 w-full rounded-full bg-black px-8 py-4 text-white disabled:cursor-not-allowed disabled:bg-gray-300"
       >
-        {added ? "Agregado al carrito" : "Agregar al carrito"}
+        {isOutOfStock
+          ? "Producto agotado"
+          : added
+            ? "Agregado al carrito"
+            : "Agregar al carrito"}
       </button>
     </div>
   );
 }
+
 
 

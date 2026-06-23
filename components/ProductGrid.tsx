@@ -16,9 +16,11 @@ export default function ProductGrid({ products }: ProductGridProps) {
           category={product.category}
           color={product.color}
           href={`/product/${product.slug}`}
+          stock={product.stock}
         />
       ))}
     </div>
   );
 }
+
 

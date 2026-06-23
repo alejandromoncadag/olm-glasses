@@ -1,21 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import AdminNav from "@/components/AdminNav";
 import { products } from "@/data/products";
 import type { Product } from "@/types/product";
+import AdminNav from "@/components/AdminNav";
 
-type ProductStatus =
+type InventoryStatus =
   | "all"
-  | "active"
+  | "available"
   | "low-stock"
   | "out-of-stock"
   | "inactive";
 
-function getProductStatus(product: Product) {
+function getInventoryStatus(product: Product) {
   if (!product.isActive) {
     return {
-      key: "inactive" as ProductStatus,
+      key: "inactive" as InventoryStatus,
       label: "Inactivo",
       className: "bg-gray-100 text-gray-700",
     };
@@ -23,7 +23,7 @@ function getProductStatus(product: Product) {
 
   if (product.stock === 0) {
     return {
-      key: "out-of-stock" as ProductStatus,
+      key: "out-of-stock" as InventoryStatus,
       label: "Agotado",
       className: "bg-red-100 text-red-700",
     };
@@ -31,27 +31,39 @@ function getProductStatus(product: Product) {
 
   if (product.stock <= 3) {
     return {
-      key: "low-stock" as ProductStatus,
+      key: "low-stock" as InventoryStatus,
       label: "Stock bajo",
       className: "bg-yellow-100 text-yellow-800",
     };
   }
 
   return {
-    key: "active" as ProductStatus,
-    label: "Activo",
+    key: "available" as InventoryStatus,
+    label: "Disponible",
     className: "bg-green-100 text-green-700",
   };
 }
 
-export default function AdminProductsPage() {
+export default function AdminInventoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ProductStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<InventoryStatus>("all");
+
+  const totalStock = products.reduce((sum, product) => sum + product.stock, 0);
+
+  const activeProducts = products.filter((product) => product.isActive).length;
+
+  const lowStockProducts = products.filter(
+    (product) => product.isActive && product.stock > 0 && product.stock <= 3
+  ).length;
+
+  const outOfStockProducts = products.filter(
+    (product) => product.isActive && product.stock === 0
+  ).length;
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
 
   const filteredProducts = products.filter((product) => {
-    const status = getProductStatus(product);
+    const status = getInventoryStatus(product);
 
     const matchesStatus =
       statusFilter === "all" || status.key === statusFilter;
@@ -79,14 +91,35 @@ export default function AdminProductsPage() {
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
       <section className="mx-auto max-w-6xl">
-        <h1 className="text-4xl font-bold">Productos</h1>
+        <h1 className="text-4xl font-bold">Inventario</h1>
 
         <p className="mt-4 text-gray-600">
-          Vista temporal del catálogo actual. Más adelante podrás editar estos
-          productos desde una base de datos.
+          Vista temporal del inventario de productos.
         </p>
 
         <AdminNav />
+
+        <div className="mt-10 grid gap-4 md:grid-cols-4">
+          <div className="rounded-2xl border p-5">
+            <p className="text-sm text-gray-600">Stock total</p>
+            <p className="mt-2 text-3xl font-bold">{totalStock}</p>
+          </div>
+
+          <div className="rounded-2xl border p-5">
+            <p className="text-sm text-gray-600">Productos activos</p>
+            <p className="mt-2 text-3xl font-bold">{activeProducts}</p>
+          </div>
+
+          <div className="rounded-2xl border p-5">
+            <p className="text-sm text-gray-600">Stock bajo</p>
+            <p className="mt-2 text-3xl font-bold">{lowStockProducts}</p>
+          </div>
+
+          <div className="rounded-2xl border p-5">
+            <p className="text-sm text-gray-600">Agotados</p>
+            <p className="mt-2 text-3xl font-bold">{outOfStockProducts}</p>
+          </div>
+        </div>
 
         <div className="mt-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <input
@@ -107,14 +140,14 @@ export default function AdminProductsPage() {
             </button>
 
             <button
-              onClick={() => setStatusFilter("active")}
+              onClick={() => setStatusFilter("available")}
               className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "active"
+                statusFilter === "available"
                   ? "border-black bg-black text-white"
                   : ""
               }`}
             >
-              Activos
+              Disponibles
             </button>
 
             <button
@@ -167,76 +200,35 @@ export default function AdminProductsPage() {
             </p>
           </div>
         ) : (
-          <div className="mt-10 grid gap-6">
+          <div className="mt-10 overflow-hidden rounded-2xl border">
+            <div className="grid grid-cols-4 bg-gray-50 px-5 py-3 text-sm font-semibold text-gray-600">
+              <span>Producto</span>
+              <span>Categoría</span>
+              <span>Stock</span>
+              <span>Estado</span>
+            </div>
+
             {filteredProducts.map((product) => {
-              const status = getProductStatus(product);
+              const status = getInventoryStatus(product);
 
               return (
                 <div
                   key={product.slug}
-                  className="rounded-2xl border p-6 transition hover:shadow-sm"
+                  className="grid grid-cols-4 border-t px-5 py-4 text-sm"
                 >
-                  <div className="grid gap-6 md:grid-cols-[140px_1fr_auto]">
-                    <div
-                      className="flex h-32 items-center justify-center rounded-xl"
-                      style={{ backgroundColor: product.color }}
+                  <span className="font-medium">{product.name}</span>
+
+                  <span className="text-gray-600">{product.category}</span>
+
+                  <span>{product.stock}</span>
+
+                  <span>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${status.className}`}
                     >
-                      <span className="text-xs text-gray-500">Imagen</span>
-                    </div>
-
-                    <div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <h2 className="text-2xl font-semibold">
-                          {product.name}
-                        </h2>
-
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${status.className}`}
-                        >
-                          {status.label}
-                        </span>
-                      </div>
-
-                      <p className="mt-2 text-sm text-gray-500">
-                        {product.category}
-                      </p>
-
-                      <p className="mt-3 text-gray-600">
-                        {product.description}
-                      </p>
-
-                      <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                        <span className="rounded-full bg-gray-100 px-3 py-1">
-                          {product.gender}
-                        </span>
-
-                        <span className="rounded-full bg-gray-100 px-3 py-1">
-                          {product.shape}
-                        </span>
-
-                        <span className="rounded-full bg-gray-100 px-3 py-1">
-                          {product.frameColor}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="md:text-right">
-                      <p className="text-2xl font-bold">
-                        ${product.price.toLocaleString("es-MX")} MXN
-                      </p>
-
-                      <p className="mt-2 text-sm text-gray-600">
-                        Stock: {product.stock}
-                      </p>
-
-                      <a
-                        href={`/product/${product.slug}`}
-                        className="mt-5 inline-block rounded-full border px-5 py-2 text-sm"
-                      >
-                        Ver producto
-                      </a>
-                    </div>
-                  </div>
+                      {status.label}
+                    </span>
+                  </span>
                 </div>
               );
             })}
@@ -246,4 +238,5 @@ export default function AdminProductsPage() {
     </main>
   );
 }
+
 

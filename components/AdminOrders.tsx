@@ -4,223 +4,385 @@ import { useEffect, useState } from "react";
 
 type OrderStatus = "pending" | "processing" | "completed";
 
-type OrderItem = {
-    slug: string;
-    name: string;
-    price: number;
-    quantity: number;
-    lensOption?: string;
-    prescriptionMethod?: string;
+type CartItem = {
+  slug: string;
+  name: string;
+  price: number;
+  quantity: number;
+  lensOption: string;
+  prescriptionMethod: string;
 };
 
-type Customer = {
-    fullName: string;
-    email: string;
-    phone: string;
-    address: string;
+type CheckoutCustomer = {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
 };
 
-type LocalOrder = {
-    orderNumber: string;
-    createdAt: string;
-    customer: Customer;
-    items: OrderItem[];
-    subtotal: number;
-    shipping: number;
-    total: number;
-    status: OrderStatus;
+type Order = {
+  orderNumber: string;
+  createdAt: string;
+  status: OrderStatus;
+  customer: CheckoutCustomer;
+  items: CartItem[];
+  subtotal: number;
+  total: number;
 };
 
 function getStatusLabel(status: OrderStatus) {
-    if (status === "pending") return "Pendiente";
-    if (status === "processing") return "En proceso";
-    return "Completado";
+  if (status === "pending") return "Pendiente";
+  if (status === "processing") return "En proceso";
+  if (status === "completed") return "Completado";
+
+  return "Pendiente";
+}
+
+function getStatusClassName(status: OrderStatus) {
+  if (status === "pending") return "bg-yellow-100 text-yellow-800";
+  if (status === "processing") return "bg-blue-100 text-blue-700";
+  if (status === "completed") return "bg-green-100 text-green-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString("es-MX", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 export default function AdminOrders() {
-    const [orders, setOrders] = useState<LocalOrder[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
-    useEffect(() => {
-        const savedOrders: LocalOrder[] = JSON.parse(
-            localStorage.getItem("olm-orders") || "[]"
-        );
+  useEffect(() => {
+    const savedOrders = localStorage.getItem("olm-orders");
 
-        setOrders(savedOrders);
-    }, []);
-
-    function clearOrders() {
-        const confirmed = confirm(
-            "¿Seguro que quieres borrar todos los pedidos temporales?"
-        );
-
-        if (!confirmed) return;
-
-        localStorage.removeItem("olm-orders");
-        localStorage.removeItem("olm-latest-order");
-        setOrders([]);
+    if (savedOrders) {
+      setOrders(JSON.parse(savedOrders));
     }
+  }, []);
 
-    function updateOrderStatus(orderNumber: string, status: OrderStatus) {
-        const updatedOrders = orders.map((order) =>
-            order.orderNumber === orderNumber ? { ...order, status } : order
-        );
+  function saveOrders(updatedOrders: Order[]) {
+    setOrders(updatedOrders);
+    localStorage.setItem("olm-orders", JSON.stringify(updatedOrders));
+  }
 
-        setOrders(updatedOrders);
-        localStorage.setItem("olm-orders", JSON.stringify(updatedOrders));
-
-        const latestOrder = localStorage.getItem("olm-latest-order");
-
-        if (latestOrder) {
-            const parsedLatestOrder: LocalOrder = JSON.parse(latestOrder);
-
-            if (parsedLatestOrder.orderNumber === orderNumber) {
-                localStorage.setItem(
-                    "olm-latest-order",
-                    JSON.stringify({ ...parsedLatestOrder, status })
-                );
-            }
-        }
-    }
-
-    const pendingOrders = orders.filter((order) => order.status === "pending").length;
-    const processingOrders = orders.filter(
-        (order) => order.status === "processing"
-    ).length;
-    const completedOrders = orders.filter(
-        (order) => order.status === "completed"
-    ).length;
-
-
-
-    if (orders.length === 0) {
-        return (
-            <div className="mt-10 rounded-2xl border p-8 text-center">
-                <h2 className="text-2xl font-semibold">No hay pedidos todavía</h2>
-                <p className="mt-3 text-gray-600">
-                    Cuando un cliente complete el checkout, el pedido aparecerá aquí.
-                </p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="mt-10">
-            <div className="grid gap-4 md:grid-cols-4">
-                <div className="rounded-2xl border p-5">
-                    <p className="text-sm text-gray-600">Total pedidos</p>
-                    <p className="mt-2 text-3xl font-bold">{orders.length}</p>
-                </div>
-
-                <div className="rounded-2xl border p-5">
-                    <p className="text-sm text-gray-600">Pendientes</p>
-                    <p className="mt-2 text-3xl font-bold">{pendingOrders}</p>
-                </div>
-
-                <div className="rounded-2xl border p-5">
-                    <p className="text-sm text-gray-600">En proceso</p>
-                    <p className="mt-2 text-3xl font-bold">{processingOrders}</p>
-                </div>
-
-                <div className="rounded-2xl border p-5">
-                    <p className="text-sm text-gray-600">Completados</p>
-                    <p className="mt-2 text-3xl font-bold">{completedOrders}</p>
-                </div>
-            </div>
-
-            <div className="mb-6 mt-6 flex justify-end">
-
-
-                <button
-                    onClick={clearOrders}
-                    className="rounded-full border border-red-600 px-5 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-                >
-                    Borrar pedidos de prueba
-                </button>
-            </div>
-
-            <div className="space-y-6">
-                {orders.map((order) => (
-                    <div key={order.orderNumber} className="rounded-2xl border p-6">
-                        <div className="flex flex-col justify-between gap-4 border-b pb-4 md:flex-row">
-                            <div>
-                                <h2 className="text-xl font-bold">{order.orderNumber}</h2>
-                                <p className="mt-1 text-sm text-gray-600">
-                                    {new Date(order.createdAt).toLocaleString("es-MX")}
-                                </p>
-                            </div>
-
-                            <div className="text-left md:text-right">
-                                <p className="text-sm text-gray-600">Total</p>
-                                <p className="text-lg font-semibold">
-                                    ${order.total.toLocaleString("es-MX")} MXN
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="mt-5 grid gap-6 md:grid-cols-2">
-                            <div>
-                                <h3 className="font-semibold">Cliente</h3>
-                                <div className="mt-2 text-sm text-gray-600">
-                                    <p>{order.customer.fullName}</p>
-                                    <p>{order.customer.email}</p>
-                                    <p>{order.customer.phone}</p>
-                                    <p>{order.customer.address}</p>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 className="font-semibold">Productos</h3>
-                                <div className="mt-2 space-y-3 text-sm text-gray-600">
-                                    {order.items.map((item) => (
-                                        <div key={item.slug}>
-                                            <p className="font-medium text-black">{item.name}</p>
-
-                                            {item.lensOption && <p>Lente: {item.lensOption}</p>}
-
-                                            {item.prescriptionMethod && (
-                                                <p>Receta: {item.prescriptionMethod}</p>
-                                            )}
-
-                                            <p>Cantidad: {item.quantity}</p>
-                                            <p>
-                                                ${(item.price * item.quantity).toLocaleString("es-MX")}{" "}
-                                                MXN
-                                            </p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-5 flex flex-wrap items-center gap-3">
-                            <span className="text-sm font-semibold">Estado:</span>
-
-                            <select
-                                value={order.status}
-                                onChange={(event) =>
-                                    updateOrderStatus(
-                                        order.orderNumber,
-                                        event.target.value as OrderStatus
-                                    )
-                                }
-                                className="rounded-full border px-4 py-2 text-sm"
-                            >
-                                <option value="pending">Pendiente</option>
-                                <option value="processing">En proceso</option>
-                                <option value="completed">Completado</option>
-                            </select>
-
-                            <span className="rounded-full bg-yellow-100 px-4 py-2 text-sm font-medium text-yellow-800">
-                                {getStatusLabel(order.status)}
-                            </span>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
+  function updateOrderStatus(orderNumber: string, status: OrderStatus) {
+    const updatedOrders = orders.map((order) =>
+      order.orderNumber === orderNumber ? { ...order, status } : order
     );
+
+    saveOrders(updatedOrders);
+  }
+
+  function clearOrders() {
+    const confirmed = confirm(
+      "¿Seguro que quieres borrar todos los pedidos de prueba?"
+    );
+
+    if (!confirmed) return;
+
+    localStorage.removeItem("olm-orders");
+    localStorage.removeItem("olm-latest-order");
+    setOrders([]);
+  }
+
+  const totalOrders = orders.length;
+
+  const pendingOrders = orders.filter(
+    (order) => order.status === "pending"
+  ).length;
+
+  const processingOrders = orders.filter(
+    (order) => order.status === "processing"
+  ).length;
+
+  const completedOrders = orders.filter(
+    (order) => order.status === "completed"
+  ).length;
+
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+
+  const filteredOrders = orders.filter((order) => {
+    const matchesStatus =
+      statusFilter === "all" || order.status === statusFilter;
+
+    const searchableText = [
+      order.orderNumber,
+      order.customer.fullName,
+      order.customer.email,
+      order.customer.phone,
+      order.customer.address,
+      order.customer.city,
+      order.customer.state,
+      order.customer.zipCode,
+      order.items.map((item) => item.name).join(" "),
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    const matchesSearch =
+      normalizedSearchTerm === "" ||
+      searchableText.includes(normalizedSearchTerm);
+
+    return matchesStatus && matchesSearch;
+  });
+
+  if (orders.length === 0) {
+    return (
+      <div>
+        <div className="rounded-2xl border p-8 text-center">
+          <h2 className="text-2xl font-semibold">No hay pedidos todavía</h2>
+
+          <p className="mt-3 text-gray-600">
+            Cuando un cliente termine un checkout, el pedido aparecerá aquí.
+          </p>
+
+          <a
+            href="/eyeglasses"
+            className="mt-6 inline-block rounded-full bg-black px-6 py-3 text-white"
+          >
+            Crear pedido de prueba
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="grid gap-4 md:grid-cols-4">
+        <div className="rounded-2xl border p-5">
+          <p className="text-sm text-gray-600">Pedidos totales</p>
+          <p className="mt-2 text-3xl font-bold">{totalOrders}</p>
+        </div>
+
+        <div className="rounded-2xl border p-5">
+          <p className="text-sm text-gray-600">Pendientes</p>
+          <p className="mt-2 text-3xl font-bold">{pendingOrders}</p>
+        </div>
+
+        <div className="rounded-2xl border p-5">
+          <p className="text-sm text-gray-600">En proceso</p>
+          <p className="mt-2 text-3xl font-bold">{processingOrders}</p>
+        </div>
+
+        <div className="rounded-2xl border p-5">
+          <p className="text-sm text-gray-600">Completados</p>
+          <p className="mt-2 text-3xl font-bold">{completedOrders}</p>
+        </div>
+      </div>
+
+      <div className="mt-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <input
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          placeholder="Buscar pedido, cliente, email o producto..."
+          className="w-full rounded-full border px-5 py-2 text-sm outline-none focus:border-black md:max-w-sm"
+        />
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setStatusFilter("all")}
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "all" ? "border-black bg-black text-white" : ""
+            }`}
+          >
+            Todos
+          </button>
+
+          <button
+            onClick={() => setStatusFilter("pending")}
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "pending"
+                ? "border-black bg-black text-white"
+                : ""
+            }`}
+          >
+            Pendientes
+          </button>
+
+          <button
+            onClick={() => setStatusFilter("processing")}
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "processing"
+                ? "border-black bg-black text-white"
+                : ""
+            }`}
+          >
+            En proceso
+          </button>
+
+          <button
+            onClick={() => setStatusFilter("completed")}
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "completed"
+                ? "border-black bg-black text-white"
+                : ""
+            }`}
+          >
+            Completados
+          </button>
+        </div>
+
+        <button
+          onClick={clearOrders}
+          className="rounded-full border px-5 py-2 text-sm text-gray-600 hover:border-red-500 hover:text-red-600"
+        >
+          Borrar pedidos de prueba
+        </button>
+      </div>
+
+      <p className="mt-4 text-sm text-gray-600">
+        Mostrando {filteredOrders.length} de {orders.length} pedidos
+      </p>
+
+      {filteredOrders.length === 0 ? (
+        <div className="mt-8 rounded-2xl border p-8 text-center">
+          <h2 className="text-2xl font-semibold">No encontramos pedidos</h2>
+
+          <p className="mt-3 text-gray-600">
+            Intenta cambiar el filtro o buscar con otro texto.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-8 space-y-6">
+          {filteredOrders.map((order) => (
+            <div key={order.orderNumber} className="rounded-2xl border p-6">
+              <div className="flex flex-col justify-between gap-4 border-b pb-5 md:flex-row">
+                <div>
+                  <p className="text-sm text-gray-500">Pedido</p>
+
+                  <h2 className="mt-1 text-2xl font-semibold">
+                    {order.orderNumber}
+                  </h2>
+
+                  <p className="mt-2 text-sm text-gray-600">
+                    {formatDate(order.createdAt)}
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 md:items-end">
+                  <span
+                    className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${getStatusClassName(
+                      order.status
+                    )}`}
+                  >
+                    {getStatusLabel(order.status)}
+                  </span>
+
+                  <select
+                    value={order.status}
+                    onChange={(event) =>
+                      updateOrderStatus(
+                        order.orderNumber,
+                        event.target.value as OrderStatus
+                      )
+                    }
+                    className="rounded-xl border px-3 py-2 text-sm"
+                  >
+                    <option value="pending">Pendiente</option>
+                    <option value="processing">En proceso</option>
+                    <option value="completed">Completado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                <div>
+                  <h3 className="font-semibold">Cliente</h3>
+
+                  <div className="mt-3 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
+                    <p>
+                      <span className="font-medium">Nombre:</span>{" "}
+                      {order.customer.fullName || "Sin nombre"}
+                    </p>
+
+                    <p className="mt-2">
+                      <span className="font-medium">Email:</span>{" "}
+                      {order.customer.email || "Sin email"}
+                    </p>
+
+                    <p className="mt-2">
+                      <span className="font-medium">Teléfono:</span>{" "}
+                      {order.customer.phone || "Sin teléfono"}
+                    </p>
+
+                    <p className="mt-2">
+                      <span className="font-medium">Dirección:</span>{" "}
+                      {order.customer.address || "Sin dirección"}
+                    </p>
+
+                    <p className="mt-2">
+                      <span className="font-medium">Ciudad:</span>{" "}
+                      {order.customer.city || "Sin ciudad"},{" "}
+                      {order.customer.state || "Sin estado"}{" "}
+                      {order.customer.zipCode || ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold">Productos</h3>
+
+                  <div className="mt-3 space-y-3">
+                    {order.items.map((item) => (
+                      <div key={item.slug} className="rounded-2xl border p-4">
+                        <div className="flex justify-between gap-4">
+                          <div>
+                            <p className="font-medium">{item.name}</p>
+
+                            <p className="mt-1 text-sm text-gray-600">
+                              {item.lensOption}
+                            </p>
+
+                            <p className="text-sm text-gray-600">
+                              {item.prescriptionMethod}
+                            </p>
+
+                            <p className="mt-2 text-sm text-gray-500">
+                              Cantidad: {item.quantity}
+                            </p>
+                          </div>
+
+                          <p className="font-semibold">
+                            $
+                            {(item.price * item.quantity).toLocaleString(
+                              "es-MX"
+                            )}{" "}
+                            MXN
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 rounded-2xl bg-gray-50 p-4">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>${order.subtotal.toLocaleString("es-MX")} MXN</span>
+                    </div>
+
+                    <div className="mt-3 flex justify-between font-semibold">
+                      <span>Total</span>
+                      <span>${order.total.toLocaleString("es-MX")} MXN</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
-
-
-
 

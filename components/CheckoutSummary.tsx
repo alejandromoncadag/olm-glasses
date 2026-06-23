@@ -1,176 +1,223 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { products } from "@/data/products";
 
 type CartItem = {
-    slug: string;
-    name: string;
-    price: number;
-    quantity: number;
-    lensOption?: string;
-    prescriptionMethod?: string;
+  slug: string;
+  name: string;
+  price: number;
+  quantity: number;
+  lensOption: string;
+  prescriptionMethod: string;
 };
 
 type CheckoutCustomer = {
-    fullName: string;
-    email: string;
-    phone: string;
-    address: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
 };
 
-type LocalOrder = {
-    orderNumber: string;
-    createdAt: string;
-    customer: CheckoutCustomer;
-    items: CartItem[];
-    subtotal: number;
-    shipping: number;
-    total: number;
-    status: "pending";
+type Order = {
+  orderNumber: string;
+  createdAt: string;
+  status: "pending";
+  customer: CheckoutCustomer;
+  items: CartItem[];
+  subtotal: number;
+  total: number;
 };
 
+function getProductFromCartItem(item: CartItem) {
+  return products.find((product) => item.slug.startsWith(`${product.slug}-`));
+}
 
+function cartHasInvalidItems(cartItems: CartItem[]) {
+  return cartItems.some((item) => {
+    const product = getProductFromCartItem(item);
+
+    if (!product) return true;
+    if (!product.isActive) return true;
+    if (product.stock <= 0) return true;
+    if (item.quantity > product.stock) return true;
+
+    return false;
+  });
+}
+
+function generateOrderNumber() {
+  return `OLM-${Date.now()}`;
+}
 
 export default function CheckoutSummary() {
-    const [cartItems, setCartItems] = useState<CartItem[]>([]);
-    const router = useRouter();
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
-    useEffect(() => {
-        const savedCart: CartItem[] = JSON.parse(
-            localStorage.getItem("olm-cart") || "[]"
-        );
+  useEffect(() => {
+    const savedCart = localStorage.getItem("olm-cart");
 
-        setCartItems(savedCart);
-    }, []);
+    if (savedCart) {
+      setCartItems(JSON.parse(savedCart));
+    }
+  }, []);
 
-    const subtotal = cartItems.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
-    );
+  const subtotal = cartItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
 
-    const shipping = subtotal > 0 ? 0 : 0;
-    const total = subtotal + shipping;
+  const total = subtotal;
 
+  function handlePlaceOrder() {
+    const savedCart = localStorage.getItem("olm-cart");
+    const savedCustomer = localStorage.getItem("olm-checkout-customer");
 
+    const latestCartItems: CartItem[] = savedCart ? JSON.parse(savedCart) : [];
+    const customer: CheckoutCustomer = savedCustomer
+      ? JSON.parse(savedCustomer)
+      : {};
 
-
-    function handleContinuePayment() {
-        const savedCustomer = localStorage.getItem("olm-checkout-customer");
-
-        if (!savedCustomer) {
-            alert("Por favor completa tus datos antes de continuar.");
-            return;
-        }
-
-        const customer: CheckoutCustomer = JSON.parse(savedCustomer);
-
-        if (
-            !customer.fullName ||
-            !customer.email ||
-            !customer.phone ||
-            !customer.address
-        ) {
-            alert("Por favor completa todos los campos del checkout.");
-            return;
-        }
-
-        const orderNumber = `OLM-${Date.now()}`;
-
-        const newOrder: LocalOrder = {
-            orderNumber,
-            createdAt: new Date().toISOString(),
-            customer,
-            items: cartItems,
-            subtotal,
-            shipping,
-            total,
-            status: "pending",
-        };
-
-        const existingOrders: LocalOrder[] = JSON.parse(
-            localStorage.getItem("olm-orders") || "[]"
-        );
-
-        const updatedOrders = [newOrder, ...existingOrders];
-
-        localStorage.setItem("olm-orders", JSON.stringify(updatedOrders));
-        localStorage.setItem("olm-latest-order", JSON.stringify(newOrder));
-
-        router.push("/order-success");
+    if (latestCartItems.length === 0) {
+      alert("Tu carrito está vacío.");
+      window.location.href = "/cart";
+      return;
     }
 
+    if (cartHasInvalidItems(latestCartItems)) {
+      alert(
+        "Tu carrito tiene productos agotados o cantidades mayores al stock disponible."
+      );
+      window.location.href = "/cart";
+      return;
+    }
 
-    return (
-        <aside className="h-fit rounded-2xl border p-6">
-            <h2 className="text-xl font-bold">Resumen de compra</h2>
+    if (
+      !customer.fullName ||
+      !customer.email ||
+      !customer.phone ||
+      !customer.address ||
+      !customer.city ||
+      !customer.state ||
+      !customer.zipCode
+    ) {
+      alert("Completa tus datos de envío antes de continuar.");
+      return;
+    }
 
-            <div className="mt-4 space-y-4">
-                {cartItems.length === 0 ? (
-                    <p className="text-sm text-gray-600">Tu carrito está vacío.</p>
-                ) : (
-                    cartItems.map((item) => (
-                        <div key={item.slug} className="flex justify-between gap-4 text-sm">
+    const order: Order = {
+      orderNumber: generateOrderNumber(),
+      createdAt: new Date().toISOString(),
+      status: "pending",
+      customer,
+      items: latestCartItems,
+      subtotal,
+      total,
+    };
 
-                            <div>
-                                <p className="font-medium">{item.name}</p>
-                                {item.lensOption && (
-                                    <p className="text-gray-500">Tipo de lente: {item.lensOption}</p>
-                                )}
-                                {item.prescriptionMethod && (
-                                    <p className="text-gray-500">Receta: {item.prescriptionMethod}</p>
-                                )}
-
-                                <p className="text-gray-500">Cantidad: {item.quantity}</p>
-                            </div>
-
-                            <p className="font-medium">
-                                ${(item.price * item.quantity).toLocaleString("es-MX")} MXN
-                            </p>
-                        </div>
-                    ))
-                )}
-            </div>
-
-            <div className="mt-6 space-y-3 border-t pt-4 text-sm">
-                <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>${subtotal.toLocaleString("es-MX")} MXN</span>
-                </div>
-
-                <div className="flex justify-between">
-                    <span>Envío</span>
-                    <span>{shipping === 0 ? "Gratis" : `$${shipping} MXN`}</span>
-                </div>
-
-                <div className="flex justify-between border-t pt-3 text-base font-semibold">
-                    <span>Total</span>
-                    <span>${total.toLocaleString("es-MX")} MXN</span>
-                </div>
-            </div>
-
-            {cartItems.length === 0 ? (
-                <button
-                    disabled
-                    className="mt-6 w-full rounded-full bg-gray-300 px-8 py-4 text-white"
-                >
-                    Continuar con pago
-                </button>
-            ) : (
-                <button
-                    onClick={handleContinuePayment}
-                    className="mt-6 w-full rounded-full bg-black px-8 py-4 text-white"
-                >
-                    Continuar con pago
-                </button>
-
-            )}
-
-            <p className="mt-4 text-center text-xs text-gray-500">
-                Próximamente conectaremos Mercado Pago.
-            </p>
-        </aside>
+    const existingOrders: Order[] = JSON.parse(
+      localStorage.getItem("olm-orders") || "[]"
     );
+
+    const updatedOrders = [order, ...existingOrders];
+
+    localStorage.setItem("olm-orders", JSON.stringify(updatedOrders));
+    localStorage.setItem("olm-latest-order", JSON.stringify(order));
+
+    window.location.href = "/order-success";
+  }
+
+  if (cartItems.length === 0) {
+    return (
+      <aside className="rounded-2xl border p-6">
+        <h2 className="text-2xl font-semibold">Resumen</h2>
+
+        <p className="mt-4 text-gray-600">Tu carrito está vacío.</p>
+
+        <a
+          href="/eyeglasses"
+          className="mt-6 block rounded-full bg-black px-6 py-3 text-center text-white"
+        >
+          Ver lentes
+        </a>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="h-fit rounded-2xl border p-6">
+      <h2 className="text-2xl font-semibold">Resumen</h2>
+
+      <div className="mt-6 space-y-4">
+        {cartItems.map((item) => {
+          const product = getProductFromCartItem(item);
+          const isInvalid =
+            !product ||
+            !product.isActive ||
+            product.stock <= 0 ||
+            item.quantity > product.stock;
+
+          return (
+            <div key={item.slug} className="border-b pb-4">
+              <div className="flex justify-between gap-4">
+                <div>
+                  <p className="font-medium">{item.name}</p>
+
+                  <p className="mt-1 text-sm text-gray-600">
+                    {item.lensOption}
+                  </p>
+
+                  <p className="text-sm text-gray-600">
+                    Cantidad: {item.quantity}
+                  </p>
+
+                  {isInvalid && (
+                    <p className="mt-2 text-sm font-medium text-red-600">
+                      Revisa disponibilidad de este producto.
+                    </p>
+                  )}
+                </div>
+
+                <p className="font-medium">
+                  ${(item.price * item.quantity).toLocaleString("es-MX")} MXN
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-6 flex justify-between">
+        <span>Subtotal</span>
+        <span>${subtotal.toLocaleString("es-MX")} MXN</span>
+      </div>
+
+      <div className="mt-4 flex justify-between text-gray-600">
+        <span>Envío</span>
+        <span>Se calcula después</span>
+      </div>
+
+      <div className="mt-6 border-t pt-6">
+        <div className="flex justify-between text-lg font-semibold">
+          <span>Total</span>
+          <span>${total.toLocaleString("es-MX")} MXN</span>
+        </div>
+      </div>
+
+      <button
+        onClick={handlePlaceOrder}
+        className="mt-6 w-full rounded-full bg-black px-6 py-3 text-white"
+      >
+        Finalizar pedido
+      </button>
+
+      <p className="mt-3 text-sm text-gray-500">
+        Pago temporal. Más adelante conectaremos Mercado Pago.
+      </p>
+    </aside>
+  );
 }
 
 

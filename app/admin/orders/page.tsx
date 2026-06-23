@@ -1,3 +1,4 @@
+import AdminNav from "@/components/AdminNav";
 import AdminOrders from "@/components/AdminOrders";
 
 export default function AdminOrdersPage() {
@@ -7,12 +8,17 @@ export default function AdminOrdersPage() {
         <h1 className="text-4xl font-bold">Pedidos</h1>
 
         <p className="mt-4 text-gray-600">
-          Aquí puedes ver los pedidos temporales guardados en este navegador.
+          Revisa los pedidos recibidos, datos del cliente, productos y estado.
         </p>
 
-        <AdminOrders />
+        <AdminNav />
+
+        <div className="mt-10">
+          <AdminOrders />
+        </div>
       </section>
     </main>
   );
 }
+
 

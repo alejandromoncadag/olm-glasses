@@ -1,7 +1,9 @@
 import ProductGrid from "@/components/ProductGrid";
 import { products } from "@/data/products";
 
-const featuredProducts = products.slice(0, 3);
+const featuredProducts = products
+  .filter((product) => product.isActive)
+  .slice(0, 3);
 
 export default function Home() {
   return (
@@ -58,3 +60,5 @@ export default function Home() {
     </main>
   );
 }
+
+
