@@ -1,3 +1,4 @@
+import LikeButton from "@/components/LikeButton";
 import ProductPurchasePanel from "@/components/ProductPurchasePanel";
 import { products } from "@/data/products";
 import { notFound } from "next/navigation";
@@ -49,6 +50,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
                     <p className="mt-6 max-w-md text-gray-600">
                         {product.description}
                     </p>
+
+                    <div className="mt-6">
+                        <LikeButton slug={product.slug} variant="full" />
+                    </div>
 
                     <ProductPurchasePanel
                         product={{
