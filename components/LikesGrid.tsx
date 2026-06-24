@@ -1,0 +1,191 @@
+"use client";
+
+import { useLikes } from "@/hooks/useLikes";
+import { clearLikes, removeLike } from "@/lib/likes";
+import { products } from "@/data/products";
+
+function formatDate(iso: string) {
+  try {
+    return new Intl.DateTimeFormat("es-MX", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(iso));
+  } catch {
+    return "";
+  }
+}
+
+export default function LikesGrid() {
+  const { likes, loaded } = useLikes();
+
+  if (!loaded) {
+    return <p className="mt-8 text-gray-600">Cargando favoritos…</p>;
+  }
+
+  const likedProducts = likes
+    .map((like) => {
+      const product = products.find((item) => item.slug === like.slug);
+      return product ? { product, likedAt: like.likedAt } : null;
+    })
+    .filter((item): item is { product: typeof products[number]; likedAt: string } => item !== null);
+
+  if (likedProducts.length === 0) {
+    return (
+      <div className="mt-12 rounded-3xl border bg-white p-12 text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f7f3ee]">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+        </div>
+
+        <h2 className="mt-6 text-2xl font-semibold">
+          Aún no tienes favoritos
+        </h2>
+
+        <p className="mt-3 text-gray-600">
+          Toca el corazón en cualquier modelo para guardarlo aquí.
+        </p>
+
+        <div className="mt-6 flex justify-center gap-3">
+          <a
+            href="/eyeglasses"
+            className="rounded-full bg-black px-6 py-3 text-white"
+          >
+            Ver lentes ópticos
+          </a>
+          <a
+            href="/sunglasses"
+            className="rounded-full border border-black px-6 py-3"
+          >
+            Ver lentes de sol
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  function addAllToCart() {
+    const cart = JSON.parse(localStorage.getItem("olm-cart") || "[]");
+    let added = 0;
+
+    likedProducts.forEach(({ product }) => {
+      if (product.stock <= 0) return;
+      const slug = `${product.slug}-single-vision-upload-later`;
+      const exists = cart.find((item: { slug: string }) => item.slug === slug);
+      if (exists) {
+        exists.quantity += 1;
+      } else {
+        cart.push({
+          slug,
+          name: product.name,
+          price: product.price,
+          quantity: 1,
+          lensOption: "Graduación sencilla",
+          prescriptionMethod: "Subir receta después",
+        });
+      }
+      added += 1;
+    });
+
+    localStorage.setItem("olm-cart", JSON.stringify(cart));
+    alert(`${added} producto(s) agregado(s) al carrito.`);
+    window.location.href = "/cart";
+  }
+
+  return (
+    <>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+        <p className="text-sm text-gray-600">
+          {likedProducts.length}{" "}
+          {likedProducts.length === 1 ? "modelo guardado" : "modelos guardados"}
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            onClick={addAllToCart}
+            className="rounded-full bg-black px-5 py-2 text-sm text-white"
+          >
+            Agregar todo al carrito
+          </button>
+          <button
+            onClick={() => {
+              if (confirm("¿Quitar todos los favoritos?")) clearLikes();
+            }}
+            className="rounded-full border border-black px-5 py-2 text-sm"
+          >
+            Vaciar lista
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {likedProducts.map(({ product, likedAt }) => {
+          const isOutOfStock = product.stock <= 0;
+
+          return (
+            <div
+              key={product.slug}
+              className="overflow-hidden rounded-2xl border bg-white"
+            >
+              <a href={`/product/${product.slug}`} className="block">
+                <div
+                  className="relative flex h-52 items-center justify-center"
+                  style={{ backgroundColor: product.color }}
+                >
+                  <span className="text-sm text-gray-500">
+                    Imagen del producto
+                  </span>
+                  {isOutOfStock && (
+                    <span className="absolute left-3 top-3 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+                      Agotado
+                    </span>
+                  )}
+                </div>
+              </a>
+
+              <div className="p-5">
+                <p className="text-xs uppercase tracking-widest text-gray-500">
+                  {product.category}
+                </p>
+                <h3 className="mt-1 text-lg font-semibold">{product.name}</h3>
+                <p className="mt-1 text-gray-700">
+                  ${product.price.toLocaleString("es-MX")} MXN
+                </p>
+                <p className="mt-2 text-xs text-gray-500">
+                  Guardado el {formatDate(likedAt)}
+                </p>
+
+                <div className="mt-4 flex gap-2">
+                  <a
+                    href={`/product/${product.slug}`}
+                    className="flex-1 rounded-full bg-black px-4 py-2 text-center text-sm text-white"
+                  >
+                    Ver detalle
+                  </a>
+                  <button
+                    onClick={() => removeLike(product.slug)}
+                    className="rounded-full border px-4 py-2 text-sm hover:border-black"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
