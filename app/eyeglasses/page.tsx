@@ -1,23 +1,14 @@
-import CatalogBrowser from "@/components/CatalogBrowser";
-import { products } from "@/data/products";
-
-const eyeglasses = products.filter(
-  (product) => product.type === "eyeglasses" && product.isActive
-);
+import PublicProductCatalog from "@/components/PublicProductCatalog";
 
 export default function EyeglassesPage() {
   return (
-    <main className="min-h-screen bg-white px-6 py-12 text-black">
-      <section className="mx-auto max-w-6xl">
-        <h1 className="text-4xl font-bold">Lentes ópticos</h1>
-
-        <p className="mt-4 max-w-2xl text-gray-600">
-          Explora nuestra colección de armazones modernos para todos los días.
-        </p>
-
-        <CatalogBrowser products={eyeglasses} />
-      </section>
-    </main>
+    <PublicProductCatalog
+      type="eyeglasses"
+      title="Lentes ópticos"
+      description="Explora nuestra colección de armazones modernos para todos los días."
+    />
   );
 }
+
+
 

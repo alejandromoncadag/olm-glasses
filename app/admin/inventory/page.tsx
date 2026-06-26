@@ -1,9 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { products } from "@/data/products";
-import type { Product } from "@/types/product";
+import { useEffect, useState } from "react";
 import AdminNav from "@/components/AdminNav";
+
+type Product = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  price: number;
+  priceCents: number;
+  currency: string;
+  category: string;
+  type: "eyeglasses" | "sunglasses";
+  gender: string;
+  shape: string;
+  frameColor: string;
+  stock: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
 
 type InventoryStatus =
   | "all"
@@ -45,8 +62,99 @@ function getInventoryStatus(product: Product) {
 }
 
 export default function AdminInventoryPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [editedStock, setEditedStock] = useState<Record<string, number>>({});
+  const [editedActive, setEditedActive] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<InventoryStatus>("all");
+  const [loading, setLoading] = useState(true);
+  const [savingSlug, setSavingSlug] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  async function fetchProducts() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await fetch("/api/products");
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch products");
+      }
+
+      const data = await response.json();
+      const dbProducts: Product[] = data.products;
+
+      setProducts(dbProducts);
+
+      const stockValues: Record<string, number> = {};
+      const activeValues: Record<string, boolean> = {};
+
+      dbProducts.forEach((product) => {
+        stockValues[product.slug] = product.stock;
+        activeValues[product.slug] = product.isActive;
+      });
+
+      setEditedStock(stockValues);
+      setEditedActive(activeValues);
+    } catch (error) {
+      console.error(error);
+      setError("No pudimos cargar el inventario desde PostgreSQL.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  async function saveProduct(product: Product) {
+    try {
+      setSavingSlug(product.slug);
+
+      const nextStock = editedStock[product.slug];
+      const nextIsActive = editedActive[product.slug];
+
+      if (!Number.isInteger(nextStock) || nextStock < 0) {
+        alert("El stock debe ser un número entero mayor o igual a 0.");
+        return;
+      }
+
+      const response = await fetch(`/api/products/${product.slug}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          stock: nextStock,
+          isActive: nextIsActive,
+          reason: "Admin inventory update",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update product");
+      }
+
+      const data = await response.json();
+
+      setProducts((currentProducts) =>
+        currentProducts.map((currentProduct) =>
+          currentProduct.slug === product.slug
+            ? data.product
+            : currentProduct
+        )
+      );
+
+      alert("Inventario actualizado correctamente.");
+    } catch (error) {
+      console.error(error);
+      alert("No pudimos actualizar el inventario.");
+    } finally {
+      setSavingSlug(null);
+    }
+  }
 
   const totalStock = products.reduce((sum, product) => sum + product.stock, 0);
 
@@ -88,13 +196,47 @@ export default function AdminInventoryPage() {
     return matchesStatus && matchesSearch;
   });
 
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-white px-6 py-12 text-black">
+        <section className="mx-auto max-w-6xl">
+          <h1 className="text-4xl font-bold">Inventario</h1>
+
+          <p className="mt-4 text-gray-600">
+            Cargando inventario desde PostgreSQL...
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-white px-6 py-12 text-black">
+        <section className="mx-auto max-w-6xl">
+          <h1 className="text-4xl font-bold">Inventario</h1>
+
+          <p className="mt-4 text-red-600">{error}</p>
+
+          <button
+            onClick={fetchProducts}
+            className="mt-6 rounded-full bg-black px-6 py-3 text-white"
+          >
+            Intentar de nuevo
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
       <section className="mx-auto max-w-6xl">
         <h1 className="text-4xl font-bold">Inventario</h1>
 
         <p className="mt-4 text-gray-600">
-          Vista temporal del inventario de productos.
+          Inventario conectado a PostgreSQL. Aquí puedes actualizar stock y
+          disponibilidad.
         </p>
 
         <AdminNav />
@@ -201,11 +343,12 @@ export default function AdminInventoryPage() {
           </div>
         ) : (
           <div className="mt-10 overflow-hidden rounded-2xl border">
-            <div className="grid grid-cols-4 bg-gray-50 px-5 py-3 text-sm font-semibold text-gray-600">
+            <div className="hidden grid-cols-5 bg-gray-50 px-5 py-3 text-sm font-semibold text-gray-600 md:grid">
               <span>Producto</span>
               <span>Categoría</span>
               <span>Stock</span>
               <span>Estado</span>
+              <span>Acción</span>
             </div>
 
             {filteredProducts.map((product) => {
@@ -214,26 +357,74 @@ export default function AdminInventoryPage() {
               return (
                 <div
                   key={product.slug}
-                  className="grid grid-cols-4 border-t px-5 py-4 text-sm"
+                  className="grid gap-4 border-t px-5 py-5 text-sm md:grid-cols-5 md:items-center"
                 >
-                  <span className="font-medium">{product.name}</span>
+                  <div>
+                    <p className="font-medium">{product.name}</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {product.slug}
+                    </p>
+                  </div>
 
-                  <span className="text-gray-600">{product.category}</span>
+                  <p className="text-gray-600">{product.category}</p>
 
-                  <span>{product.stock}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editedStock[product.slug] ?? product.stock}
+                    onChange={(event) =>
+                      setEditedStock((currentStock) => ({
+                        ...currentStock,
+                        [product.slug]: Number(event.target.value),
+                      }))
+                    }
+                    className="w-24 rounded-xl border px-3 py-2"
+                  />
 
-                  <span>
+                  <div className="space-y-3">
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${status.className}`}
+                      className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${status.className}`}
                     >
                       {status.label}
                     </span>
-                  </span>
+
+                    <label className="flex items-center gap-2 text-xs text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={editedActive[product.slug] ?? product.isActive}
+                        onChange={(event) =>
+                          setEditedActive((currentActive) => ({
+                            ...currentActive,
+                            [product.slug]: event.target.checked,
+                          }))
+                        }
+                      />
+                      Activo
+                    </label>
+                  </div>
+
+                  <button
+                    onClick={() => saveProduct(product)}
+                    disabled={savingSlug === product.slug}
+                    className="w-fit rounded-full bg-black px-5 py-2 text-sm text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+                  >
+                    {savingSlug === product.slug ? "Guardando..." : "Guardar"}
+                  </button>
                 </div>
               );
             })}
           </div>
         )}
+
+        <div className="mt-8">
+          <a
+            href="/api/inventory-movements"
+            target="_blank"
+            className="text-sm font-medium underline"
+          >
+            Ver historial de movimientos de inventario
+          </a>
+        </div>
       </section>
     </main>
   );

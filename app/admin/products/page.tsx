@@ -1,9 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AdminNav from "@/components/AdminNav";
-import { products } from "@/data/products";
-import type { Product } from "@/types/product";
+
+type Product = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  price: number;
+  priceCents: number;
+  currency: string;
+  category: string;
+  type: "eyeglasses" | "sunglasses";
+  gender: string;
+  shape: string;
+  frameColor: string;
+  stock: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
 
 type ProductStatus =
   | "all"
@@ -45,8 +62,36 @@ function getProductStatus(product: Product) {
 }
 
 export default function AdminProductsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProductStatus>("all");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function fetchProducts() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await fetch("/api/products");
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch products");
+      }
+
+      const data = await response.json();
+      setProducts(data.products);
+    } catch (error) {
+      console.error(error);
+      setError("No pudimos cargar los productos desde PostgreSQL.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
 
@@ -76,17 +121,60 @@ export default function AdminProductsPage() {
     return matchesStatus && matchesSearch;
   });
 
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-white px-6 py-12 text-black">
+        <section className="mx-auto max-w-6xl">
+          <h1 className="text-4xl font-bold">Productos</h1>
+
+          <p className="mt-4 text-gray-600">
+            Cargando productos desde PostgreSQL...
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-white px-6 py-12 text-black">
+        <section className="mx-auto max-w-6xl">
+          <h1 className="text-4xl font-bold">Productos</h1>
+
+          <p className="mt-4 text-red-600">{error}</p>
+
+          <button
+            onClick={fetchProducts}
+            className="mt-6 rounded-full bg-black px-6 py-3 text-white"
+          >
+            Intentar de nuevo
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
       <section className="mx-auto max-w-6xl">
         <h1 className="text-4xl font-bold">Productos</h1>
 
         <p className="mt-4 text-gray-600">
-          Vista temporal del catálogo actual. Más adelante podrás editar estos
-          productos desde una base de datos.
+          Catálogo conectado a PostgreSQL. Aquí puedes revisar productos,
+          precios, stock y estado.
         </p>
 
         <AdminNav />
+
+        <div className="mt-8 flex justify-end">
+          <a
+            href="/admin/products/new"
+            className="rounded-full bg-black px-6 py-3 text-sm font-medium text-white"
+          >
+            Agregar producto
+          </a>
+        </div>
+
 
         <div className="mt-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <input
@@ -99,53 +187,48 @@ export default function AdminProductsPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setStatusFilter("all")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "all" ? "border-black bg-black text-white" : ""
-              }`}
+              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "all" ? "border-black bg-black text-white" : ""
+                }`}
             >
               Todos
             </button>
 
             <button
               onClick={() => setStatusFilter("active")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "active"
-                  ? "border-black bg-black text-white"
-                  : ""
-              }`}
+              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "active"
+                ? "border-black bg-black text-white"
+                : ""
+                }`}
             >
               Activos
             </button>
 
             <button
               onClick={() => setStatusFilter("low-stock")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "low-stock"
-                  ? "border-black bg-black text-white"
-                  : ""
-              }`}
+              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "low-stock"
+                ? "border-black bg-black text-white"
+                : ""
+                }`}
             >
               Stock bajo
             </button>
 
             <button
               onClick={() => setStatusFilter("out-of-stock")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "out-of-stock"
-                  ? "border-black bg-black text-white"
-                  : ""
-              }`}
+              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "out-of-stock"
+                ? "border-black bg-black text-white"
+                : ""
+                }`}
             >
               Agotados
             </button>
 
             <button
               onClick={() => setStatusFilter("inactive")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "inactive"
-                  ? "border-black bg-black text-white"
-                  : ""
-              }`}
+              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "inactive"
+                ? "border-black bg-black text-white"
+                : ""
+                }`}
             >
               Inactivos
             </button>
@@ -177,10 +260,7 @@ export default function AdminProductsPage() {
                   className="rounded-2xl border p-6 transition hover:shadow-sm"
                 >
                   <div className="grid gap-6 md:grid-cols-[140px_1fr_auto]">
-                    <div
-                      className="flex h-32 items-center justify-center rounded-xl"
-                      style={{ backgroundColor: product.color }}
-                    >
+                    <div className="flex h-32 items-center justify-center rounded-xl bg-gray-100">
                       <span className="text-xs text-gray-500">Imagen</span>
                     </div>
 
@@ -217,6 +297,10 @@ export default function AdminProductsPage() {
                         <span className="rounded-full bg-gray-100 px-3 py-1">
                           {product.frameColor}
                         </span>
+
+                        <span className="rounded-full bg-gray-100 px-3 py-1">
+                          {product.type}
+                        </span>
                       </div>
                     </div>
 
@@ -229,12 +313,25 @@ export default function AdminProductsPage() {
                         Stock: {product.stock}
                       </p>
 
-                      <a
-                        href={`/product/${product.slug}`}
-                        className="mt-5 inline-block rounded-full border px-5 py-2 text-sm"
-                      >
-                        Ver producto
-                      </a>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Slug: {product.slug}
+                      </p>
+
+                      <div className="mt-5 flex flex-col gap-2 md:items-end">
+                        <a
+                          href={`/product/${product.slug}`}
+                          className="inline-block rounded-full border px-5 py-2 text-center text-sm"
+                        >
+                          Ver producto
+                        </a>
+
+                        <a
+                          href={`/admin/products/${product.slug}/edit`}
+                          className="inline-block rounded-full bg-black px-5 py-2 text-center text-sm text-white"
+                        >
+                          Editar
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -246,4 +343,5 @@ export default function AdminProductsPage() {
     </main>
   );
 }
+
 

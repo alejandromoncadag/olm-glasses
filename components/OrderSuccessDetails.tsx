@@ -2,58 +2,137 @@
 
 import { useEffect, useState } from "react";
 
-type CartItem = {
-  slug: string;
-  name: string;
-  price: number;
+type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
+
+type OrderItem = {
+  id?: string;
+  productName?: string;
+  productSlug?: string;
+  name?: string;
+  slug?: string;
+  unitPrice?: number;
+  price?: number;
   quantity: number;
+  lineTotal?: number;
   lensOption: string;
   prescriptionMethod: string;
 };
 
-type CheckoutCustomer = {
-  fullName?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-};
-
 type Order = {
+  id?: string;
   orderNumber: string;
   createdAt: string;
-  status: "pending" | "processing" | "completed";
-  customer: CheckoutCustomer;
-  items: CartItem[];
+  status: OrderStatus;
+  paymentStatus?: string;
+  customer: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+  };
+  items: OrderItem[];
   subtotal: number;
+  shipping?: number;
   total: number;
+  currency?: string;
 };
 
-function getStatusLabel(status: Order["status"]) {
+function getStatusLabel(status: OrderStatus) {
   if (status === "pending") return "Pendiente";
   if (status === "processing") return "En proceso";
   if (status === "completed") return "Completado";
+  if (status === "cancelled") return "Cancelado";
 
   return "Pendiente";
 }
 
+function getPaymentStatusLabel(status?: string) {
+  if (status === "unpaid") return "Sin pagar";
+  if (status === "pending") return "Pago pendiente";
+  if (status === "paid") return "Pagado";
+  if (status === "failed") return "Pago fallido";
+  if (status === "refunded") return "Reembolsado";
+
+  return "Por confirmar";
+}
+
+function getItemName(item: OrderItem) {
+  return item.productName || item.name || "Producto";
+}
+
+function getItemPrice(item: OrderItem) {
+  return item.unitPrice ?? item.price ?? 0;
+}
+
+function getItemTotal(item: OrderItem) {
+  return item.lineTotal ?? getItemPrice(item) * item.quantity;
+}
+
 export default function OrderSuccessDetails() {
   const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedOrder = localStorage.getItem("olm-latest-order");
+    async function loadOrder() {
+      try {
+        const savedOrder = localStorage.getItem("olm-latest-order");
 
-    if (savedOrder) {
-      setOrder(JSON.parse(savedOrder));
+        if (!savedOrder) {
+          setOrder(null);
+          return;
+        }
+
+        const parsedOrder = JSON.parse(savedOrder) as Order;
+
+        const response = await fetch(`/api/orders/${parsedOrder.orderNumber}`);
+
+        if (!response.ok) {
+          setOrder(parsedOrder);
+          return;
+        }
+
+        const data = await response.json();
+        setOrder(data.order);
+      } catch (error) {
+        console.error(error);
+
+        const savedOrder = localStorage.getItem("olm-latest-order");
+
+        if (savedOrder) {
+          setOrder(JSON.parse(savedOrder));
+        } else {
+          setOrder(null);
+        }
+      } finally {
+        setLoading(false);
+      }
     }
+
+    loadOrder();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border p-8 text-center">
+        <h2 className="text-2xl font-semibold">Cargando pedido...</h2>
+
+        <p className="mt-3 text-gray-600">
+          Estamos leyendo los detalles desde PostgreSQL.
+        </p>
+      </div>
+    );
+  }
 
   if (!order) {
     return (
       <div className="rounded-2xl border p-8 text-center">
-        <h2 className="text-2xl font-semibold">No encontramos un pedido reciente</h2>
+        <h2 className="text-2xl font-semibold">
+          No encontramos un pedido reciente
+        </h2>
 
         <p className="mt-3 text-gray-600">
           Puedes regresar a la tienda y hacer una nueva compra.
@@ -85,12 +164,12 @@ export default function OrderSuccessDetails() {
         <h1 className="mt-6 text-4xl font-bold">Pedido recibido</h1>
 
         <p className="mt-3 text-gray-600">
-          Gracias por tu compra. Hemos guardado tu pedido correctamente.
+          Gracias por tu compra. Hemos guardado tu pedido en PostgreSQL.
         </p>
       </div>
 
       <div className="mt-8 rounded-2xl bg-gray-50 p-5">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <div>
             <p className="text-sm text-gray-500">Número de pedido</p>
             <p className="mt-1 font-semibold">{order.orderNumber}</p>
@@ -105,6 +184,13 @@ export default function OrderSuccessDetails() {
             <p className="text-sm text-gray-500">Estado</p>
             <p className="mt-1 font-semibold">{getStatusLabel(order.status)}</p>
           </div>
+
+          <div>
+            <p className="text-sm text-gray-500">Pago</p>
+            <p className="mt-1 font-semibold">
+              {getPaymentStatusLabel(order.paymentStatus)}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -112,11 +198,11 @@ export default function OrderSuccessDetails() {
         <h2 className="text-2xl font-semibold">Resumen del pedido</h2>
 
         <div className="mt-4 space-y-4">
-          {order.items.map((item) => (
-            <div key={item.slug} className="rounded-2xl border p-5">
+          {order.items.map((item, index) => (
+            <div key={item.id || index} className="rounded-2xl border p-5">
               <div className="flex justify-between gap-4">
                 <div>
-                  <h3 className="font-semibold">{item.name}</h3>
+                  <h3 className="font-semibold">{getItemName(item)}</h3>
 
                   <p className="mt-1 text-sm text-gray-600">
                     {item.lensOption}
@@ -132,7 +218,7 @@ export default function OrderSuccessDetails() {
                 </div>
 
                 <p className="font-semibold">
-                  ${(item.price * item.quantity).toLocaleString("es-MX")} MXN
+                  ${getItemTotal(item).toLocaleString("es-MX")} MXN
                 </p>
               </div>
             </div>
@@ -148,7 +234,11 @@ export default function OrderSuccessDetails() {
 
         <div className="mt-3 flex justify-between text-gray-600">
           <span>Envío</span>
-          <span>Por confirmar</span>
+          <span>
+            {order.shipping !== undefined
+              ? `$${order.shipping.toLocaleString("es-MX")} MXN`
+              : "Por confirmar"}
+          </span>
         </div>
 
         <div className="mt-5 border-t pt-5">
@@ -190,6 +280,7 @@ export default function OrderSuccessDetails() {
     </div>
   );
 }
+
 
 
 
