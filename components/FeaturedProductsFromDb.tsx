@@ -16,6 +16,10 @@ type ApiProduct = {
   frameColor: string;
   stock: number;
   isActive: boolean;
+  mainImage: {
+    imageUrl: string;
+    altText: string | null;
+  } | null;
 };
 
 function getCardColor(frameColor: string) {
@@ -74,6 +78,7 @@ export default function FeaturedProductsFromDb() {
             frameColor: normalizeFrameColor(product.frameColor),
             stock: product.stock,
             isActive: product.isActive,
+            mainImage: product.mainImage,
           }));
 
         setProducts(featuredProducts);

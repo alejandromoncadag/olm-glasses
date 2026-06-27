@@ -11,6 +11,9 @@ export type Product = {
   frameColor: "negro" | "transparente" | "cafe" | "dorado";
   stock: number;
   isActive: boolean;
+  mainImage?: {
+    imageUrl: string;
+    altText?: string | null;
+  } | null;
 };
-
 

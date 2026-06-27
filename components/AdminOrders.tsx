@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
+
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
 
 type OrderItem = {
-  id: string;
-  productName: string;
+  id?: string;
   productSlug: string;
+  productName: string;
   unitPrice: number;
   quantity: number;
   lineTotal: number;
@@ -29,9 +30,9 @@ type Order = {
   createdAt: string;
   updatedAt?: string;
   customer: {
-    fullName: string;
-    email: string;
-    phone: string;
+    fullName?: string;
+    email?: string;
+    phone?: string;
     address?: string;
     city?: string;
     state?: string;
@@ -69,6 +70,16 @@ function getPaymentStatusLabel(status: PaymentStatus) {
   return "Sin pagar";
 }
 
+function getPaymentStatusClassName(status: PaymentStatus) {
+  if (status === "unpaid") return "bg-gray-100 text-gray-700";
+  if (status === "pending") return "bg-yellow-100 text-yellow-800";
+  if (status === "paid") return "bg-green-100 text-green-700";
+  if (status === "failed") return "bg-red-100 text-red-700";
+  if (status === "refunded") return "bg-purple-100 text-purple-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString("es-MX", {
     year: "numeric",
@@ -77,12 +88,19 @@ function formatDate(date: string) {
   });
 }
 
+function formatMoney(amount: number) {
+  return `$${amount.toLocaleString("es-MX")} MXN`;
+}
+
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [adminNotesDrafts, setAdminNotesDrafts] = useState<
+    Record<string, string>
+  >({});
 
   async function fetchOrders() {
     try {
@@ -99,21 +117,39 @@ export default function AdminOrders() {
 
       const detailedOrders: Order[] = await Promise.all(
         data.orders.map(async (order: Order) => {
-          const detailResponse = await fetch(`/api/orders/${order.orderNumber}`);
+          try {
+            const detailResponse = await fetch(
+              `/api/orders/${order.orderNumber}`
+            );
 
-          if (!detailResponse.ok) {
+            if (!detailResponse.ok) {
+              return {
+                ...order,
+                items: order.items || [],
+              };
+            }
+
+            const detailData = await detailResponse.json();
+            return detailData.order;
+          } catch {
             return {
               ...order,
-              items: [],
+              items: order.items || [],
             };
           }
-
-          const detailData = await detailResponse.json();
-          return detailData.order;
         })
       );
 
       setOrders(detailedOrders);
+
+      setAdminNotesDrafts(
+        Object.fromEntries(
+          detailedOrders.map((order) => [
+            order.orderNumber,
+            order.adminNotes || "",
+          ])
+        )
+      );
     } catch (error) {
       console.error(error);
       setError("No pudimos cargar los pedidos desde PostgreSQL.");
@@ -126,23 +162,29 @@ export default function AdminOrders() {
     fetchOrders();
   }, []);
 
-  async function updateOrderStatus(orderNumber: string, status: OrderStatus) {
+  async function updateOrder(
+    orderNumber: string,
+    updates: {
+      status?: OrderStatus;
+      paymentStatus?: PaymentStatus;
+      adminNotes?: string;
+    }
+  ) {
     try {
       const response = await fetch(`/api/orders/${orderNumber}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          status,
-        }),
+        body: JSON.stringify(updates),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to update order");
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "No pudimos actualizar el pedido.");
+        return;
+      }
 
       setOrders((currentOrders) =>
         currentOrders.map((order) =>
@@ -157,9 +199,13 @@ export default function AdminOrders() {
             : order
         )
       );
+
+      if (updates.adminNotes !== undefined) {
+        alert("Notas guardadas correctamente.");
+      }
     } catch (error) {
       console.error(error);
-      alert("No pudimos actualizar el estado del pedido.");
+      alert("No pudimos actualizar el pedido.");
     }
   }
 
@@ -189,15 +235,18 @@ export default function AdminOrders() {
 
     const searchableText = [
       order.orderNumber,
-      order.customer.fullName,
-      order.customer.email,
-      order.customer.phone,
-      order.customer.address,
-      order.customer.city,
-      order.customer.state,
-      order.customer.zipCode,
-      order.items.map((item) => item.productName).join(" "),
+      order.customer?.fullName,
+      order.customer?.email,
+      order.customer?.phone,
+      order.customer?.address,
+      order.customer?.city,
+      order.customer?.state,
+      order.customer?.zipCode,
+      order.adminNotes,
+      ...order.items.map((item) => item.productName),
+      ...order.items.map((item) => item.productSlug),
     ]
+      .filter(Boolean)
       .join(" ")
       .toLowerCase();
 
@@ -223,7 +272,7 @@ export default function AdminOrders() {
   if (error) {
     return (
       <div className="rounded-2xl border p-8 text-center">
-        <h2 className="text-2xl font-semibold">Error al cargar pedidos</h2>
+        <h2 className="text-2xl font-semibold">No pudimos cargar pedidos</h2>
 
         <p className="mt-3 text-red-600">{error}</p>
 
@@ -233,25 +282,6 @@ export default function AdminOrders() {
         >
           Intentar de nuevo
         </button>
-      </div>
-    );
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div className="rounded-2xl border p-8 text-center">
-        <h2 className="text-2xl font-semibold">No hay pedidos todavía</h2>
-
-        <p className="mt-3 text-gray-600">
-          Cuando se cree un pedido en PostgreSQL, aparecerá aquí.
-        </p>
-
-        <a
-          href="/eyeglasses"
-          className="mt-6 inline-block rounded-full bg-black px-6 py-3 text-white"
-        >
-          Crear pedido de prueba
-        </a>
       </div>
     );
   }
@@ -289,7 +319,7 @@ export default function AdminOrders() {
         <input
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Buscar pedido, cliente, email o producto..."
+          placeholder="Buscar por pedido, cliente, email o producto..."
           className="w-full rounded-full border px-5 py-2 text-sm outline-none focus:border-black md:max-w-sm"
         />
 
@@ -354,7 +384,7 @@ export default function AdminOrders() {
       </p>
 
       {filteredOrders.length === 0 ? (
-        <div className="mt-8 rounded-2xl border p-8 text-center">
+        <div className="mt-10 rounded-2xl border p-8 text-center">
           <h2 className="text-2xl font-semibold">No encontramos pedidos</h2>
 
           <p className="mt-3 text-gray-600">
@@ -362,42 +392,45 @@ export default function AdminOrders() {
           </p>
         </div>
       ) : (
-        <div className="mt-8 space-y-6">
+        <div className="mt-10 space-y-6">
           {filteredOrders.map((order) => (
-            <div key={order.orderNumber} className="rounded-2xl border p-6">
-              <div className="flex flex-col justify-between gap-4 border-b pb-5 md:flex-row">
+            <article key={order.orderNumber} className="rounded-2xl border p-6">
+              <div className="flex flex-col justify-between gap-4 md:flex-row">
                 <div>
-                  <p className="text-sm text-gray-500">Pedido</p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl font-semibold">
+                      {order.orderNumber}
+                    </h2>
 
-                  <h2 className="mt-1 text-2xl font-semibold">
-                    {order.orderNumber}
-                  </h2>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClassName(
+                        order.status
+                      )}`}
+                    >
+                      {getStatusLabel(order.status)}
+                    </span>
 
-                  <p className="mt-2 text-sm text-gray-600">
-                    {formatDate(order.createdAt)}
-                  </p>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getPaymentStatusClassName(
+                        order.paymentStatus
+                      )}`}
+                    >
+                      {getPaymentStatusLabel(order.paymentStatus)}
+                    </span>
+                  </div>
 
-                  <p className="mt-2 text-sm text-gray-600">
-                    Pago: {getPaymentStatusLabel(order.paymentStatus)}
+                  <p className="mt-2 text-sm text-gray-500">
+                    Pedido creado el {formatDate(order.createdAt)}
                   </p>
                 </div>
 
                 <div className="flex flex-col gap-3 md:items-end">
-                  <span
-                    className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${getStatusClassName(
-                      order.status
-                    )}`}
-                  >
-                    {getStatusLabel(order.status)}
-                  </span>
-
                   <select
                     value={order.status}
                     onChange={(event) =>
-                      updateOrderStatus(
-                        order.orderNumber,
-                        event.target.value as OrderStatus
-                      )
+                      updateOrder(order.orderNumber, {
+                        status: event.target.value as OrderStatus,
+                      })
                     }
                     className="rounded-xl border px-3 py-2 text-sm"
                   >
@@ -406,110 +439,147 @@ export default function AdminOrders() {
                     <option value="completed">Completado</option>
                     <option value="cancelled">Cancelado</option>
                   </select>
+
+                  <select
+                    value={order.paymentStatus}
+                    onChange={(event) =>
+                      updateOrder(order.orderNumber, {
+                        paymentStatus: event.target.value as PaymentStatus,
+                      })
+                    }
+                    className="rounded-xl border px-3 py-2 text-sm"
+                  >
+                    <option value="unpaid">Sin pagar</option>
+                    <option value="pending">Pago pendiente</option>
+                    <option value="paid">Pagado</option>
+                    <option value="failed">Fallido</option>
+                    <option value="refunded">Reembolsado</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                <div>
+              <div className="mt-6 grid gap-6 md:grid-cols-2">
+                <div className="rounded-2xl bg-gray-50 p-5">
                   <h3 className="font-semibold">Cliente</h3>
 
-                  <div className="mt-3 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
+                  <div className="mt-3 space-y-1 text-sm text-gray-600">
+                    <p>{order.customer?.fullName || "Sin nombre"}</p>
+                    <p>{order.customer?.email || "Sin email"}</p>
+                    <p>{order.customer?.phone || "Sin teléfono"}</p>
                     <p>
-                      <span className="font-medium">Nombre:</span>{" "}
-                      {order.customer.fullName || "Sin nombre"}
-                    </p>
-
-                    <p className="mt-2">
-                      <span className="font-medium">Email:</span>{" "}
-                      {order.customer.email || "Sin email"}
-                    </p>
-
-                    <p className="mt-2">
-                      <span className="font-medium">Teléfono:</span>{" "}
-                      {order.customer.phone || "Sin teléfono"}
-                    </p>
-
-                    <p className="mt-2">
-                      <span className="font-medium">Dirección:</span>{" "}
-                      {order.customer.address || "Sin dirección"}
-                    </p>
-
-                    <p className="mt-2">
-                      <span className="font-medium">Ciudad:</span>{" "}
-                      {order.customer.city || "Sin ciudad"},{" "}
-                      {order.customer.state || "Sin estado"}{" "}
-                      {order.customer.zipCode || ""}
+                      {[
+                        order.customer?.address,
+                        order.customer?.city,
+                        order.customer?.state,
+                        order.customer?.zipCode,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "Sin dirección"}
                     </p>
                   </div>
-
-                  {order.adminNotes && (
-                    <div className="mt-4 rounded-2xl border p-4 text-sm text-gray-700">
-                      <p className="font-medium">Notas admin</p>
-                      <p className="mt-2">{order.adminNotes}</p>
-                    </div>
-                  )}
                 </div>
 
-                <div>
-                  <h3 className="font-semibold">Productos</h3>
+                <div className="rounded-2xl bg-gray-50 p-5">
+                  <h3 className="font-semibold">Totales</h3>
 
-                  <div className="mt-3 space-y-3">
-                    {order.items.length === 0 ? (
-                      <div className="rounded-2xl border p-4 text-sm text-gray-600">
-                        No hay productos cargados para este pedido.
+                  <div className="mt-3 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>{formatMoney(order.subtotal)}</span>
+                    </div>
+
+                    <div className="flex justify-between text-gray-600">
+                      <span>Envío</span>
+                      <span>{formatMoney(order.shipping || 0)}</span>
+                    </div>
+
+                    <div className="border-t pt-2">
+                      <div className="flex justify-between font-semibold">
+                        <span>Total</span>
+                        <span>{formatMoney(order.total)}</span>
                       </div>
-                    ) : (
-                      order.items.map((item) => (
-                        <div key={item.id} className="rounded-2xl border p-4">
-                          <div className="flex justify-between gap-4">
-                            <div>
-                              <p className="font-medium">{item.productName}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-                              <p className="mt-1 text-sm text-gray-600">
-                                {item.lensOption}
-                              </p>
+              <div className="mt-6">
+                <h3 className="font-semibold">Productos</h3>
 
-                              <p className="text-sm text-gray-600">
-                                {item.prescriptionMethod}
-                              </p>
+                <div className="mt-3 space-y-3">
+                  {order.items.length === 0 ? (
+                    <p className="text-sm text-gray-600">
+                      Este pedido no tiene productos registrados.
+                    </p>
+                  ) : (
+                    order.items.map((item, index) => (
+                      <div
+                        key={item.id || `${item.productSlug}-${index}`}
+                        className="rounded-2xl border p-4"
+                      >
+                        <div className="flex flex-col justify-between gap-3 md:flex-row">
+                          <div>
+                            <p className="font-medium">{item.productName}</p>
 
-                              <p className="mt-2 text-sm text-gray-500">
-                                Cantidad: {item.quantity}
-                              </p>
-                            </div>
+                            <p className="mt-1 text-sm text-gray-600">
+                              {item.lensOption}
+                            </p>
 
-                            <p className="font-semibold">
-                              ${item.lineTotal.toLocaleString("es-MX")} MXN
+                            <p className="text-sm text-gray-600">
+                              {item.prescriptionMethod}
+                            </p>
+
+                            <p className="mt-2 text-sm text-gray-500">
+                              Cantidad: {item.quantity}
+                            </p>
+                          </div>
+
+                          <div className="text-sm md:text-right">
+                            <p>{formatMoney(item.unitPrice)} c/u</p>
+                            <p className="mt-1 font-semibold">
+                              {formatMoney(item.lineTotal)}
                             </p>
                           </div>
                         </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="mt-5 rounded-2xl bg-gray-50 p-4">
-                    <div className="flex justify-between">
-                      <span>Subtotal</span>
-                      <span>${order.subtotal.toLocaleString("es-MX")} MXN</span>
-                    </div>
-
-                    <div className="mt-3 flex justify-between text-gray-600">
-                      <span>Envío</span>
-                      <span>${order.shipping.toLocaleString("es-MX")} MXN</span>
-                    </div>
-
-                    <div className="mt-3 flex justify-between font-semibold">
-                      <span>Total</span>
-                      <span>${order.total.toLocaleString("es-MX")} MXN</span>
-                    </div>
-                  </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
-            </div>
+
+              <div className="mt-6 rounded-2xl border p-4 text-sm text-gray-700">
+                <p className="font-medium">Notas admin</p>
+
+                <textarea
+                  value={adminNotesDrafts[order.orderNumber] || ""}
+                  onChange={(event) =>
+                    setAdminNotesDrafts((currentDrafts) => ({
+                      ...currentDrafts,
+                      [order.orderNumber]: event.target.value,
+                    }))
+                  }
+                  rows={3}
+                  placeholder="Ejemplo: Cliente pidió confirmar por WhatsApp."
+                  className="mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-black"
+                />
+
+                <button
+                  onClick={() =>
+                    updateOrder(order.orderNumber, {
+                      adminNotes: adminNotesDrafts[order.orderNumber] || "",
+                    })
+                  }
+                  className="mt-3 rounded-full bg-black px-4 py-2 text-sm text-white"
+                >
+                  Guardar notas
+                </button>
+              </div>
+            </article>
           ))}
         </div>
       )}
     </div>
   );
 }
+
 

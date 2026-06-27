@@ -89,6 +89,53 @@ export default function AdminProductsPage() {
     }
   }
 
+  async function toggleProductActive(product: Product) {
+    const action = product.isActive ? "desactivar" : "activar";
+
+    if (!confirm(`¿Seguro que quieres ${action} ${product.name}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/products/${product.slug}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          isActive: !product.isActive,
+          reason: product.isActive
+            ? "Admin deactivated product"
+            : "Admin activated product",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "No pudimos actualizar el producto.");
+        return;
+      }
+
+      setProducts((currentProducts) =>
+        currentProducts.map((currentProduct) =>
+          currentProduct.slug === product.slug ? data.product : currentProduct
+        )
+      );
+
+      alert(
+        product.isActive
+          ? "Producto desactivado correctamente."
+          : "Producto activado correctamente."
+      );
+    } catch (error) {
+      console.error(error);
+      alert("No pudimos actualizar el producto.");
+    }
+  }
+
+
+
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -317,6 +364,7 @@ export default function AdminProductsPage() {
                         Slug: {product.slug}
                       </p>
 
+
                       <div className="mt-5 flex flex-col gap-2 md:items-end">
                         <a
                           href={`/product/${product.slug}`}
@@ -331,7 +379,18 @@ export default function AdminProductsPage() {
                         >
                           Editar
                         </a>
+
+                        <button
+                          onClick={() => toggleProductActive(product)}
+                          className={`inline-block rounded-full px-5 py-2 text-center text-sm ${product.isActive
+                              ? "border border-red-200 text-red-600"
+                              : "border border-green-200 text-green-700"
+                            }`}
+                        >
+                          {product.isActive ? "Desactivar" : "Activar"}
+                        </button>
                       </div>
+
                     </div>
                   </div>
                 </div>
@@ -343,5 +402,7 @@ export default function AdminProductsPage() {
     </main>
   );
 }
+
+
 
 

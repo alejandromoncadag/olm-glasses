@@ -18,6 +18,8 @@ export default function ProductGrid({ products }: ProductGridProps) {
           color={product.color}
           href={`/product/${product.slug}`}
           stock={product.stock}
+          imageUrl={product.mainImage?.imageUrl}
+          imageAltText={product.mainImage?.altText}
         />
       ))}
     </div>
