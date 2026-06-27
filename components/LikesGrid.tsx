@@ -1,8 +1,27 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useLikes } from "@/hooks/useLikes";
 import { clearLikes, removeLike } from "@/lib/likes";
-import { products } from "@/data/products";
+
+type ApiProduct = {
+  slug: string;
+  name: string;
+  price: number;
+  category: string;
+  frameColor: string;
+  stock: number;
+  isActive: boolean;
+  mainImage: {
+    imageUrl: string;
+    altText: string | null;
+  } | null;
+};
+
+type LikedProduct = {
+  product: ApiProduct;
+  likedAt: string;
+};
 
 function formatDate(iso: string) {
   try {
@@ -16,19 +35,70 @@ function formatDate(iso: string) {
   }
 }
 
+function getCardColor(frameColor: string) {
+  const color = frameColor.toLowerCase();
+
+  if (color.includes("transparente")) return "#f3f4f6";
+  if (color.includes("cafe") || color.includes("café")) return "#8b5e3c";
+  if (color.includes("dorado")) return "#d6b35a";
+  if (color.includes("negro")) return "#111827";
+
+  return "#f3f4f6";
+}
+
 export default function LikesGrid() {
   const { likes, loaded } = useLikes();
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [error, setError] = useState("");
 
-  if (!loaded) {
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        setLoadingProducts(true);
+        setError("");
+
+        const response = await fetch("/api/products");
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch products");
+        }
+
+        const data = await response.json();
+        setProducts(data.products);
+      } catch (error) {
+        console.error(error);
+        setError("No pudimos cargar tus favoritos desde PostgreSQL.");
+      } finally {
+        setLoadingProducts(false);
+      }
+    }
+
+    fetchProducts();
+  }, []);
+
+  if (!loaded || loadingProducts) {
     return <p className="mt-8 text-gray-600">Cargando favoritos…</p>;
   }
 
-  const likedProducts = likes
+  if (error) {
+    return <p className="mt-8 text-red-600">{error}</p>;
+  }
+
+  const likedProducts: LikedProduct[] = likes
     .map((like) => {
       const product = products.find((item) => item.slug === like.slug);
-      return product ? { product, likedAt: like.likedAt } : null;
+
+      if (!product || !product.isActive) {
+        return null;
+      }
+
+      return {
+        product,
+        likedAt: like.likedAt,
+      };
     })
-    .filter((item): item is { product: typeof products[number]; likedAt: string } => item !== null);
+    .filter((item): item is LikedProduct => item !== null);
 
   if (likedProducts.length === 0) {
     return (
@@ -65,6 +135,7 @@ export default function LikesGrid() {
           >
             Ver lentes ópticos
           </a>
+
           <a
             href="/sunglasses"
             className="rounded-full border border-black px-6 py-3"
@@ -81,9 +152,12 @@ export default function LikesGrid() {
     let added = 0;
 
     likedProducts.forEach(({ product }) => {
-      if (product.stock <= 0) return;
+      if (product.stock <= 0 || !product.isActive) return;
+
       const slug = `${product.slug}-single-vision-upload-later`;
+
       const exists = cart.find((item: { slug: string }) => item.slug === slug);
+
       if (exists) {
         exists.quantity += 1;
       } else {
@@ -96,6 +170,7 @@ export default function LikesGrid() {
           prescriptionMethod: "Subir receta después",
         });
       }
+
       added += 1;
     });
 
@@ -119,6 +194,7 @@ export default function LikesGrid() {
           >
             Agregar todo al carrito
           </button>
+
           <button
             onClick={() => {
               if (confirm("¿Quitar todos los favoritos?")) clearLikes();
@@ -141,12 +217,21 @@ export default function LikesGrid() {
             >
               <a href={`/product/${product.slug}`} className="block">
                 <div
-                  className="relative flex h-52 items-center justify-center"
-                  style={{ backgroundColor: product.color }}
+                  className="relative flex h-52 items-center justify-center overflow-hidden"
+                  style={{ backgroundColor: getCardColor(product.frameColor) }}
                 >
-                  <span className="text-sm text-gray-500">
-                    Imagen del producto
-                  </span>
+                  {product.mainImage ? (
+                    <img
+                      src={product.mainImage.imageUrl}
+                      alt={product.mainImage.altText || product.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm text-gray-500">
+                      Imagen del producto
+                    </span>
+                  )}
+
                   {isOutOfStock && (
                     <span className="absolute left-3 top-3 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
                       Agotado
@@ -159,10 +244,13 @@ export default function LikesGrid() {
                 <p className="text-xs uppercase tracking-widest text-gray-500">
                   {product.category}
                 </p>
+
                 <h3 className="mt-1 text-lg font-semibold">{product.name}</h3>
+
                 <p className="mt-1 text-gray-700">
                   ${product.price.toLocaleString("es-MX")} MXN
                 </p>
+
                 <p className="mt-2 text-xs text-gray-500">
                   Guardado el {formatDate(likedAt)}
                 </p>
@@ -174,6 +262,7 @@ export default function LikesGrid() {
                   >
                     Ver detalle
                   </a>
+
                   <button
                     onClick={() => removeLike(product.slug)}
                     className="rounded-full border px-4 py-2 text-sm hover:border-black"
@@ -189,5 +278,4 @@ export default function LikesGrid() {
     </>
   );
 }
-
 

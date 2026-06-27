@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { products } from "@/data/products";
 import AdminNav from "@/components/AdminNav";
 
-type OrderStatus = "pending" | "processing" | "completed";
+type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 
 type Order = {
   orderNumber: string;
@@ -12,15 +11,48 @@ type Order = {
   status: OrderStatus;
 };
 
+type Product = {
+  slug: string;
+  name: string;
+  stock: number;
+  isActive: boolean;
+};
+
 export default function AdminPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function fetchAdminData() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const [ordersResponse, productsResponse] = await Promise.all([
+        fetch("/api/orders"),
+        fetch("/api/products"),
+      ]);
+
+      if (!ordersResponse.ok || !productsResponse.ok) {
+        throw new Error("Failed to fetch admin data");
+      }
+
+      const ordersData = await ordersResponse.json();
+      const productsData = await productsResponse.json();
+
+      setOrders(ordersData.orders);
+      setProducts(productsData.products);
+    } catch (error) {
+      console.error(error);
+      setError("No pudimos cargar el panel admin desde PostgreSQL.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    const savedOrders = localStorage.getItem("olm-orders");
-
-    if (savedOrders) {
-      setOrders(JSON.parse(savedOrders));
-    }
+    fetchAdminData();
   }, []);
 
   const totalOrders = orders.length;
@@ -47,15 +79,49 @@ export default function AdminPage() {
     (product) => product.isActive && product.stock === 0
   ).length;
 
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-white px-6 py-12 text-black">
+        <section className="mx-auto max-w-6xl">
+          <h1 className="text-4xl font-bold">Admin</h1>
+
+          <p className="mt-4 text-gray-600">
+            Cargando panel admin desde PostgreSQL...
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-white px-6 py-12 text-black">
+        <section className="mx-auto max-w-6xl">
+          <h1 className="text-4xl font-bold">Admin</h1>
+
+          <p className="mt-4 text-red-600">{error}</p>
+
+          <button
+            onClick={fetchAdminData}
+            className="mt-6 rounded-full bg-black px-6 py-3 text-white"
+          >
+            Intentar de nuevo
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
       <section className="mx-auto max-w-6xl">
         <h1 className="text-4xl font-bold">Admin</h1>
 
         <p className="mt-4 text-gray-600">
-          Panel temporal para revisar pedidos, productos e inventario.
+          Panel conectado a PostgreSQL para revisar pedidos, productos e
+          inventario.
         </p>
-        
+
         <AdminNav />
 
         <div className="mt-10 grid gap-4 md:grid-cols-4">
@@ -135,3 +201,4 @@ export default function AdminPage() {
     </main>
   );
 }
+
