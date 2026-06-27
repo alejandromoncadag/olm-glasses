@@ -190,12 +190,12 @@ export default function AdminOrders() {
         currentOrders.map((order) =>
           order.orderNumber === orderNumber
             ? {
-                ...order,
-                status: data.order.status,
-                paymentStatus: data.order.paymentStatus,
-                adminNotes: data.order.adminNotes,
-                updatedAt: data.order.updatedAt,
-              }
+              ...order,
+              status: data.order.status,
+              paymentStatus: data.order.paymentStatus,
+              adminNotes: data.order.adminNotes,
+              updatedAt: data.order.updatedAt,
+            }
             : order
         )
       );
@@ -326,53 +326,48 @@ export default function AdminOrders() {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setStatusFilter("all")}
-            className={`rounded-full border px-4 py-2 text-sm ${
-              statusFilter === "all" ? "border-black bg-black text-white" : ""
-            }`}
+            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "all" ? "border-black bg-black text-white" : ""
+              }`}
           >
             Todos
           </button>
 
           <button
             onClick={() => setStatusFilter("pending")}
-            className={`rounded-full border px-4 py-2 text-sm ${
-              statusFilter === "pending"
+            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "pending"
                 ? "border-black bg-black text-white"
                 : ""
-            }`}
+              }`}
           >
             Pendientes
           </button>
 
           <button
             onClick={() => setStatusFilter("processing")}
-            className={`rounded-full border px-4 py-2 text-sm ${
-              statusFilter === "processing"
+            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "processing"
                 ? "border-black bg-black text-white"
                 : ""
-            }`}
+              }`}
           >
             En proceso
           </button>
 
           <button
             onClick={() => setStatusFilter("completed")}
-            className={`rounded-full border px-4 py-2 text-sm ${
-              statusFilter === "completed"
+            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "completed"
                 ? "border-black bg-black text-white"
                 : ""
-            }`}
+              }`}
           >
             Completados
           </button>
 
           <button
             onClick={() => setStatusFilter("cancelled")}
-            className={`rounded-full border px-4 py-2 text-sm ${
-              statusFilter === "cancelled"
+            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "cancelled"
                 ? "border-black bg-black text-white"
                 : ""
-            }`}
+              }`}
           >
             Cancelados
           </button>
@@ -425,8 +420,17 @@ export default function AdminOrders() {
                 </div>
 
                 <div className="flex flex-col gap-3 md:items-end">
+
+                  <a
+                    href={`/admin/orders/${order.orderNumber}`}
+                    className="rounded-full bg-black px-5 py-2 text-center text-sm text-white"
+                  >
+                    Ver detalle
+                  </a>
+                  
                   <select
                     value={order.status}
+
                     onChange={(event) =>
                       updateOrder(order.orderNumber, {
                         status: event.target.value as OrderStatus,
