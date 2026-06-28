@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdminNav from "@/components/AdminNav";
+import { downloadCsv } from "@/lib/csv";
 
 type Product = {
   id: string;
@@ -60,6 +61,8 @@ function getProductStatus(product: Product) {
     className: "bg-green-100 text-green-700",
   };
 }
+
+
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -134,8 +137,6 @@ export default function AdminProductsPage() {
     }
   }
 
-
-
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -167,6 +168,49 @@ export default function AdminProductsPage() {
 
     return matchesStatus && matchesSearch;
   });
+
+  function exportProductsCsv() {
+    const rows = [
+      [
+        "Product ID",
+        "Slug",
+        "Name",
+        "Type",
+        "Gender",
+        "Shape",
+        "Frame Color",
+        "Category",
+        "Price",
+        "Price Cents",
+        "Currency",
+        "Stock",
+        "Active",
+        "Description",
+        "Created At",
+        "Updated At",
+      ],
+      ...filteredProducts.map((product) => [
+        product.id,
+        product.slug,
+        product.name,
+        product.type,
+        product.gender,
+        product.shape,
+        product.frameColor,
+        product.category,
+        product.price,
+        product.priceCents,
+        product.currency,
+        product.stock,
+        product.isActive ? "Yes" : "No",
+        product.description,
+        product.createdAt,
+        product.updatedAt,
+      ]),
+    ];
+
+    downloadCsv("olm-products.csv", rows);
+  }
 
   if (loading) {
     return (
@@ -214,14 +258,22 @@ export default function AdminProductsPage() {
         <AdminNav />
 
         <div className="mt-8 flex justify-end">
-          <a
-            href="/admin/products/new"
-            className="rounded-full bg-black px-6 py-3 text-sm font-medium text-white"
-          >
-            Agregar producto
-          </a>
-        </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              onClick={exportProductsCsv}
+              className="rounded-full border px-6 py-3 text-center text-sm font-medium"
+            >
+              Descargar CSV
+            </button>
 
+            <a
+              href="/admin/products/new"
+              className="rounded-full bg-black px-6 py-3 text-center text-sm font-medium text-white"
+            >
+              Agregar producto
+            </a>
+          </div>
+        </div>
 
         <div className="mt-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <input
@@ -234,48 +286,53 @@ export default function AdminProductsPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setStatusFilter("all")}
-              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "all" ? "border-black bg-black text-white" : ""
-                }`}
+              className={`rounded-full border px-4 py-2 text-sm ${
+                statusFilter === "all" ? "border-black bg-black text-white" : ""
+              }`}
             >
               Todos
             </button>
 
             <button
               onClick={() => setStatusFilter("active")}
-              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "active"
-                ? "border-black bg-black text-white"
-                : ""
-                }`}
+              className={`rounded-full border px-4 py-2 text-sm ${
+                statusFilter === "active"
+                  ? "border-black bg-black text-white"
+                  : ""
+              }`}
             >
               Activos
             </button>
 
             <button
               onClick={() => setStatusFilter("low-stock")}
-              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "low-stock"
-                ? "border-black bg-black text-white"
-                : ""
-                }`}
+              className={`rounded-full border px-4 py-2 text-sm ${
+                statusFilter === "low-stock"
+                  ? "border-black bg-black text-white"
+                  : ""
+              }`}
             >
               Stock bajo
             </button>
 
             <button
               onClick={() => setStatusFilter("out-of-stock")}
-              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "out-of-stock"
-                ? "border-black bg-black text-white"
-                : ""
-                }`}
+              className={`rounded-full border px-4 py-2 text-sm ${
+                statusFilter === "out-of-stock"
+                  ? "border-black bg-black text-white"
+                  : ""
+              }`}
             >
               Agotados
             </button>
 
             <button
               onClick={() => setStatusFilter("inactive")}
-              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "inactive"
-                ? "border-black bg-black text-white"
-                : ""
-                }`}
+              className={`rounded-full border px-4 py-2 text-sm ${
+                statusFilter === "inactive"
+                  ? "border-black bg-black text-white"
+                  : ""
+              }`}
             >
               Inactivos
             </button>
@@ -364,7 +421,6 @@ export default function AdminProductsPage() {
                         Slug: {product.slug}
                       </p>
 
-
                       <div className="mt-5 flex flex-col gap-2 md:items-end">
                         <a
                           href={`/product/${product.slug}`}
@@ -382,15 +438,15 @@ export default function AdminProductsPage() {
 
                         <button
                           onClick={() => toggleProductActive(product)}
-                          className={`inline-block rounded-full px-5 py-2 text-center text-sm ${product.isActive
+                          className={`inline-block rounded-full px-5 py-2 text-center text-sm ${
+                            product.isActive
                               ? "border border-red-200 text-red-600"
                               : "border border-green-200 text-green-700"
-                            }`}
+                          }`}
                         >
                           {product.isActive ? "Desactivar" : "Activar"}
                         </button>
                       </div>
-
                     </div>
                   </div>
                 </div>
@@ -402,7 +458,3 @@ export default function AdminProductsPage() {
     </main>
   );
 }
-
-
-
-

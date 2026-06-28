@@ -16,9 +16,11 @@ export async function GET() {
         inventory_movements.order_id,
         inventory_movements.created_at,
         products.slug AS product_slug,
-        products.name AS product_name
+        products.name AS product_name,
+        orders.order_number
       FROM inventory_movements
       JOIN products ON products.id = inventory_movements.product_id
+      LEFT JOIN orders ON orders.id = inventory_movements.order_id
       ORDER BY inventory_movements.created_at DESC;
     `);
 
@@ -31,6 +33,7 @@ export async function GET() {
         newStock: movement.new_stock,
         reason: movement.reason,
         orderId: movement.order_id,
+        orderNumber: movement.order_number,
         createdAt: movement.created_at,
         product: {
           slug: movement.product_slug,

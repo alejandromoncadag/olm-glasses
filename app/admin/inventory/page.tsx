@@ -274,53 +274,48 @@ export default function AdminInventoryPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setStatusFilter("all")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "all" ? "border-black bg-black text-white" : ""
-              }`}
+              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "all" ? "border-black bg-black text-white" : ""
+                }`}
             >
               Todos
             </button>
 
             <button
               onClick={() => setStatusFilter("available")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "available"
+              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "available"
                   ? "border-black bg-black text-white"
                   : ""
-              }`}
+                }`}
             >
               Disponibles
             </button>
 
             <button
               onClick={() => setStatusFilter("low-stock")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "low-stock"
+              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "low-stock"
                   ? "border-black bg-black text-white"
                   : ""
-              }`}
+                }`}
             >
               Stock bajo
             </button>
 
             <button
               onClick={() => setStatusFilter("out-of-stock")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "out-of-stock"
+              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "out-of-stock"
                   ? "border-black bg-black text-white"
                   : ""
-              }`}
+                }`}
             >
               Agotados
             </button>
 
             <button
               onClick={() => setStatusFilter("inactive")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "inactive"
+              className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "inactive"
                   ? "border-black bg-black text-white"
                   : ""
-              }`}
+                }`}
             >
               Inactivos
             </button>
@@ -417,13 +412,16 @@ export default function AdminInventoryPage() {
         )}
 
         <div className="mt-8">
+
+
           <a
-            href="/api/inventory-movements"
-            target="_blank"
+            href="/admin/inventory/movements"
             className="text-sm font-medium underline"
           >
             Ver historial de movimientos de inventario
           </a>
+
+
         </div>
       </section>
     </main>

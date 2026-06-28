@@ -270,12 +270,16 @@ export default function OrderSuccessDetails() {
           Seguir comprando
         </a>
 
+
+
         <a
-          href="/admin/orders"
+          href="/order-status"
           className="rounded-full border px-6 py-3 text-center"
         >
-          Ver pedido en admin
+          Consultar pedido
         </a>
+
+
       </div>
     </div>
   );

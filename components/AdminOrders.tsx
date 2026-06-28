@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { downloadCsv } from "@/lib/csv";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 
@@ -88,9 +89,20 @@ function formatDate(date: string) {
   });
 }
 
+function formatDateTime(date: string) {
+  return new Date(date).toLocaleString("es-MX", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function formatMoney(amount: number) {
   return `$${amount.toLocaleString("es-MX")} MXN`;
 }
+
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -190,12 +202,12 @@ export default function AdminOrders() {
         currentOrders.map((order) =>
           order.orderNumber === orderNumber
             ? {
-              ...order,
-              status: data.order.status,
-              paymentStatus: data.order.paymentStatus,
-              adminNotes: data.order.adminNotes,
-              updatedAt: data.order.updatedAt,
-            }
+                ...order,
+                status: data.order.status,
+                paymentStatus: data.order.paymentStatus,
+                adminNotes: data.order.adminNotes,
+                updatedAt: data.order.updatedAt,
+              }
             : order
         )
       );
@@ -256,6 +268,51 @@ export default function AdminOrders() {
 
     return matchesStatus && matchesSearch;
   });
+
+  function exportOrdersCsv() {
+    const rows = [
+      [
+        "Order Number",
+        "Customer Name",
+        "Customer Email",
+        "Customer Phone",
+        "Address",
+        "City",
+        "State",
+        "Zip Code",
+        "Status",
+        "Payment Status",
+        "Items Count",
+        "Subtotal",
+        "Shipping",
+        "Total",
+        "Currency",
+        "Admin Notes",
+        "Created At",
+      ],
+      ...filteredOrders.map((order) => [
+        order.orderNumber,
+        order.customer?.fullName || "",
+        order.customer?.email || "",
+        order.customer?.phone || "",
+        order.customer?.address || "",
+        order.customer?.city || "",
+        order.customer?.state || "",
+        order.customer?.zipCode || "",
+        getStatusLabel(order.status),
+        getPaymentStatusLabel(order.paymentStatus),
+        order.items.length,
+        order.subtotal,
+        order.shipping || 0,
+        order.total,
+        order.currency,
+        order.adminNotes || "",
+        formatDateTime(order.createdAt),
+      ]),
+    ];
+
+    downloadCsv("olm-orders.csv", rows);
+  }
 
   if (loading) {
     return (
@@ -325,49 +382,61 @@ export default function AdminOrders() {
 
         <div className="flex flex-wrap gap-2">
           <button
+            onClick={exportOrdersCsv}
+            className="rounded-full bg-black px-4 py-2 text-sm text-white"
+          >
+            Descargar CSV
+          </button>
+
+          <button
             onClick={() => setStatusFilter("all")}
-            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "all" ? "border-black bg-black text-white" : ""
-              }`}
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "all" ? "border-black bg-black text-white" : ""
+            }`}
           >
             Todos
           </button>
 
           <button
             onClick={() => setStatusFilter("pending")}
-            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "pending"
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "pending"
                 ? "border-black bg-black text-white"
                 : ""
-              }`}
+            }`}
           >
             Pendientes
           </button>
 
           <button
             onClick={() => setStatusFilter("processing")}
-            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "processing"
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "processing"
                 ? "border-black bg-black text-white"
                 : ""
-              }`}
+            }`}
           >
             En proceso
           </button>
 
           <button
             onClick={() => setStatusFilter("completed")}
-            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "completed"
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "completed"
                 ? "border-black bg-black text-white"
                 : ""
-              }`}
+            }`}
           >
             Completados
           </button>
 
           <button
             onClick={() => setStatusFilter("cancelled")}
-            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "cancelled"
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "cancelled"
                 ? "border-black bg-black text-white"
                 : ""
-              }`}
+            }`}
           >
             Cancelados
           </button>
@@ -420,17 +489,15 @@ export default function AdminOrders() {
                 </div>
 
                 <div className="flex flex-col gap-3 md:items-end">
-
                   <a
                     href={`/admin/orders/${order.orderNumber}`}
                     className="rounded-full bg-black px-5 py-2 text-center text-sm text-white"
                   >
                     Ver detalle
                   </a>
-                  
+
                   <select
                     value={order.status}
-
                     onChange={(event) =>
                       updateOrder(order.orderNumber, {
                         status: event.target.value as OrderStatus,

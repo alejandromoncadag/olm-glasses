@@ -44,6 +44,7 @@ export async function GET(_request: Request, context: RouteContext) {
         orders.id,
         orders.order_number,
         orders.status,
+        orders.customer_id,
         orders.payment_status,
         orders.subtotal_cents,
         orders.shipping_cents,
@@ -111,7 +112,9 @@ export async function GET(_request: Request, context: RouteContext) {
         adminNotes: order.admin_notes,
         createdAt: order.created_at,
         updatedAt: order.updated_at,
+
         customer: {
+          id: order.customer_id,
           fullName: order.full_name,
           email: order.email,
           phone: order.phone,
