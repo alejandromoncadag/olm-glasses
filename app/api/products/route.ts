@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
+import {
+  getAuthenticatedAdmin,
+  unauthorizedAdminResponse,
+} from "@/lib/requireAdmin";
 
 export const runtime = "nodejs";
 
@@ -57,9 +61,9 @@ function mapProduct(product: {
     updatedAt: product.updated_at,
     mainImage: product.main_image_url
       ? {
-          imageUrl: product.main_image_url,
-          altText: product.main_image_alt,
-        }
+        imageUrl: product.main_image_url,
+        altText: product.main_image_alt,
+      }
       : null,
   };
 }
@@ -105,6 +109,9 @@ async function getProductBySlug(slug: string) {
 }
 
 export async function GET() {
+  const admin = await getAuthenticatedAdmin();
+  const visibilityFilter = admin ? "" : "WHERE products.is_active = true";
+
   try {
     const result = await pool.query(`
       SELECT
@@ -134,7 +141,8 @@ export async function GET() {
         WHERE product_images.product_id = products.id
         ORDER BY is_main DESC, display_order ASC, created_at ASC
         LIMIT 1
-      ) AS main_image ON TRUE
+            ) AS main_image ON TRUE
+      ${visibilityFilter}
       ORDER BY products.created_at DESC;
     `);
 
@@ -152,6 +160,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!(await getAuthenticatedAdmin())) {
+    return unauthorizedAdminResponse();
+  }
+
   const client = await pool.connect();
 
   try {
@@ -312,5 +324,8 @@ export async function POST(request: Request) {
     client.release();
   }
 }
+
+
+
 
 

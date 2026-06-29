@@ -1,60 +1,58 @@
 "use client";
 
-import { ReactNode } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 type AdminGuardProps = {
-  children: ReactNode;
+  children: React.ReactNode;
 };
 
 export default function AdminGuard({ children }: AdminGuardProps) {
   const { user, loading } = useAuth();
 
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    if (!user) {
+      const currentPath = window.location.pathname + window.location.search;
+      const redirectUrl = `/login?redirect=${encodeURIComponent(currentPath)}`;
+
+      window.location.href = redirectUrl;
+    }
+  }, [user, loading]);
+
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-6 py-20 text-black">
-        <section className="mx-auto max-w-3xl rounded-2xl border p-8 text-center">
-          <h1 className="text-3xl font-bold">Área administrativa</h1>
-
-          <p className="mt-4 text-gray-600">Verificando acceso...</p>
-        </section>
+      <main className="mx-auto max-w-6xl px-4 py-12">
+        <p className="text-sm text-neutral-600">Verificando acceso...</p>
       </main>
     );
   }
 
   if (!user) {
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
-    }
-
     return (
-      <main className="min-h-screen bg-white px-6 py-20 text-black">
-        <section className="mx-auto max-w-3xl rounded-2xl border p-8 text-center">
-          <h1 className="text-3xl font-bold">Área administrativa</h1>
-
-          <p className="mt-4 text-gray-600">Redirigiendo a iniciar sesión...</p>
-        </section>
+      <main className="mx-auto max-w-6xl px-4 py-12">
+        <p className="text-sm text-neutral-600">Redirigiendo al login...</p>
       </main>
     );
   }
 
   if (user.role !== "admin") {
     return (
-      <main className="min-h-screen bg-white px-6 py-20 text-black">
-        <section className="mx-auto max-w-3xl rounded-2xl border p-8 text-center">
-          <h1 className="text-3xl font-bold">Acceso no autorizado</h1>
-
-          <p className="mt-4 text-gray-600">
-            Esta sección es solo para administradores.
+      <main className="mx-auto max-w-6xl px-4 py-12">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+          <p className="text-sm font-semibold text-red-700">
+            Acceso denegado
           </p>
-
-          <a
-            href="/"
-            className="mt-6 inline-block rounded-full bg-black px-6 py-3 text-white"
-          >
-            Regresar al inicio
-          </a>
-        </section>
+          <h1 className="mt-2 text-2xl font-semibold text-neutral-950">
+            Esta página es solo para administradores.
+          </h1>
+          <p className="mt-2 text-sm text-neutral-600">
+            Inicia sesión con una cuenta de administrador para continuar.
+          </p>
+        </div>
       </main>
     );
   }

@@ -8,11 +8,25 @@ type OrderStatusBody = {
   email?: string;
 };
 
+function normalizeOrderNumber(orderNumber: string) {
+  return orderNumber.trim().toUpperCase();
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as OrderStatusBody;
 
-    if (!body.orderNumber || !body.email) {
+    const orderNumber = body.orderNumber
+      ? normalizeOrderNumber(body.orderNumber)
+      : "";
+
+    const email = body.email ? normalizeEmail(body.email) : "";
+
+    if (!orderNumber || !email) {
       return NextResponse.json(
         { error: "Order number and email are required" },
         { status: 400 }
@@ -35,11 +49,11 @@ export async function POST(request: Request) {
           customers.email
         FROM orders
         JOIN customers ON customers.id = orders.customer_id
-        WHERE orders.order_number = $1
-          AND LOWER(customers.email) = LOWER($2)
+        WHERE UPPER(orders.order_number) = $1
+          AND LOWER(customers.email) = $2
         LIMIT 1;
       `,
-      [body.orderNumber.trim(), body.email.trim()]
+      [orderNumber, email]
     );
 
     const order = orderResult.rows[0];
@@ -59,7 +73,6 @@ export async function POST(request: Request) {
           order_items.product_name,
           order_items.unit_price_cents,
           order_items.quantity,
-          order_items.line_total_cents,
           order_items.lens_option,
           order_items.prescription_method
         FROM order_items
@@ -89,7 +102,7 @@ export async function POST(request: Request) {
           productName: item.product_name,
           unitPrice: item.unit_price_cents / 100,
           quantity: item.quantity,
-          lineTotal: item.line_total_cents / 100,
+          lineTotal: (item.unit_price_cents * item.quantity) / 100,
           lensOption: item.lens_option,
           prescriptionMethod: item.prescription_method,
         })),

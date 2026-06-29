@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
+import {
+    getAuthenticatedAdmin,
+    unauthorizedAdminResponse,
+} from "@/lib/requireAdmin";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  try {
-    const result = await pool.query(`
+
+    const admin = await getAuthenticatedAdmin();
+
+    if (!admin) {
+        return unauthorizedAdminResponse();
+    }
+
+    try {
+        const result = await pool.query(`
       SELECT
         customers.id AS customer_id,
         customers.full_name,
@@ -32,26 +43,26 @@ export async function GET() {
       LIMIT 10;
     `);
 
-    return NextResponse.json({
-      customers: result.rows.map((customer) => ({
-        customerId: customer.customer_id,
-        fullName: customer.full_name,
-        email: customer.email,
-        phone: customer.phone,
-        city: customer.city,
-        state: customer.state,
-        orderCount: customer.order_count,
-        totalSpent: customer.total_spent_cents / 100,
-        lastOrderAt: customer.last_order_at,
-      })),
-    });
-  } catch (error) {
-    console.error("Error fetching top customers report:", error);
+        return NextResponse.json({
+            customers: result.rows.map((customer) => ({
+                customerId: customer.customer_id,
+                fullName: customer.full_name,
+                email: customer.email,
+                phone: customer.phone,
+                city: customer.city,
+                state: customer.state,
+                orderCount: customer.order_count,
+                totalSpent: customer.total_spent_cents / 100,
+                lastOrderAt: customer.last_order_at,
+            })),
+        });
+    } catch (error) {
+        console.error("Error fetching top customers report:", error);
 
-    return NextResponse.json(
-      { error: "Failed to fetch top customers report" },
-      { status: 500 }
-    );
-  }
+        return NextResponse.json(
+            { error: "Failed to fetch top customers report" },
+            { status: 500 }
+        );
+    }
 }
 

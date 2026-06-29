@@ -12,11 +12,13 @@ export default function Navbar() {
 
   const isAdmin = user?.role === "admin";
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     setMenuOpen(false);
     window.location.href = "/";
   }
+
+
 
   return (
     <header className="border-b bg-white text-black">

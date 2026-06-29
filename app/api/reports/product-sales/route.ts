@@ -1,11 +1,23 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
+import {
+    getAuthenticatedAdmin,
+    unauthorizedAdminResponse,
+} from "@/lib/requireAdmin";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  try {
-    const result = await pool.query(`
+
+    const admin = await getAuthenticatedAdmin();
+
+    if (!admin) {
+        return unauthorizedAdminResponse();
+    }
+
+
+    try {
+        const result = await pool.query(`
       SELECT
         COALESCE(
           MAX(products.id::text),
@@ -34,27 +46,27 @@ export async function GET() {
       LIMIT 10;
     `);
 
-    return NextResponse.json({
-      products: result.rows.map((product) => ({
-        productId: product.product_id,
-        slug: product.product_slug,
-        name: product.product_name,
-        type: product.product_type,
-        category: product.product_category,
-        currentStock: product.current_stock,
-        unitsSold: product.units_sold,
-        revenue: product.revenue_cents / 100,
-        orderCount: product.order_count,
-      })),
-    });
-  } catch (error) {
-    console.error("Error fetching product sales report:", error);
+        return NextResponse.json({
+            products: result.rows.map((product) => ({
+                productId: product.product_id,
+                slug: product.product_slug,
+                name: product.product_name,
+                type: product.product_type,
+                category: product.product_category,
+                currentStock: product.current_stock,
+                unitsSold: product.units_sold,
+                revenue: product.revenue_cents / 100,
+                orderCount: product.order_count,
+            })),
+        });
+    } catch (error) {
+        console.error("Error fetching product sales report:", error);
 
-    return NextResponse.json(
-      { error: "Failed to fetch product sales report" },
-      { status: 500 }
-    );
-  }
+        return NextResponse.json(
+            { error: "Failed to fetch product sales report" },
+            { status: 500 }
+        );
+    }
 }
 
 

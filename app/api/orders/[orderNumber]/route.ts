@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
+import {
+  getAuthenticatedAdmin,
+  unauthorizedAdminResponse,
+} from "@/lib/requireAdmin";
 
 export const runtime = "nodejs";
 
@@ -35,6 +39,12 @@ const allowedPaymentStatuses: PaymentStatus[] = [
 ];
 
 export async function GET(_request: Request, context: RouteContext) {
+  const admin = await getAuthenticatedAdmin();
+
+  if (!admin) {
+    return unauthorizedAdminResponse();
+  }
+
   try {
     const { orderNumber } = await context.params;
 
@@ -112,7 +122,6 @@ export async function GET(_request: Request, context: RouteContext) {
         adminNotes: order.admin_notes,
         createdAt: order.created_at,
         updatedAt: order.updated_at,
-
         customer: {
           id: order.customer_id,
           fullName: order.full_name,
@@ -150,6 +159,12 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const admin = await getAuthenticatedAdmin();
+
+  if (!admin) {
+    return unauthorizedAdminResponse();
+  }
+
   try {
     const { orderNumber } = await context.params;
     const body = (await request.json()) as UpdateOrderInput;

@@ -9,6 +9,35 @@ type AuthFormProps = {
   mode: Mode;
 };
 
+function getSafeRedirect() {
+  const redirect = new URLSearchParams(window.location.search).get("redirect");
+
+  if (!redirect) {
+    return "/account";
+  }
+
+  if (!redirect.startsWith("/") || redirect.startsWith("//")) {
+    return "/account";
+  }
+
+  return redirect;
+}
+
+function getAuthSwitchHref(mode: Mode) {
+  if (typeof window === "undefined") {
+    return mode === "login" ? "/signup" : "/login";
+  }
+
+  const redirect = new URLSearchParams(window.location.search).get("redirect");
+  const nextPath = mode === "login" ? "/signup" : "/login";
+
+  if (!redirect) {
+    return nextPath;
+  }
+
+  return `${nextPath}?redirect=${encodeURIComponent(redirect)}`;
+}
+
 export default function AuthForm({ mode }: AuthFormProps) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -16,7 +45,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
@@ -39,8 +68,10 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
     const result =
       mode === "login"
-        ? login(email, password)
-        : signup(fullName, email, password);
+        ? await login(email, password)
+        : await signup(fullName, email, password);
+
+
 
     if ("error" in result) {
       setError(result.error);
@@ -48,10 +79,10 @@ export default function AuthForm({ mode }: AuthFormProps) {
       return;
     }
 
-    const redirect =
-      new URLSearchParams(window.location.search).get("redirect") || "/account";
-    window.location.href = redirect;
+    window.location.href = getSafeRedirect();
   }
+
+  const switchHref = getAuthSwitchHref(mode);
 
   return (
     <form
@@ -72,6 +103,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
         {mode === "signup" && (
           <div>
             <label className="text-sm font-medium">Nombre completo</label>
+
             <input
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
@@ -84,6 +116,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
         <div>
           <label className="text-sm font-medium">Correo electrónico</label>
+
           <input
             type="email"
             value={email}
@@ -96,6 +129,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
         <div>
           <label className="text-sm font-medium">Contraseña</label>
+
           <input
             type="password"
             value={password}
@@ -122,8 +156,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
           {submitting
             ? "Procesando…"
             : mode === "login"
-            ? "Iniciar sesión"
-            : "Crear cuenta"}
+              ? "Iniciar sesión"
+              : "Crear cuenta"}
         </button>
       </div>
 
@@ -131,14 +165,14 @@ export default function AuthForm({ mode }: AuthFormProps) {
         {mode === "login" ? (
           <>
             ¿Aún no tienes cuenta?{" "}
-            <a href="/signup" className="font-medium text-black underline">
+            <a href={switchHref} className="font-medium text-black underline">
               Regístrate
             </a>
           </>
         ) : (
           <>
             ¿Ya tienes cuenta?{" "}
-            <a href="/login" className="font-medium text-black underline">
+            <a href={switchHref} className="font-medium text-black underline">
               Inicia sesión
             </a>
           </>
@@ -147,3 +181,4 @@ export default function AuthForm({ mode }: AuthFormProps) {
     </form>
   );
 }
+

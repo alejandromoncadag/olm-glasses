@@ -1,18 +1,53 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getCurrentUser, type User } from "@/lib/auth";
+import {
+  getBackendAdminUser,
+  getCurrentUser,
+  type User,
+} from "@/lib/auth";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setUser(getCurrentUser());
+  async function refreshUser() {
+    setLoading(true);
+
+    const localUser = getCurrentUser();
+
+    if (localUser?.role === "admin") {
+      const backendAdminUser = await getBackendAdminUser();
+
+      if (backendAdminUser) {
+        localStorage.setItem("olm-user", JSON.stringify(backendAdminUser));
+        setUser(backendAdminUser);
+      } else {
+        localStorage.removeItem("olm-user");
+        setUser(null);
+      }
+
+      setLoading(false);
+      return;
+    }
+
+    setUser(localUser);
+
+    const backendAdminUser = await getBackendAdminUser();
+
+    if (backendAdminUser) {
+      localStorage.setItem("olm-user", JSON.stringify(backendAdminUser));
+      setUser(backendAdminUser);
+    }
+
     setLoading(false);
+  }
+
+  useEffect(() => {
+    refreshUser();
 
     function update() {
-      setUser(getCurrentUser());
+      refreshUser();
     }
 
     window.addEventListener("olm-auth-change", update);
@@ -26,3 +61,4 @@ export function useAuth() {
 
   return { user, loading };
 }
+

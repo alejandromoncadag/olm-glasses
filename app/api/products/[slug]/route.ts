@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
+import {
+  getAuthenticatedAdmin,
+  unauthorizedAdminResponse,
+} from "@/lib/requireAdmin";
 
 export const runtime = "nodejs";
 
@@ -122,12 +126,17 @@ async function getProductDetails(slug: string) {
 }
 
 export async function GET(_request: Request, context: RouteContext) {
+  const admin = await getAuthenticatedAdmin();
+
   try {
     const { slug } = await context.params;
 
     const product = await getProductDetails(slug);
 
-    if (!product) {
+    if (!product || (!admin && !product.isActive)) {
+
+
+
       return NextResponse.json(
         {
           error: "Product not found",
@@ -152,6 +161,10 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  if (!(await getAuthenticatedAdmin())) {
+    return unauthorizedAdminResponse();
+  }
+
   const client = await pool.connect();
 
   try {
@@ -313,11 +326,7 @@ export async function PATCH(request: Request, context: RouteContext) {
             display_order = 1,
             is_main = true;
         `,
-        [
-          currentProduct.id,
-          body.imageUrl,
-          body.imageAltText || nextName,
-        ]
+        [currentProduct.id, body.imageUrl, body.imageAltText || nextName]
       );
     }
 
@@ -344,5 +353,6 @@ export async function PATCH(request: Request, context: RouteContext) {
     client.release();
   }
 }
+
 
 

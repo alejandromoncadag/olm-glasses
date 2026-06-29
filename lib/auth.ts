@@ -6,19 +6,13 @@ export type User = {
   email: string;
   fullName: string;
   role: UserRole;
+  adminRole?: string;
 };
 
 type StoredUser = User & { password: string };
 
 const SESSION_KEY = "olm-user";
 const USERS_KEY = "olm-users";
-
-const DEFAULT_ADMIN: StoredUser = {
-  email: "admin@olm.com",
-  fullName: "Admin OLM",
-  password: "OLM-local-admin-2026!",
-  role: "admin",
-};
 
 function safeParse<T>(value: string | null, fallback: T): T {
   if (!value) return fallback;
@@ -30,12 +24,16 @@ function safeParse<T>(value: string | null, fallback: T): T {
   }
 }
 
+function notify() {
+  window.dispatchEvent(new Event("olm-auth-change"));
+}
+
 function normalizeStoredUser(user: Partial<StoredUser>): StoredUser {
   return {
     email: String(user.email || "").trim().toLowerCase(),
     fullName: String(user.fullName || "Cliente OLM"),
     password: String(user.password || ""),
-    role: user.role === "admin" ? "admin" : "customer",
+    role: "customer",
   };
 }
 
@@ -55,41 +53,90 @@ export function getCurrentUser(): User | null {
     email: savedUser.email.trim().toLowerCase(),
     fullName: savedUser.fullName || "Cliente OLM",
     role: savedUser.role === "admin" ? "admin" : "customer",
+    adminRole: savedUser.adminRole,
   };
 }
 
 function getUsers(): StoredUser[] {
   if (typeof window === "undefined") return [];
 
-  const users = safeParse<Partial<StoredUser>[]>(
+  return safeParse<Partial<StoredUser>[]>(
     localStorage.getItem(USERS_KEY),
     []
   ).map(normalizeStoredUser);
-
-  const usersWithoutDefaultAdmin = users.filter(
-    (user) => user.email !== DEFAULT_ADMIN.email
-  );
-
-  const updatedUsers = [DEFAULT_ADMIN, ...usersWithoutDefaultAdmin];
-
-  saveUsers(updatedUsers);
-
-  return updatedUsers;
 }
 
 function saveUsers(users: StoredUser[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-function notify() {
-  window.dispatchEvent(new Event("olm-auth-change"));
+export async function getBackendAdminUser(): Promise<User | null> {
+  try {
+    const response = await fetch("/api/auth/me", {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (!data.user) {
+      return null;
+    }
+
+    return {
+      email: data.user.email,
+      fullName: data.user.fullName,
+      role: "admin",
+      adminRole: data.user.adminRole,
+    };
+  } catch {
+    return null;
+  }
 }
 
-export function login(
+export async function login(
   email: string,
   password: string
-): { user: User } | { error: string } {
+): Promise<{ user: User } | { error: string }> {
   const normalizedEmail = email.trim().toLowerCase();
+
+  try {
+    const adminResponse = await fetch("/api/auth/admin-login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        email: normalizedEmail,
+        password,
+      }),
+    });
+
+    if (adminResponse.ok) {
+      const data = await adminResponse.json();
+
+      const session: User = {
+        email: data.user.email,
+        fullName: data.user.fullName,
+        role: "admin",
+        adminRole: data.user.adminRole,
+      };
+
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      notify();
+
+      return { user: session };
+    }
+  } catch {
+    // If backend admin login fails because the server is unavailable,
+    // continue and try customer local login below.
+  }
+
   const users = getUsers();
 
   const match = users.find(
@@ -103,7 +150,7 @@ export function login(
   const session: User = {
     email: match.email,
     fullName: match.fullName,
-    role: match.role,
+    role: "customer",
   };
 
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -112,11 +159,11 @@ export function login(
   return { user: session };
 }
 
-export function signup(
+export async function signup(
   fullName: string,
   email: string,
   password: string
-): { user: User } | { error: string } {
+): Promise<{ user: User } | { error: string }> {
   const normalizedEmail = email.trim().toLowerCase();
   const users = getUsers();
 
@@ -136,7 +183,7 @@ export function signup(
   const session: User = {
     email: newUser.email,
     fullName: newUser.fullName,
-    role: newUser.role,
+    role: "customer",
   };
 
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -145,10 +192,20 @@ export function signup(
   return { user: session };
 }
 
-export function logout() {
+export async function logout() {
   if (typeof window === "undefined") return;
+
+  try {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    // Keep local logout working even if the backend request fails.
+  }
 
   localStorage.removeItem(SESSION_KEY);
   notify();
 }
+
 

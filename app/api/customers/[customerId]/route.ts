@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
+import {
+  getAuthenticatedAdmin,
+  unauthorizedAdminResponse,
+} from "@/lib/requireAdmin";
 
 export const runtime = "nodejs";
 
@@ -10,6 +14,12 @@ type RouteContext = {
 };
 
 export async function GET(_request: Request, context: RouteContext) {
+  const admin = await getAuthenticatedAdmin();
+
+  if (!admin) {
+    return unauthorizedAdminResponse();
+  }
+
   try {
     const { customerId } = await context.params;
 
@@ -99,4 +109,6 @@ export async function GET(_request: Request, context: RouteContext) {
     );
   }
 }
+
+
 

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
+import {
+  getAuthenticatedAdmin,
+  unauthorizedAdminResponse,
+} from "@/lib/requireAdmin";
 
 export const runtime = "nodejs";
 
@@ -23,11 +27,107 @@ type CreateOrderInput = {
   items: OrderItemInput[];
 };
 
+type PreparedOrderItem = {
+  productId: string;
+  productSlug: string;
+  productName: string;
+  unitPriceCents: number;
+  quantity: number;
+  lensOption: string;
+  prescriptionMethod: string;
+  previousStock: number;
+  newStock: number;
+};
+
 function generateOrderNumber() {
   return `OLM-${Date.now()}`;
 }
 
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function cleanText(value: string | undefined) {
+  return String(value || "").trim();
+}
+
+function validateOrderInput(body: CreateOrderInput) {
+  if (!body.customer || !body.items || body.items.length === 0) {
+    return "Customer and items are required";
+  }
+
+  const customer = {
+    fullName: cleanText(body.customer.fullName),
+    email: cleanText(body.customer.email).toLowerCase(),
+    phone: cleanText(body.customer.phone),
+    address: cleanText(body.customer.address),
+    city: cleanText(body.customer.city),
+    state: cleanText(body.customer.state),
+    zipCode: cleanText(body.customer.zipCode),
+  };
+
+  if (
+    !customer.fullName ||
+    !customer.email ||
+    !customer.phone ||
+    !customer.address ||
+    !customer.city ||
+    !customer.state ||
+    !customer.zipCode
+  ) {
+    return "All customer fields are required";
+  }
+
+  if (!isValidEmail(customer.email)) {
+    return "A valid email is required";
+  }
+
+  if (body.items.length > 20) {
+    return "Too many items in one order";
+  }
+
+  for (const item of body.items) {
+    if (!cleanText(item.productSlug)) {
+      return "Product slug is required";
+    }
+
+    if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+      return "Item quantity must be at least 1";
+    }
+
+    if (item.quantity > 10) {
+      return "Item quantity is too high";
+    }
+
+    if (!cleanText(item.lensOption)) {
+      return "Lens option is required";
+    }
+
+    if (!cleanText(item.prescriptionMethod)) {
+      return "Prescription method is required";
+    }
+  }
+
+  return null;
+}
+
+class CheckoutError extends Error {
+  status: number;
+
+  constructor(message: string, status = 400) {
+    super(message);
+    this.name = "CheckoutError";
+    this.status = status;
+  }
+}
+
 export async function GET() {
+  const admin = await getAuthenticatedAdmin();
+
+  if (!admin) {
+    return unauthorizedAdminResponse();
+  }
+
   try {
     const result = await pool.query(`
       SELECT
@@ -78,18 +178,19 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const client = await pool.connect();
+  let transactionStarted = false;
 
   try {
     const body = (await request.json()) as CreateOrderInput;
 
-    if (!body.customer || !body.items || body.items.length === 0) {
-      return NextResponse.json(
-        { error: "Customer and items are required" },
-        { status: 400 }
-      );
+    const validationError = validateOrderInput(body);
+
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
     await client.query("BEGIN");
+    transactionStarted = true;
 
     const customerResult = await client.query(
       `
@@ -101,27 +202,37 @@ export async function POST(request: Request) {
         city,
         state,
         zip_code
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      )
+      VALUES ($1, LOWER($2), $3, $4, $5, $6, $7)
+      ON CONFLICT ((LOWER(email)))
+      DO UPDATE SET
+        full_name = EXCLUDED.full_name,
+        phone = EXCLUDED.phone,
+        address = EXCLUDED.address,
+        city = EXCLUDED.city,
+        state = EXCLUDED.state,
+        zip_code = EXCLUDED.zip_code
       RETURNING id;
       `,
       [
-        body.customer.fullName,
-        body.customer.email,
-        body.customer.phone,
-        body.customer.address,
-        body.customer.city,
-        body.customer.state,
-        body.customer.zipCode,
+        body.customer.fullName.trim(),
+        body.customer.email.trim(),
+        body.customer.phone.trim(),
+        body.customer.address.trim(),
+        body.customer.city.trim(),
+        body.customer.state.trim(),
+        body.customer.zipCode.trim(),
       ]
     );
 
     const customerId = customerResult.rows[0].id;
 
     let subtotalCents = 0;
-
-    const preparedItems = [];
+    const preparedItems: PreparedOrderItem[] = [];
 
     for (const item of body.items) {
+      const productSlug = item.productSlug.trim();
+
       const productResult = await client.query(
         `
         SELECT
@@ -135,21 +246,24 @@ export async function POST(request: Request) {
         WHERE slug = $1
         LIMIT 1;
         `,
-        [item.productSlug]
+        [productSlug]
       );
 
       if (productResult.rows.length === 0) {
-        throw new Error(`Product not found: ${item.productSlug}`);
+        throw new CheckoutError(`Producto no encontrado: ${productSlug}`, 404);
       }
 
       const product = productResult.rows[0];
 
       if (!product.is_active) {
-        throw new Error(`Product is inactive: ${item.productSlug}`);
+        throw new CheckoutError(`${product.name} ya no está disponible.`, 400);
       }
 
       if (product.stock < item.quantity) {
-        throw new Error(`Not enough stock for: ${item.productSlug}`);
+        throw new CheckoutError(
+          `Solo quedan ${product.stock} unidades de ${product.name}.`,
+          400
+        );
       }
 
       const lineTotalCents = product.price_cents * item.quantity;
@@ -161,8 +275,8 @@ export async function POST(request: Request) {
         productName: product.name,
         unitPriceCents: product.price_cents,
         quantity: item.quantity,
-        lensOption: item.lensOption,
-        prescriptionMethod: item.prescriptionMethod,
+        lensOption: item.lensOption.trim(),
+        prescriptionMethod: item.prescriptionMethod.trim(),
         previousStock: product.stock,
         newStock: product.stock - item.quantity,
       });
@@ -254,6 +368,7 @@ export async function POST(request: Request) {
     }
 
     await client.query("COMMIT");
+    transactionStarted = false;
 
     return NextResponse.json(
       {
@@ -269,9 +384,18 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (transactionStarted) {
+      await client.query("ROLLBACK");
+    }
 
     console.error("Error creating order:", error);
+
+    if (error instanceof CheckoutError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
+      );
+    }
 
     return NextResponse.json(
       { error: "Failed to create order" },

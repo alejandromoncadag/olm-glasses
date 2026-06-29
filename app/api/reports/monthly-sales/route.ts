@@ -1,11 +1,23 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
+import {
+    getAuthenticatedAdmin,
+    unauthorizedAdminResponse,
+} from "@/lib/requireAdmin";
+
+
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  try {
-    const result = await pool.query(`
+
+    const admin = await getAuthenticatedAdmin();
+
+    if (!admin) {
+        return unauthorizedAdminResponse();
+    }
+    try {
+        const result = await pool.query(`
       SELECT
         TO_CHAR(DATE_TRUNC('month', orders.created_at), 'YYYY-MM') AS month_key,
         TO_CHAR(DATE_TRUNC('month', orders.created_at), 'Mon YYYY') AS month_label,
@@ -29,23 +41,23 @@ export async function GET() {
       LIMIT 12;
     `);
 
-    return NextResponse.json({
-      months: result.rows.map((month) => ({
-        monthKey: month.month_key,
-        monthLabel: month.month_label,
-        orderCount: month.order_count,
-        revenue: month.revenue_cents / 100,
-        paidRevenue: month.paid_revenue_cents / 100,
-        averageOrderValue: month.average_order_cents / 100,
-      })),
-    });
-  } catch (error) {
-    console.error("Error fetching monthly sales report:", error);
+        return NextResponse.json({
+            months: result.rows.map((month) => ({
+                monthKey: month.month_key,
+                monthLabel: month.month_label,
+                orderCount: month.order_count,
+                revenue: month.revenue_cents / 100,
+                paidRevenue: month.paid_revenue_cents / 100,
+                averageOrderValue: month.average_order_cents / 100,
+            })),
+        });
+    } catch (error) {
+        console.error("Error fetching monthly sales report:", error);
 
-    return NextResponse.json(
-      { error: "Failed to fetch monthly sales report" },
-      { status: 500 }
-    );
-  }
+        return NextResponse.json(
+            { error: "Failed to fetch monthly sales report" },
+            { status: 500 }
+        );
+    }
 }
 
