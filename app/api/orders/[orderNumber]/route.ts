@@ -21,6 +21,9 @@ type UpdateOrderInput = {
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
   adminNotes?: string;
+  shippingCarrier?: string;
+  trackingNumber?: string;
+  customerVisibleNotes?: string;
 };
 
 const allowedOrderStatuses: OrderStatus[] = [
@@ -37,6 +40,20 @@ const allowedPaymentStatuses: PaymentStatus[] = [
   "failed",
   "refunded",
 ];
+
+function hasField(object: object, field: string) {
+  return Object.prototype.hasOwnProperty.call(object, field);
+}
+
+function cleanNullableText(value: string | undefined) {
+  if (value === undefined) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 export async function GET(_request: Request, context: RouteContext) {
   const admin = await getAuthenticatedAdmin();
@@ -62,6 +79,9 @@ export async function GET(_request: Request, context: RouteContext) {
         orders.currency,
         orders.customer_notes,
         orders.admin_notes,
+        orders.shipping_carrier,
+        orders.tracking_number,
+        orders.customer_visible_notes,
         orders.created_at,
         orders.updated_at,
         customers.full_name,
@@ -120,6 +140,9 @@ export async function GET(_request: Request, context: RouteContext) {
         currency: order.currency,
         customerNotes: order.customer_notes,
         adminNotes: order.admin_notes,
+        shippingCarrier: order.shipping_carrier,
+        trackingNumber: order.tracking_number,
+        customerVisibleNotes: order.customer_visible_notes,
         createdAt: order.created_at,
         updatedAt: order.updated_at,
         customer: {
@@ -186,14 +209,28 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
+    const hasAdminNotes = hasField(body, "adminNotes");
+    const hasShippingCarrier = hasField(body, "shippingCarrier");
+    const hasTrackingNumber = hasField(body, "trackingNumber");
+    const hasCustomerVisibleNotes = hasField(body, "customerVisibleNotes");
+
+    const adminNotes = cleanNullableText(body.adminNotes);
+    const shippingCarrier = cleanNullableText(body.shippingCarrier);
+    const trackingNumber = cleanNullableText(body.trackingNumber);
+    const customerVisibleNotes = cleanNullableText(body.customerVisibleNotes);
+
     const result = await pool.query(
       `
       UPDATE orders
       SET
         status = COALESCE($1::order_status, status),
         payment_status = COALESCE($2::payment_status, payment_status),
-        admin_notes = COALESCE($3, admin_notes)
-      WHERE order_number = $4
+        admin_notes = CASE WHEN $3::boolean THEN $4::text ELSE admin_notes END,
+        shipping_carrier = CASE WHEN $5::boolean THEN $6::text ELSE shipping_carrier END,
+        tracking_number = CASE WHEN $7::boolean THEN $8::text ELSE tracking_number END,
+        customer_visible_notes = CASE WHEN $9::boolean THEN $10::text ELSE customer_visible_notes END,
+        updated_at = now()
+      WHERE order_number = $11
       RETURNING
         id,
         order_number,
@@ -204,13 +241,23 @@ export async function PATCH(request: Request, context: RouteContext) {
         total_cents,
         currency,
         admin_notes,
+        shipping_carrier,
+        tracking_number,
+        customer_visible_notes,
         created_at,
         updated_at;
       `,
       [
         body.status || null,
         body.paymentStatus || null,
-        body.adminNotes || null,
+        hasAdminNotes,
+        adminNotes,
+        hasShippingCarrier,
+        shippingCarrier,
+        hasTrackingNumber,
+        trackingNumber,
+        hasCustomerVisibleNotes,
+        customerVisibleNotes,
         orderNumber,
       ]
     );
@@ -232,6 +279,9 @@ export async function PATCH(request: Request, context: RouteContext) {
         total: order.total_cents / 100,
         currency: order.currency,
         adminNotes: order.admin_notes,
+        shippingCarrier: order.shipping_carrier,
+        trackingNumber: order.tracking_number,
+        customerVisibleNotes: order.customer_visible_notes,
         createdAt: order.created_at,
         updatedAt: order.updated_at,
       },
@@ -245,5 +295,4 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 }
-
 

@@ -80,9 +80,24 @@ function cartHasInvalidItems(
   });
 }
 
+async function readApiError(response: Response) {
+  try {
+    const data = await response.json();
+
+    if (typeof data.error === "string" && data.error.trim()) {
+      return data.error;
+    }
+
+    return "No pudimos crear el pedido. Intenta de nuevo.";
+  } catch {
+    return "No pudimos crear el pedido. Intenta de nuevo.";
+  }
+}
+
 export default function CheckoutSummary() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     const savedCart = localStorage.getItem("olm-cart");
@@ -102,6 +117,7 @@ export default function CheckoutSummary() {
   async function handlePlaceOrder() {
     try {
       setIsPlacingOrder(true);
+      setErrorMessage("");
 
       const savedCart = localStorage.getItem("olm-cart");
       const savedCustomer = localStorage.getItem("olm-checkout-customer");
@@ -126,7 +142,7 @@ export default function CheckoutSummary() {
         !customer.state ||
         !customer.zipCode
       ) {
-        alert("Completa tus datos de envío antes de continuar.");
+        setErrorMessage("Completa tus datos de envío antes de continuar.");
         return;
       }
 
@@ -140,7 +156,7 @@ export default function CheckoutSummary() {
       const products: ProductFromApi[] = productsData.products;
 
       if (cartHasInvalidItems(latestCartItems, products)) {
-        alert(
+        setErrorMessage(
           "Tu carrito tiene productos agotados o cantidades mayores al stock disponible."
         );
         window.location.href = "/cart";
@@ -182,46 +198,32 @@ export default function CheckoutSummary() {
       });
 
       if (!orderResponse.ok) {
-        throw new Error("Failed to create order");
+        const apiError = await readApiError(orderResponse);
+        setErrorMessage(apiError);
+        return;
       }
 
       const orderData = await orderResponse.json();
+      const createdOrder = orderData.order;
+
       const orderNumber =
-        orderData.order?.orderNumber || generateFallbackOrderNumber();
-
-      const detailResponse = await fetch(`/api/orders/${orderNumber}`);
-
-      if (!detailResponse.ok) {
-        throw new Error("Failed to fetch created order");
-      }
-
-      const detailData = await detailResponse.json();
-      const createdOrder = detailData.order;
+        createdOrder?.orderNumber || generateFallbackOrderNumber();
 
       const orderForSuccessPage: OrderSuccessData = {
-        orderNumber: createdOrder.orderNumber,
-        createdAt: createdOrder.createdAt,
-        status: createdOrder.status,
+        orderNumber,
+        createdAt: new Date().toISOString(),
+        status: "pending",
         customer,
-        subtotal: createdOrder.subtotal,
-        total: createdOrder.total,
-        items: createdOrder.items.map(
-          (item: {
-            productSlug: string;
-            productName: string;
-            unitPrice: number;
-            quantity: number;
-            lensOption: string;
-            prescriptionMethod: string;
-          }) => ({
-            slug: item.productSlug,
-            name: item.productName,
-            price: item.unitPrice,
-            quantity: item.quantity,
-            lensOption: item.lensOption,
-            prescriptionMethod: item.prescriptionMethod,
-          })
-        ),
+        subtotal: createdOrder?.subtotal ?? subtotal,
+        total: createdOrder?.total ?? total,
+        items: latestCartItems.map((item) => ({
+          slug: item.slug,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          lensOption: item.lensOption,
+          prescriptionMethod: item.prescriptionMethod,
+        })),
       };
 
       localStorage.setItem(
@@ -232,7 +234,7 @@ export default function CheckoutSummary() {
       window.location.href = "/order-success";
     } catch (error) {
       console.error(error);
-      alert("No pudimos crear el pedido. Intenta de nuevo.");
+      setErrorMessage("No pudimos crear el pedido. Intenta de nuevo.");
     } finally {
       setIsPlacingOrder(false);
     }
@@ -303,6 +305,12 @@ export default function CheckoutSummary() {
           <span>${total.toLocaleString("es-MX")} MXN</span>
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4">
+          <p className="text-sm font-medium text-red-700">{errorMessage}</p>
+        </div>
+      )}
 
       <button
         onClick={handlePlaceOrder}

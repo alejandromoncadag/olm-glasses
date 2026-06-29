@@ -4,19 +4,7 @@ import { useEffect, useState } from "react";
 import { downloadCsv } from "@/lib/csv";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
-
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
-
-type OrderItem = {
-  id?: string;
-  productSlug: string;
-  productName: string;
-  unitPrice: number;
-  quantity: number;
-  lineTotal: number;
-  lensOption: string;
-  prescriptionMethod: string;
-};
 
 type Order = {
   id: string;
@@ -28,19 +16,21 @@ type Order = {
   total: number;
   currency: string;
   adminNotes?: string | null;
+  shippingCarrier?: string | null;
+  trackingNumber?: string | null;
+  customerVisibleNotes?: string | null;
   createdAt: string;
   updatedAt?: string;
   customer: {
     fullName?: string;
     email?: string;
     phone?: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-    country?: string;
   };
-  items: OrderItem[];
+};
+
+type OrderUpdate = {
+  status?: OrderStatus;
+  paymentStatus?: PaymentStatus;
 };
 
 function getStatusLabel(status: OrderStatus) {
@@ -81,6 +71,38 @@ function getPaymentStatusClassName(status: PaymentStatus) {
   return "bg-gray-100 text-gray-700";
 }
 
+function getShippingClassName(order: Order) {
+  if (order.shippingCarrier && order.trackingNumber) {
+    return "bg-green-100 text-green-700";
+  }
+
+  if (order.status === "cancelled") {
+    return "bg-gray-100 text-gray-700";
+  }
+
+  return "bg-orange-100 text-orange-700";
+}
+
+function getShippingLabel(order: Order) {
+  if (order.shippingCarrier && order.trackingNumber) {
+    return `${order.shippingCarrier} · ${order.trackingNumber}`;
+  }
+
+  if (order.shippingCarrier) {
+    return `${order.shippingCarrier} · Falta rastreo`;
+  }
+
+  if (order.trackingNumber) {
+    return `Rastreo: ${order.trackingNumber}`;
+  }
+
+  if (order.status === "cancelled") {
+    return "Cancelado";
+  }
+
+  return "Falta envío";
+}
+
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString("es-MX", {
     year: "numeric",
@@ -103,16 +125,16 @@ function formatMoney(amount: number) {
   return `$${amount.toLocaleString("es-MX")} MXN`;
 }
 
-
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all");
+  const [shippingFilter, setShippingFilter] = useState<
+    "all" | "withTracking" | "missingTracking"
+  >("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [savingOrderNumber, setSavingOrderNumber] = useState("");
   const [error, setError] = useState("");
-  const [adminNotesDrafts, setAdminNotesDrafts] = useState<
-    Record<string, string>
-  >({});
 
   async function fetchOrders() {
     try {
@@ -126,42 +148,7 @@ export default function AdminOrders() {
       }
 
       const data = await response.json();
-
-      const detailedOrders: Order[] = await Promise.all(
-        data.orders.map(async (order: Order) => {
-          try {
-            const detailResponse = await fetch(
-              `/api/orders/${order.orderNumber}`
-            );
-
-            if (!detailResponse.ok) {
-              return {
-                ...order,
-                items: order.items || [],
-              };
-            }
-
-            const detailData = await detailResponse.json();
-            return detailData.order;
-          } catch {
-            return {
-              ...order,
-              items: order.items || [],
-            };
-          }
-        })
-      );
-
-      setOrders(detailedOrders);
-
-      setAdminNotesDrafts(
-        Object.fromEntries(
-          detailedOrders.map((order) => [
-            order.orderNumber,
-            order.adminNotes || "",
-          ])
-        )
-      );
+      setOrders(data.orders || []);
     } catch (error) {
       console.error(error);
       setError("No pudimos cargar los pedidos desde PostgreSQL.");
@@ -174,15 +161,10 @@ export default function AdminOrders() {
     fetchOrders();
   }, []);
 
-  async function updateOrder(
-    orderNumber: string,
-    updates: {
-      status?: OrderStatus;
-      paymentStatus?: PaymentStatus;
-      adminNotes?: string;
-    }
-  ) {
+  async function updateOrder(orderNumber: string, updates: OrderUpdate) {
     try {
+      setSavingOrderNumber(orderNumber);
+
       const response = await fetch(`/api/orders/${orderNumber}`, {
         method: "PATCH",
         headers: {
@@ -205,38 +187,33 @@ export default function AdminOrders() {
                 ...order,
                 status: data.order.status,
                 paymentStatus: data.order.paymentStatus,
-                adminNotes: data.order.adminNotes,
                 updatedAt: data.order.updatedAt,
               }
             : order
         )
       );
-
-      if (updates.adminNotes !== undefined) {
-        alert("Notas guardadas correctamente.");
-      }
     } catch (error) {
       console.error(error);
       alert("No pudimos actualizar el pedido.");
+    } finally {
+      setSavingOrderNumber("");
     }
   }
 
   const totalOrders = orders.length;
-
   const pendingOrders = orders.filter(
     (order) => order.status === "pending"
   ).length;
-
   const processingOrders = orders.filter(
     (order) => order.status === "processing"
   ).length;
-
   const completedOrders = orders.filter(
     (order) => order.status === "completed"
   ).length;
-
-  const cancelledOrders = orders.filter(
-    (order) => order.status === "cancelled"
+  const missingTrackingOrders = orders.filter(
+    (order) =>
+      order.status !== "cancelled" &&
+      (!order.shippingCarrier || !order.trackingNumber)
   ).length;
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
@@ -245,18 +222,26 @@ export default function AdminOrders() {
     const matchesStatus =
       statusFilter === "all" || order.status === statusFilter;
 
+    const hasTracking = Boolean(order.shippingCarrier && order.trackingNumber);
+
+    const matchesShipping =
+      shippingFilter === "all" ||
+      (shippingFilter === "withTracking" && hasTracking) ||
+      (shippingFilter === "missingTracking" &&
+        order.status !== "cancelled" &&
+        !hasTracking);
+
     const searchableText = [
       order.orderNumber,
       order.customer?.fullName,
       order.customer?.email,
       order.customer?.phone,
-      order.customer?.address,
-      order.customer?.city,
-      order.customer?.state,
-      order.customer?.zipCode,
+      order.status,
+      order.paymentStatus,
+      order.shippingCarrier,
+      order.trackingNumber,
+      order.customerVisibleNotes,
       order.adminNotes,
-      ...order.items.map((item) => item.productName),
-      ...order.items.map((item) => item.productSlug),
     ]
       .filter(Boolean)
       .join(" ")
@@ -266,7 +251,7 @@ export default function AdminOrders() {
       normalizedSearchTerm === "" ||
       searchableText.includes(normalizedSearchTerm);
 
-    return matchesStatus && matchesSearch;
+    return matchesStatus && matchesShipping && matchesSearch;
   });
 
   function exportOrdersCsv() {
@@ -276,18 +261,15 @@ export default function AdminOrders() {
         "Customer Name",
         "Customer Email",
         "Customer Phone",
-        "Address",
-        "City",
-        "State",
-        "Zip Code",
         "Status",
         "Payment Status",
-        "Items Count",
+        "Shipping Carrier",
+        "Tracking Number",
+        "Customer Visible Notes",
         "Subtotal",
         "Shipping",
         "Total",
         "Currency",
-        "Admin Notes",
         "Created At",
       ],
       ...filteredOrders.map((order) => [
@@ -295,18 +277,15 @@ export default function AdminOrders() {
         order.customer?.fullName || "",
         order.customer?.email || "",
         order.customer?.phone || "",
-        order.customer?.address || "",
-        order.customer?.city || "",
-        order.customer?.state || "",
-        order.customer?.zipCode || "",
         getStatusLabel(order.status),
         getPaymentStatusLabel(order.paymentStatus),
-        order.items.length,
+        order.shippingCarrier || "",
+        order.trackingNumber || "",
+        order.customerVisibleNotes || "",
         order.subtotal,
         order.shipping || 0,
         order.total,
         order.currency,
-        order.adminNotes || "",
         formatDateTime(order.createdAt),
       ]),
     ];
@@ -367,8 +346,8 @@ export default function AdminOrders() {
         </div>
 
         <div className="rounded-2xl border p-5">
-          <p className="text-sm text-gray-600">Cancelados</p>
-          <p className="mt-2 text-3xl font-bold">{cancelledOrders}</p>
+          <p className="text-sm text-gray-600">Falta rastreo</p>
+          <p className="mt-2 text-3xl font-bold">{missingTrackingOrders}</p>
         </div>
       </div>
 
@@ -376,7 +355,7 @@ export default function AdminOrders() {
         <input
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Buscar por pedido, cliente, email o producto..."
+          placeholder="Buscar por pedido, cliente, email, rastreo..."
           className="w-full rounded-full border px-5 py-2 text-sm outline-none focus:border-black md:max-w-sm"
         />
 
@@ -429,18 +408,40 @@ export default function AdminOrders() {
           >
             Completados
           </button>
-
-          <button
-            onClick={() => setStatusFilter("cancelled")}
-            className={`rounded-full border px-4 py-2 text-sm ${
-              statusFilter === "cancelled"
-                ? "border-black bg-black text-white"
-                : ""
-            }`}
-          >
-            Cancelados
-          </button>
         </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          onClick={() => setShippingFilter("all")}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            shippingFilter === "all" ? "border-black bg-black text-white" : ""
+          }`}
+        >
+          Todos los envíos
+        </button>
+
+        <button
+          onClick={() => setShippingFilter("missingTracking")}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            shippingFilter === "missingTracking"
+              ? "border-black bg-black text-white"
+              : ""
+          }`}
+        >
+          Falta rastreo
+        </button>
+
+        <button
+          onClick={() => setShippingFilter("withTracking")}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            shippingFilter === "withTracking"
+              ? "border-black bg-black text-white"
+              : ""
+          }`}
+        >
+          Con rastreo
+        </button>
       </div>
 
       <p className="mt-4 text-sm text-gray-600">
@@ -481,14 +482,54 @@ export default function AdminOrders() {
                     >
                       {getPaymentStatusLabel(order.paymentStatus)}
                     </span>
+
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getShippingClassName(
+                        order
+                      )}`}
+                    >
+                      {getShippingLabel(order)}
+                    </span>
                   </div>
 
                   <p className="mt-2 text-sm text-gray-500">
                     Pedido creado el {formatDate(order.createdAt)}
                   </p>
+
+                  <div className="mt-4 grid gap-3 text-sm text-gray-700 md:grid-cols-3">
+                    <div>
+                      <p className="text-gray-500">Cliente</p>
+                      <p className="font-medium">
+                        {order.customer?.fullName || "Sin nombre"}
+                      </p>
+                      <p>{order.customer?.email || "Sin email"}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-gray-500">Envío</p>
+                      <p className="font-medium">
+                        {order.shippingCarrier || "Sin paquetería"}
+                      </p>
+                      <p>{order.trackingNumber || "Sin rastreo"}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-gray-500">Total</p>
+                      <p className="font-semibold">{formatMoney(order.total)}</p>
+                    </div>
+                  </div>
+
+                  {order.customerVisibleNotes && (
+                    <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
+                      <p className="font-medium text-black">
+                        Nota visible para cliente:
+                      </p>
+                      <p className="mt-1">{order.customerVisibleNotes}</p>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex flex-col gap-3 md:items-end">
+                <div className="flex flex-col gap-3 md:min-w-48 md:items-end">
                   <a
                     href={`/admin/orders/${order.orderNumber}`}
                     className="rounded-full bg-black px-5 py-2 text-center text-sm text-white"
@@ -498,6 +539,7 @@ export default function AdminOrders() {
 
                   <select
                     value={order.status}
+                    disabled={savingOrderNumber === order.orderNumber}
                     onChange={(event) =>
                       updateOrder(order.orderNumber, {
                         status: event.target.value as OrderStatus,
@@ -513,6 +555,7 @@ export default function AdminOrders() {
 
                   <select
                     value={order.paymentStatus}
+                    disabled={savingOrderNumber === order.orderNumber}
                     onChange={(event) =>
                       updateOrder(order.orderNumber, {
                         paymentStatus: event.target.value as PaymentStatus,
@@ -528,123 +571,6 @@ export default function AdminOrders() {
                   </select>
                 </div>
               </div>
-
-              <div className="mt-6 grid gap-6 md:grid-cols-2">
-                <div className="rounded-2xl bg-gray-50 p-5">
-                  <h3 className="font-semibold">Cliente</h3>
-
-                  <div className="mt-3 space-y-1 text-sm text-gray-600">
-                    <p>{order.customer?.fullName || "Sin nombre"}</p>
-                    <p>{order.customer?.email || "Sin email"}</p>
-                    <p>{order.customer?.phone || "Sin teléfono"}</p>
-                    <p>
-                      {[
-                        order.customer?.address,
-                        order.customer?.city,
-                        order.customer?.state,
-                        order.customer?.zipCode,
-                      ]
-                        .filter(Boolean)
-                        .join(", ") || "Sin dirección"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl bg-gray-50 p-5">
-                  <h3 className="font-semibold">Totales</h3>
-
-                  <div className="mt-3 space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Subtotal</span>
-                      <span>{formatMoney(order.subtotal)}</span>
-                    </div>
-
-                    <div className="flex justify-between text-gray-600">
-                      <span>Envío</span>
-                      <span>{formatMoney(order.shipping || 0)}</span>
-                    </div>
-
-                    <div className="border-t pt-2">
-                      <div className="flex justify-between font-semibold">
-                        <span>Total</span>
-                        <span>{formatMoney(order.total)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <h3 className="font-semibold">Productos</h3>
-
-                <div className="mt-3 space-y-3">
-                  {order.items.length === 0 ? (
-                    <p className="text-sm text-gray-600">
-                      Este pedido no tiene productos registrados.
-                    </p>
-                  ) : (
-                    order.items.map((item, index) => (
-                      <div
-                        key={item.id || `${item.productSlug}-${index}`}
-                        className="rounded-2xl border p-4"
-                      >
-                        <div className="flex flex-col justify-between gap-3 md:flex-row">
-                          <div>
-                            <p className="font-medium">{item.productName}</p>
-
-                            <p className="mt-1 text-sm text-gray-600">
-                              {item.lensOption}
-                            </p>
-
-                            <p className="text-sm text-gray-600">
-                              {item.prescriptionMethod}
-                            </p>
-
-                            <p className="mt-2 text-sm text-gray-500">
-                              Cantidad: {item.quantity}
-                            </p>
-                          </div>
-
-                          <div className="text-sm md:text-right">
-                            <p>{formatMoney(item.unitPrice)} c/u</p>
-                            <p className="mt-1 font-semibold">
-                              {formatMoney(item.lineTotal)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-6 rounded-2xl border p-4 text-sm text-gray-700">
-                <p className="font-medium">Notas admin</p>
-
-                <textarea
-                  value={adminNotesDrafts[order.orderNumber] || ""}
-                  onChange={(event) =>
-                    setAdminNotesDrafts((currentDrafts) => ({
-                      ...currentDrafts,
-                      [order.orderNumber]: event.target.value,
-                    }))
-                  }
-                  rows={3}
-                  placeholder="Ejemplo: Cliente pidió confirmar por WhatsApp."
-                  className="mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-black"
-                />
-
-                <button
-                  onClick={() =>
-                    updateOrder(order.orderNumber, {
-                      adminNotes: adminNotesDrafts[order.orderNumber] || "",
-                    })
-                  }
-                  className="mt-3 rounded-full bg-black px-4 py-2 text-sm text-white"
-                >
-                  Guardar notas
-                </button>
-              </div>
             </article>
           ))}
         </div>
@@ -652,5 +578,7 @@ export default function AdminOrders() {
     </div>
   );
 }
+
+
 
 

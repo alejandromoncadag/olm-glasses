@@ -44,6 +44,9 @@ export async function POST(request: Request) {
           orders.shipping_cents,
           orders.total_cents,
           orders.currency,
+          orders.shipping_carrier,
+          orders.tracking_number,
+          orders.customer_visible_notes,
           orders.created_at,
           customers.full_name,
           customers.email
@@ -59,10 +62,7 @@ export async function POST(request: Request) {
     const order = orderResult.rows[0];
 
     if (!order) {
-      return NextResponse.json(
-        { error: "Order not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
     const itemsResult = await pool.query(
@@ -91,6 +91,9 @@ export async function POST(request: Request) {
         shipping: order.shipping_cents / 100,
         total: order.total_cents / 100,
         currency: order.currency,
+        shippingCarrier: order.shipping_carrier,
+        trackingNumber: order.tracking_number,
+        customerVisibleNotes: order.customer_visible_notes,
         createdAt: order.created_at,
         customer: {
           fullName: order.full_name,

@@ -41,23 +41,27 @@ type Order = {
   currency?: string;
 };
 
+function formatMoney(amount: number) {
+  return `$${amount.toLocaleString("es-MX")} MXN`;
+}
+
 function getStatusLabel(status: OrderStatus) {
-  if (status === "pending") return "Pendiente";
+  if (status === "pending") return "Pedido recibido";
   if (status === "processing") return "En proceso";
   if (status === "completed") return "Completado";
   if (status === "cancelled") return "Cancelado";
 
-  return "Pendiente";
+  return "Pedido recibido";
 }
 
 function getPaymentStatusLabel(status?: string) {
-  if (status === "unpaid") return "Sin pagar";
+  if (status === "unpaid") return "Pago por confirmar";
   if (status === "pending") return "Pago pendiente";
   if (status === "paid") return "Pagado";
   if (status === "failed") return "Pago fallido";
   if (status === "refunded") return "Reembolsado";
 
-  return "Por confirmar";
+  return "Pago por confirmar";
 }
 
 function getItemName(item: OrderItem) {
@@ -77,42 +81,22 @@ export default function OrderSuccessDetails() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadOrder() {
-      try {
-        const savedOrder = localStorage.getItem("olm-latest-order");
+    try {
+      const savedOrder = localStorage.getItem("olm-latest-order");
 
-        if (!savedOrder) {
-          setOrder(null);
-          return;
-        }
-
-        const parsedOrder = JSON.parse(savedOrder) as Order;
-
-        const response = await fetch(`/api/orders/${parsedOrder.orderNumber}`);
-
-        if (!response.ok) {
-          setOrder(parsedOrder);
-          return;
-        }
-
-        const data = await response.json();
-        setOrder(data.order);
-      } catch (error) {
-        console.error(error);
-
-        const savedOrder = localStorage.getItem("olm-latest-order");
-
-        if (savedOrder) {
-          setOrder(JSON.parse(savedOrder));
-        } else {
-          setOrder(null);
-        }
-      } finally {
-        setLoading(false);
+      if (!savedOrder) {
+        setOrder(null);
+        return;
       }
-    }
 
-    loadOrder();
+      const parsedOrder = JSON.parse(savedOrder) as Order;
+      setOrder(parsedOrder);
+    } catch (error) {
+      console.error("Could not load latest order:", error);
+      setOrder(null);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   if (loading) {
@@ -121,7 +105,7 @@ export default function OrderSuccessDetails() {
         <h2 className="text-2xl font-semibold">Cargando pedido...</h2>
 
         <p className="mt-3 text-gray-600">
-          Estamos leyendo los detalles desde PostgreSQL.
+          Estamos preparando el resumen de tu compra.
         </p>
       </div>
     );
@@ -130,9 +114,7 @@ export default function OrderSuccessDetails() {
   if (!order) {
     return (
       <div className="rounded-2xl border p-8 text-center">
-        <h2 className="text-2xl font-semibold">
-          No encontramos un pedido reciente
-        </h2>
+        <h1 className="text-3xl font-bold">No encontramos un pedido reciente</h1>
 
         <p className="mt-3 text-gray-600">
           Puedes regresar a la tienda y hacer una nueva compra.
@@ -157,14 +139,15 @@ export default function OrderSuccessDetails() {
   return (
     <div className="rounded-2xl border p-8">
       <div className="text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-3xl">
           ✓
         </div>
 
-        <h1 className="mt-6 text-4xl font-bold">Pedido recibido</h1>
+        <h1 className="mt-8 text-4xl font-bold">Pedido recibido</h1>
 
-        <p className="mt-3 text-gray-600">
-          Gracias por tu compra. Hemos guardado tu pedido en PostgreSQL.
+        <p className="mt-4 text-lg text-gray-600">
+          Gracias por comprar en Óptica OLM. Hemos recibido tu pedido y pronto
+          te contactaremos para confirmar los detalles.
         </p>
       </div>
 
@@ -194,13 +177,39 @@ export default function OrderSuccessDetails() {
         </div>
       </div>
 
+      <div className="mt-8 rounded-2xl border p-5">
+        <h2 className="text-xl font-semibold">Cliente</h2>
+
+        <div className="mt-4 grid gap-3 text-sm text-gray-700 md:grid-cols-2">
+          <p>
+            <span className="font-medium text-black">Nombre:</span>{" "}
+            {order.customer.fullName || "Por confirmar"}
+          </p>
+
+          <p>
+            <span className="font-medium text-black">Email:</span>{" "}
+            {order.customer.email || "Por confirmar"}
+          </p>
+
+          <p>
+            <span className="font-medium text-black">Teléfono:</span>{" "}
+            {order.customer.phone || "Por confirmar"}
+          </p>
+
+          <p>
+            <span className="font-medium text-black">Ciudad:</span>{" "}
+            {order.customer.city || "Por confirmar"}
+          </p>
+        </div>
+      </div>
+
       <div className="mt-8">
         <h2 className="text-2xl font-semibold">Resumen del pedido</h2>
 
         <div className="mt-4 space-y-4">
           {order.items.map((item, index) => (
             <div key={item.id || index} className="rounded-2xl border p-5">
-              <div className="flex justify-between gap-4">
+              <div className="flex flex-col justify-between gap-4 md:flex-row">
                 <div>
                   <h3 className="font-semibold">{getItemName(item)}</h3>
 
@@ -217,9 +226,15 @@ export default function OrderSuccessDetails() {
                   </p>
                 </div>
 
-                <p className="font-semibold">
-                  ${getItemTotal(item).toLocaleString("es-MX")} MXN
-                </p>
+                <div className="md:text-right">
+                  <p className="text-sm text-gray-600">
+                    {formatMoney(getItemPrice(item))} c/u
+                  </p>
+
+                  <p className="mt-1 font-semibold">
+                    {formatMoney(getItemTotal(item))}
+                  </p>
+                </div>
               </div>
             </div>
           ))}
@@ -229,14 +244,14 @@ export default function OrderSuccessDetails() {
       <div className="mt-8 rounded-2xl border p-5">
         <div className="flex justify-between">
           <span>Subtotal</span>
-          <span>${order.subtotal.toLocaleString("es-MX")} MXN</span>
+          <span>{formatMoney(order.subtotal)}</span>
         </div>
 
         <div className="mt-3 flex justify-between text-gray-600">
           <span>Envío</span>
           <span>
             {order.shipping !== undefined
-              ? `$${order.shipping.toLocaleString("es-MX")} MXN`
+              ? formatMoney(order.shipping)
               : "Por confirmar"}
           </span>
         </div>
@@ -244,7 +259,7 @@ export default function OrderSuccessDetails() {
         <div className="mt-5 border-t pt-5">
           <div className="flex justify-between text-lg font-semibold">
             <span>Total</span>
-            <span>${order.total.toLocaleString("es-MX")} MXN</span>
+            <span>{formatMoney(order.total)}</span>
           </div>
         </div>
       </div>
@@ -252,13 +267,14 @@ export default function OrderSuccessDetails() {
       <div className="mt-8 rounded-2xl bg-gray-50 p-5">
         <h2 className="text-xl font-semibold">Próximos pasos</h2>
 
-        <p className="mt-3 text-gray-600">
-          Revisaremos tu pedido y te contactaremos para confirmar disponibilidad,
-          graduación y forma de pago.
-        </p>
+        <ul className="mt-4 space-y-3 text-gray-600">
+          <li>1. Revisaremos tu pedido.</li>
+          <li>2. Confirmaremos tu información de envío y graduación.</li>
+          <li>3. Te enviaremos instrucciones de pago.</li>
+        </ul>
 
-        <p className="mt-3 text-gray-600">
-          Si elegiste enviar tu receta después, podrás mandarla por WhatsApp.
+        <p className="mt-4 text-sm text-gray-500">
+          Próximamente conectaremos Mercado Pago para pagar directamente en línea.
         </p>
       </div>
 
@@ -270,16 +286,12 @@ export default function OrderSuccessDetails() {
           Seguir comprando
         </a>
 
-
-
         <a
           href="/order-status"
           className="rounded-full border px-6 py-3 text-center"
         >
           Consultar pedido
         </a>
-
-
       </div>
     </div>
   );
