@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -38,6 +39,8 @@ export default function ProductPage() {
   const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam;
 
   const [product, setProduct] = useState<Product | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -54,7 +57,10 @@ export default function ProductPage() {
         }
 
         const data = await response.json();
+
         setProduct(data.product);
+        setSelectedImageIndex(0);
+        setIsImageModalOpen(false);
       } catch (error) {
         console.error(error);
         setError("No encontramos este producto.");
@@ -99,40 +105,99 @@ export default function ProductPage() {
     );
   }
 
-  const mainImage =
-    product.images.find((image) => image.isMain) || product.images[0];
+  const images = product.images || [];
+  const selectedImage = images[selectedImageIndex] || images[0];
+
+  function goToPreviousImage() {
+    if (images.length <= 1) {
+      return;
+    }
+
+    setSelectedImageIndex((currentIndex) =>
+      currentIndex === 0 ? images.length - 1 : currentIndex - 1
+    );
+  }
+
+  function goToNextImage() {
+    if (images.length <= 1) {
+      return;
+    }
+
+    setSelectedImageIndex((currentIndex) =>
+      currentIndex === images.length - 1 ? 0 : currentIndex + 1
+    );
+  }
 
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
       <section className="mx-auto grid max-w-6xl gap-12 md:grid-cols-2">
         <div>
-          <div className="flex h-[450px] items-center justify-center overflow-hidden rounded-3xl bg-gray-100">
-            {mainImage ? (
-              <img
-                src={mainImage.imageUrl}
-                alt={mainImage.altText || product.name}
-                className="h-full w-full object-cover"
-              />
+          <div className="relative flex h-[450px] items-center justify-center overflow-hidden rounded-3xl bg-gray-100">
+            {selectedImage ? (
+              <button
+                type="button"
+                onClick={() => setIsImageModalOpen(true)}
+                className="h-full w-full cursor-zoom-in"
+                aria-label="Ver imagen en grande"
+              >
+                <img
+                  src={selectedImage.imageUrl}
+                  alt={selectedImage.altText || product.name}
+                  className="h-full w-full object-contain"
+                />
+              </button>
             ) : (
               <span className="text-gray-500">
                 Imagen principal del producto
               </span>
             )}
+
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={goToPreviousImage}
+                  className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-2xl shadow transition hover:bg-white"
+                  aria-label="Imagen anterior"
+                >
+                  ‹
+                </button>
+
+                <button
+                  type="button"
+                  onClick={goToNextImage}
+                  className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-2xl shadow transition hover:bg-white"
+                  aria-label="Siguiente imagen"
+                >
+                  ›
+                </button>
+
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/90 px-4 py-1 text-sm shadow">
+                  {selectedImageIndex + 1} / {images.length}
+                </div>
+              </>
+            )}
           </div>
 
-          {product.images.length > 1 && (
-            <div className="mt-4 grid grid-cols-3 gap-4">
-              {product.images.map((image) => (
-                <div
+          {images.length > 1 && (
+            <div className="mt-4 grid grid-cols-4 gap-4">
+              {images.map((image, index) => (
+                <button
                   key={image.id}
-                  className="flex h-28 items-center justify-center overflow-hidden rounded-2xl bg-gray-100"
+                  type="button"
+                  onClick={() => setSelectedImageIndex(index)}
+                  className={`flex h-24 items-center justify-center overflow-hidden rounded-2xl border bg-gray-100 transition ${
+                    selectedImageIndex === index
+                      ? "border-black ring-2 ring-black"
+                      : "border-transparent hover:border-gray-400"
+                  }`}
                 >
                   <img
                     src={image.imageUrl}
                     alt={image.altText || product.name}
                     className="h-full w-full object-cover"
                   />
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -199,6 +264,52 @@ export default function ProductPage() {
           </p>
         </div>
       </section>
+
+      {isImageModalOpen && selectedImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6">
+          <button
+            type="button"
+            onClick={() => setIsImageModalOpen(false)}
+            className="absolute right-6 top-6 rounded-full bg-white px-5 py-2 text-sm font-semibold text-black"
+          >
+            Cerrar
+          </button>
+
+          {images.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={goToPreviousImage}
+                className="absolute left-6 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-3xl text-black"
+                aria-label="Imagen anterior"
+              >
+                ‹
+              </button>
+
+              <button
+                type="button"
+                onClick={goToNextImage}
+                className="absolute right-6 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-3xl text-black"
+                aria-label="Siguiente imagen"
+              >
+                ›
+              </button>
+            </>
+          )}
+
+          <img
+            src={selectedImage.imageUrl}
+            alt={selectedImage.altText || product.name}
+            className="max-h-[85vh] max-w-[90vw] object-contain"
+          />
+
+          {images.length > 1 && (
+            <div className="absolute bottom-6 rounded-full bg-white px-4 py-2 text-sm text-black">
+              {selectedImageIndex + 1} / {images.length}
+            </div>
+          )}
+        </div>
+      )}
     </main>
   );
 }

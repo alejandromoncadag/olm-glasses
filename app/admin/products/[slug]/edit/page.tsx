@@ -4,7 +4,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AdminNav from "@/components/AdminNav";
-import ProductImageUploader from "@/components/ProductImageUploader";
+import ProductImageGalleryManager from "@/components/ProductImageGalleryManager";
 
 type ProductType = "eyeglasses" | "sunglasses";
 type ProductGender = "hombre" | "mujer" | "unisex";
@@ -54,10 +54,8 @@ export default function EditProductPage() {
   const [shape, setShape] = useState<ProductShape>("rectangular");
   const [frameColor, setFrameColor] = useState("");
   const [stock, setStock] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageAltText, setImageAltText] = useState("");
-  const [imagePreviewError, setImagePreviewError] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [images, setImages] = useState<ProductImage[]>([]);
 
   useEffect(() => {
     async function fetchProduct() {
@@ -74,9 +72,6 @@ export default function EditProductPage() {
         const data = await response.json();
         const product: Product = data.product;
 
-        const mainImage =
-          product.images.find((image) => image.isMain) || product.images[0];
-
         setName(product.name);
         setDescription(product.description);
         setPrice(String(product.price));
@@ -87,9 +82,7 @@ export default function EditProductPage() {
         setFrameColor(product.frameColor);
         setStock(String(product.stock));
         setIsActive(product.isActive);
-        setImageUrl(mainImage?.imageUrl || "");
-        setImageAltText(mainImage?.altText || product.name);
-        setImagePreviewError(false);
+        setImages(product.images || []);
       } catch (error) {
         console.error(error);
         setError("No pudimos cargar el producto desde PostgreSQL.");
@@ -102,11 +95,6 @@ export default function EditProductPage() {
       fetchProduct();
     }
   }, [slug]);
-
-  function handleImageUrlChange(value: string) {
-    setImageUrl(value);
-    setImagePreviewError(false);
-  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -130,8 +118,6 @@ export default function EditProductPage() {
           frameColor,
           stock: Number(stock),
           isActive,
-          imageUrl: imageUrl.trim() || undefined,
-          imageAltText: imageAltText.trim() || name,
           reason: "Admin product edit",
         }),
       });
@@ -159,6 +145,7 @@ export default function EditProductPage() {
       <main className="min-h-screen bg-white px-6 py-12 text-black">
         <section className="mx-auto max-w-4xl">
           <h1 className="text-4xl font-bold">Editar producto</h1>
+
           <p className="mt-4 text-gray-600">
             Cargando producto desde PostgreSQL...
           </p>
@@ -172,6 +159,7 @@ export default function EditProductPage() {
       <main className="min-h-screen bg-white px-6 py-12 text-black">
         <section className="mx-auto max-w-4xl">
           <h1 className="text-4xl font-bold">Editar producto</h1>
+
           <p className="mt-4 text-red-600">{error}</p>
 
           <a
@@ -185,13 +173,16 @@ export default function EditProductPage() {
     );
   }
 
+  const mainImage = images.find((image) => image.isMain) || images[0];
+
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
       <section className="mx-auto max-w-4xl">
         <h1 className="text-4xl font-bold">Editar producto</h1>
 
         <p className="mt-4 text-gray-600">
-          Actualiza la información del producto en PostgreSQL.
+          Actualiza la información del producto y administra su galería de
+          imágenes.
         </p>
 
         <AdminNav />
@@ -227,28 +218,27 @@ export default function EditProductPage() {
             </div>
 
             <div className="rounded-2xl border bg-gray-50 p-5">
-              <p className="text-sm font-medium">Vista previa</p>
+              <p className="text-sm font-medium">Imagen principal actual</p>
 
               <div className="mt-4 flex h-72 items-center justify-center overflow-hidden rounded-2xl bg-white">
-                {imageUrl && !imagePreviewError ? (
+                {mainImage ? (
                   <img
-                    src={imageUrl}
-                    alt={imageAltText || name || "Vista previa del producto"}
-                    onError={() => setImagePreviewError(true)}
-                    className="h-full w-full object-contain"
+                    src={mainImage.imageUrl}
+                    alt={mainImage.altText || name}
+                    className="h-full w-full object-cover"
                   />
                 ) : (
                   <div className="px-6 text-center text-sm text-gray-500">
-                    {imageUrl
-                      ? "No pudimos cargar esta imagen. Revisa la URL."
-                      : "Agrega una URL de imagen para ver la vista previa."}
+                    Este producto no tiene imagen principal.
                   </div>
                 )}
               </div>
 
-              <p className="mt-3 text-xs text-gray-500">
-                Ejemplo: <span className="font-mono">/products/tu-imagen.jpg</span>
-              </p>
+              {mainImage && (
+                <p className="mt-3 truncate text-xs text-gray-500">
+                  {mainImage.imageUrl}
+                </p>
+              )}
             </div>
           </div>
 
@@ -345,15 +335,14 @@ export default function EditProductPage() {
             </label>
           </div>
 
-
-          <ProductImageUploader
-            imageUrl={imageUrl}
-            imageAltText={imageAltText}
-            fallbackAltText={name}
-            onImageUrlChange={handleImageUrlChange}
-            onImageAltTextChange={setImageAltText}
-          />
-
+          {slug && (
+            <ProductImageGalleryManager
+              slug={slug}
+              images={images}
+              fallbackAltText={name}
+              onImagesChange={setImages}
+            />
+          )}
 
           <label className="flex items-center gap-3">
             <input
