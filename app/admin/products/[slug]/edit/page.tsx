@@ -1,8 +1,10 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AdminNav from "@/components/AdminNav";
+import ProductImageUploader from "@/components/ProductImageUploader";
 
 type ProductType = "eyeglasses" | "sunglasses";
 type ProductGender = "hombre" | "mujer" | "unisex";
@@ -54,6 +56,7 @@ export default function EditProductPage() {
   const [stock, setStock] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [imageAltText, setImageAltText] = useState("");
+  const [imagePreviewError, setImagePreviewError] = useState(false);
   const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
@@ -86,6 +89,7 @@ export default function EditProductPage() {
         setIsActive(product.isActive);
         setImageUrl(mainImage?.imageUrl || "");
         setImageAltText(mainImage?.altText || product.name);
+        setImagePreviewError(false);
       } catch (error) {
         console.error(error);
         setError("No pudimos cargar el producto desde PostgreSQL.");
@@ -98,6 +102,11 @@ export default function EditProductPage() {
       fetchProduct();
     }
   }, [slug]);
+
+  function handleImageUrlChange(value: string) {
+    setImageUrl(value);
+    setImagePreviewError(false);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -121,8 +130,8 @@ export default function EditProductPage() {
           frameColor,
           stock: Number(stock),
           isActive,
-          imageUrl: imageUrl || undefined,
-          imageAltText: imageAltText || name,
+          imageUrl: imageUrl.trim() || undefined,
+          imageAltText: imageAltText.trim() || name,
           reason: "Admin product edit",
         }),
       });
@@ -150,7 +159,6 @@ export default function EditProductPage() {
       <main className="min-h-screen bg-white px-6 py-12 text-black">
         <section className="mx-auto max-w-4xl">
           <h1 className="text-4xl font-bold">Editar producto</h1>
-
           <p className="mt-4 text-gray-600">
             Cargando producto desde PostgreSQL...
           </p>
@@ -164,7 +172,6 @@ export default function EditProductPage() {
       <main className="min-h-screen bg-white px-6 py-12 text-black">
         <section className="mx-auto max-w-4xl">
           <h1 className="text-4xl font-bold">Editar producto</h1>
-
           <p className="mt-4 text-red-600">{error}</p>
 
           <a
@@ -194,27 +201,56 @@ export default function EditProductPage() {
           <p className="mt-1 font-semibold">{slug}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-10 space-y-6">
-          <label className="block">
-            <span className="text-sm font-medium">Nombre</span>
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              required
-              className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-            />
-          </label>
+        <form onSubmit={handleSubmit} className="mt-10 space-y-8">
+          <div className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-6">
+              <label className="block">
+                <span className="text-sm font-medium">Nombre</span>
+                <input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  required
+                  className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                />
+              </label>
 
-          <label className="block">
-            <span className="text-sm font-medium">Descripción</span>
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              required
-              rows={4}
-              className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-            />
-          </label>
+              <label className="block">
+                <span className="text-sm font-medium">Descripción</span>
+                <textarea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  required
+                  rows={7}
+                  className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                />
+              </label>
+            </div>
+
+            <div className="rounded-2xl border bg-gray-50 p-5">
+              <p className="text-sm font-medium">Vista previa</p>
+
+              <div className="mt-4 flex h-72 items-center justify-center overflow-hidden rounded-2xl bg-white">
+                {imageUrl && !imagePreviewError ? (
+                  <img
+                    src={imageUrl}
+                    alt={imageAltText || name || "Vista previa del producto"}
+                    onError={() => setImagePreviewError(true)}
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <div className="px-6 text-center text-sm text-gray-500">
+                    {imageUrl
+                      ? "No pudimos cargar esta imagen. Revisa la URL."
+                      : "Agrega una URL de imagen para ver la vista previa."}
+                  </div>
+                )}
+              </div>
+
+              <p className="mt-3 text-xs text-gray-500">
+                Ejemplo: <span className="font-mono">/products/tu-imagen.jpg</span>
+              </p>
+            </div>
+          </div>
 
           <div className="grid gap-6 md:grid-cols-3">
             <label className="block">
@@ -309,26 +345,15 @@ export default function EditProductPage() {
             </label>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <label className="block">
-              <span className="text-sm font-medium">URL de imagen principal</span>
-              <input
-                value={imageUrl}
-                onChange={(event) => setImageUrl(event.target.value)}
-                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                placeholder="/products/modelo.jpg"
-              />
-            </label>
 
-            <label className="block">
-              <span className="text-sm font-medium">Texto alternativo</span>
-              <input
-                value={imageAltText}
-                onChange={(event) => setImageAltText(event.target.value)}
-                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-              />
-            </label>
-          </div>
+          <ProductImageUploader
+            imageUrl={imageUrl}
+            imageAltText={imageAltText}
+            fallbackAltText={name}
+            onImageUrlChange={handleImageUrlChange}
+            onImageAltTextChange={setImageAltText}
+          />
+
 
           <label className="flex items-center gap-3">
             <input
@@ -360,5 +385,4 @@ export default function EditProductPage() {
     </main>
   );
 }
-
 

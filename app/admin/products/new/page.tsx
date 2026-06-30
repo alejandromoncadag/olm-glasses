@@ -1,8 +1,10 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import AdminNav from "@/components/AdminNav";
+import ProductImageUploader from "@/components/ProductImageUploader";
 
 type ProductType = "eyeglasses" | "sunglasses";
 type ProductGender = "hombre" | "mujer" | "unisex";
@@ -33,6 +35,7 @@ export default function NewProductPage() {
   const [stock, setStock] = useState("0");
   const [imageUrl, setImageUrl] = useState("");
   const [imageAltText, setImageAltText] = useState("");
+  const [imagePreviewError, setImagePreviewError] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -42,6 +45,15 @@ export default function NewProductPage() {
     if (!slug) {
       setSlug(createSlug(value));
     }
+
+    if (!imageAltText) {
+      setImageAltText(value);
+    }
+  }
+
+  function handleImageUrlChange(value: string) {
+    setImageUrl(value);
+    setImagePreviewError(false);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -67,8 +79,8 @@ export default function NewProductPage() {
           frameColor,
           stock: Number(stock),
           isActive,
-          imageUrl: imageUrl || undefined,
-          imageAltText: imageAltText || name,
+          imageUrl: imageUrl.trim() || undefined,
+          imageAltText: imageAltText.trim() || name,
         }),
       });
 
@@ -96,48 +108,83 @@ export default function NewProductPage() {
         <h1 className="text-4xl font-bold">Agregar producto</h1>
 
         <p className="mt-4 text-gray-600">
-          Crea un producto nuevo en PostgreSQL. Más adelante agregaremos carga
-          real de imágenes.
+          Crea un producto nuevo en PostgreSQL y revisa la imagen antes de
+          guardarlo.
         </p>
 
         <AdminNav />
 
-        <form onSubmit={handleSubmit} className="mt-10 space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <label className="block">
-              <span className="text-sm font-medium">Nombre</span>
-              <input
-                value={name}
-                onChange={(event) => handleNameChange(event.target.value)}
-                required
-                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                placeholder="Modelo Ejecutivo"
-              />
-            </label>
+        <form onSubmit={handleSubmit} className="mt-10 space-y-8">
+          <div className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <label className="block">
+                  <span className="text-sm font-medium">Nombre</span>
+                  <input
+                    value={name}
+                    onChange={(event) => handleNameChange(event.target.value)}
+                    required
+                    className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                    placeholder="Modelo Ejecutivo"
+                  />
+                </label>
 
-            <label className="block">
-              <span className="text-sm font-medium">Slug</span>
-              <input
-                value={slug}
-                onChange={(event) => setSlug(createSlug(event.target.value))}
-                required
-                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                placeholder="modelo-ejecutivo"
-              />
-            </label>
+                <label className="block">
+                  <span className="text-sm font-medium">Slug</span>
+                  <input
+                    value={slug}
+                    onChange={(event) =>
+                      setSlug(createSlug(event.target.value))
+                    }
+                    required
+                    className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                    placeholder="modelo-ejecutivo"
+                  />
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="text-sm font-medium">Descripción</span>
+                <textarea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  required
+                  rows={7}
+                  className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                  placeholder="Armazón ligero, cómodo y elegante para uso diario."
+                />
+              </label>
+            </div>
+
+            <div className="rounded-2xl border bg-gray-50 p-5">
+              <p className="text-sm font-medium">Vista previa</p>
+
+              <div className="mt-4 flex h-72 items-center justify-center overflow-hidden rounded-2xl bg-white">
+                {imageUrl && !imagePreviewError ? (
+                  <img
+                    src={imageUrl}
+                    alt={imageAltText || name || "Vista previa del producto"}
+                    onError={() => setImagePreviewError(true)}
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <div className="px-6 text-center text-sm text-gray-500">
+                    {imageUrl
+                      ? "No pudimos cargar esta imagen. Revisa la URL."
+                      : "Agrega una URL de imagen para ver la vista previa."}
+                  </div>
+                )}
+              </div>
+
+              <p className="mt-3 text-xs text-gray-500">
+                Puedes usar una imagen local como{" "}
+                <span className="font-mono">
+                  /products/modelo-ejecutivo.jpg
+                </span>{" "}
+                o una URL completa.
+              </p>
+            </div>
           </div>
-
-          <label className="block">
-            <span className="text-sm font-medium">Descripción</span>
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              required
-              rows={4}
-              className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-              placeholder="Armazón ligero, cómodo y elegante para uso diario."
-            />
-          </label>
 
           <div className="grid gap-6 md:grid-cols-3">
             <label className="block">
@@ -236,27 +283,16 @@ export default function NewProductPage() {
             </label>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <label className="block">
-              <span className="text-sm font-medium">URL de imagen</span>
-              <input
-                value={imageUrl}
-                onChange={(event) => setImageUrl(event.target.value)}
-                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                placeholder="/products/modelo-ejecutivo.jpg"
-              />
-            </label>
 
-            <label className="block">
-              <span className="text-sm font-medium">Texto alternativo</span>
-              <input
-                value={imageAltText}
-                onChange={(event) => setImageAltText(event.target.value)}
-                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                placeholder="Modelo Ejecutivo"
-              />
-            </label>
-          </div>
+          <ProductImageUploader
+            imageUrl={imageUrl}
+            imageAltText={imageAltText}
+            fallbackAltText={name}
+            onImageUrlChange={handleImageUrlChange}
+            onImageAltTextChange={setImageAltText}
+          />
+
+
 
           <label className="flex items-center gap-3">
             <input

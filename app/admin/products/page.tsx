@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -21,6 +22,10 @@ type Product = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  mainImage?: {
+    imageUrl: string;
+    altText?: string | null;
+  } | null;
 };
 
 type ProductStatus =
@@ -62,8 +67,6 @@ function getProductStatus(product: Product) {
   };
 }
 
-
-
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -83,7 +86,7 @@ export default function AdminProductsPage() {
       }
 
       const data = await response.json();
-      setProducts(data.products);
+      setProducts(data.products || []);
     } catch (error) {
       console.error(error);
       setError("No pudimos cargar los productos desde PostgreSQL.");
@@ -121,9 +124,17 @@ export default function AdminProductsPage() {
       }
 
       setProducts((currentProducts) =>
-        currentProducts.map((currentProduct) =>
-          currentProduct.slug === product.slug ? data.product : currentProduct
-        )
+        currentProducts.map((currentProduct) => {
+          if (currentProduct.slug !== product.slug) {
+            return currentProduct;
+          }
+
+          return {
+            ...currentProduct,
+            ...data.product,
+            mainImage: data.product?.mainImage || currentProduct.mainImage,
+          };
+        })
       );
 
       alert(
@@ -158,7 +169,9 @@ export default function AdminProductsPage() {
       product.shape,
       product.frameColor,
       product.type,
+      product.mainImage?.imageUrl,
     ]
+      .filter(Boolean)
       .join(" ")
       .toLowerCase();
 
@@ -180,6 +193,7 @@ export default function AdminProductsPage() {
         "Shape",
         "Frame Color",
         "Category",
+        "Image URL",
         "Price",
         "Price Cents",
         "Currency",
@@ -198,6 +212,7 @@ export default function AdminProductsPage() {
         product.shape,
         product.frameColor,
         product.category,
+        product.mainImage?.imageUrl || "",
         product.price,
         product.priceCents,
         product.currency,
@@ -252,7 +267,7 @@ export default function AdminProductsPage() {
 
         <p className="mt-4 text-gray-600">
           Catálogo conectado a PostgreSQL. Aquí puedes revisar productos,
-          precios, stock y estado.
+          imágenes, precios, stock y estado.
         </p>
 
         <AdminNav />
@@ -279,7 +294,7 @@ export default function AdminProductsPage() {
           <input
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Buscar producto, categoría, color o forma..."
+            placeholder="Buscar producto, categoría, color, forma o imagen..."
             className="w-full rounded-full border px-5 py-2 text-sm outline-none focus:border-black md:max-w-sm"
           />
 
@@ -363,9 +378,27 @@ export default function AdminProductsPage() {
                   key={product.slug}
                   className="rounded-2xl border p-6 transition hover:shadow-sm"
                 >
-                  <div className="grid gap-6 md:grid-cols-[140px_1fr_auto]">
-                    <div className="flex h-32 items-center justify-center rounded-xl bg-gray-100">
-                      <span className="text-xs text-gray-500">Imagen</span>
+                  <div className="grid gap-6 md:grid-cols-[160px_1fr_auto]">
+                    <div className="overflow-hidden rounded-xl border bg-gray-100">
+                      <div className="flex h-36 items-center justify-center">
+                        {product.mainImage?.imageUrl ? (
+                          <img
+                            src={product.mainImage.imageUrl}
+                            alt={product.mainImage.altText || product.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="px-4 text-center text-xs text-gray-500">
+                            Sin imagen
+                          </span>
+                        )}
+                      </div>
+
+                      {product.mainImage?.imageUrl && (
+                        <p className="truncate border-t bg-white px-3 py-2 text-xs text-gray-500">
+                          {product.mainImage.imageUrl}
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -458,3 +491,4 @@ export default function AdminProductsPage() {
     </main>
   );
 }
+
