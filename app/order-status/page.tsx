@@ -56,6 +56,15 @@ function getStatusLabel(status: OrderStatus) {
   return "Pedido recibido";
 }
 
+function getStatusClassName(status: OrderStatus) {
+  if (status === "pending") return "bg-yellow-100 text-yellow-800";
+  if (status === "processing") return "bg-blue-100 text-blue-700";
+  if (status === "completed") return "bg-green-100 text-green-700";
+  if (status === "cancelled") return "bg-red-100 text-red-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
 function getPaymentStatusLabel(status: PaymentStatus) {
   if (status === "unpaid") return "Pago por confirmar";
   if (status === "pending") return "Pago pendiente";
@@ -66,12 +75,32 @@ function getPaymentStatusLabel(status: PaymentStatus) {
   return "Pago por confirmar";
 }
 
+function getPaymentStatusClassName(status: PaymentStatus) {
+  if (status === "paid") return "bg-green-100 text-green-700";
+  if (status === "pending") return "bg-yellow-100 text-yellow-800";
+  if (status === "unpaid") return "bg-gray-100 text-gray-700";
+  if (status === "failed") return "bg-red-100 text-red-700";
+  if (status === "refunded") return "bg-blue-100 text-blue-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
+function getProgressStep(status: OrderStatus) {
+  if (status === "pending") return 1;
+  if (status === "processing") return 2;
+  if (status === "completed") return 3;
+  if (status === "cancelled") return 0;
+
+  return 1;
+}
+
 export default function OrderStatusPage() {
   const [orderNumber, setOrderNumber] = useState("");
   const [email, setEmail] = useState("");
   const [order, setOrder] = useState<Order | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState<"order" | "tracking" | "">("");
 
   useEffect(() => {
     const savedOrder = localStorage.getItem("olm-latest-order");
@@ -95,6 +124,19 @@ export default function OrderStatusPage() {
     }
   }, []);
 
+  async function copyText(value: string, type: "order" | "tracking") {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(type);
+
+      setTimeout(() => {
+        setCopied("");
+      }, 2000);
+    } catch (error) {
+      console.error("Could not copy text:", error);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -109,8 +151,8 @@ export default function OrderStatusPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          orderNumber,
-          email,
+          orderNumber: orderNumber.trim(),
+          email: email.trim(),
         }),
       });
 
@@ -132,162 +174,325 @@ export default function OrderStatusPage() {
     }
   }
 
+  const progressStep = order ? getProgressStep(order.status) : 0;
+
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
-      <section className="mx-auto max-w-4xl">
-        <h1 className="text-4xl font-bold">Consultar pedido</h1>
+      <section className="mx-auto max-w-5xl">
+        <a href="/" className="text-sm text-gray-500 underline">
+          ← Regresar a la tienda
+        </a>
 
-        <p className="mt-4 text-gray-600">
-          Ingresa tu número de pedido y email para revisar el estado de tu
-          compra.
-        </p>
+        <div className="mt-6 rounded-3xl border bg-gradient-to-b from-gray-50 to-white p-8">
+          <h1 className="text-4xl font-bold">Consultar pedido</h1>
 
-        <form onSubmit={handleSubmit} className="mt-10 rounded-2xl border p-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <label className="block">
-              <span className="text-sm font-medium">Número de pedido</span>
-              <input
-                value={orderNumber}
-                onChange={(event) => setOrderNumber(event.target.value)}
-                required
-                placeholder="OLM-123456789"
-                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-              />
-            </label>
+          <p className="mt-4 max-w-2xl text-gray-600">
+            Ingresa tu número de pedido y email para revisar el estado de tu
+            compra, pago y seguimiento de envío.
+          </p>
 
-            <label className="block">
-              <span className="text-sm font-medium">Email</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                placeholder="tu@email.com"
-                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-              />
-            </label>
-          </div>
+          <form onSubmit={handleSubmit} className="mt-8">
+            <div className="grid gap-5 md:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-medium">Número de pedido</span>
+                <input
+                  value={orderNumber}
+                  onChange={(event) => setOrderNumber(event.target.value)}
+                  required
+                  placeholder="OLM-123456789"
+                  className="mt-2 w-full rounded-xl border bg-white px-4 py-3 outline-none focus:border-black"
+                />
+              </label>
 
-          <button
-            type="submit"
-            disabled={isSearching}
-            className="mt-6 rounded-full bg-black px-8 py-3 text-white disabled:cursor-not-allowed disabled:bg-gray-300"
-          >
-            {isSearching ? "Buscando..." : "Consultar pedido"}
-          </button>
-
-          {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-        </form>
-
-        {order && (
-          <div className="mt-10 rounded-2xl border p-6">
-            <div className="flex flex-col justify-between gap-4 md:flex-row">
-              <div>
-                <h2 className="text-2xl font-semibold">
-                  Pedido {order.orderNumber}
-                </h2>
-
-                <p className="mt-2 text-sm text-gray-600">
-                  Creado el {formatDate(order.createdAt)}
-                </p>
-              </div>
-
-              <div className="md:text-right">
-                <p className="font-semibold">{getStatusLabel(order.status)}</p>
-                <p className="mt-1 text-sm text-gray-600">
-                  {getPaymentStatusLabel(order.paymentStatus)}
-                </p>
-              </div>
+              <label className="block">
+                <span className="text-sm font-medium">Email</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  placeholder="tu@email.com"
+                  className="mt-2 w-full rounded-xl border bg-white px-4 py-3 outline-none focus:border-black"
+                />
+              </label>
             </div>
 
-            <div className="mt-8 rounded-2xl bg-gray-50 p-5">
-              <h3 className="font-semibold">Cliente</h3>
+            <button
+              type="submit"
+              disabled={isSearching}
+              className="mt-6 rounded-full bg-black px-8 py-3 text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+            >
+              {isSearching ? "Buscando..." : "Consultar pedido"}
+            </button>
 
-              <p className="mt-2 text-gray-700">{order.customer.fullName}</p>
-              <p className="text-gray-600">{order.customer.email}</p>
-            </div>
-
-            {(order.shippingCarrier ||
-              order.trackingNumber ||
-              order.customerVisibleNotes) && (
-              <div className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-                <h3 className="text-xl font-semibold text-blue-950">
-                  Envío y seguimiento
-                </h3>
-
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div>
-                    <p className="text-sm text-blue-700">Paquetería</p>
-                    <p className="mt-1 font-semibold text-blue-950">
-                      {order.shippingCarrier || "Por confirmar"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-blue-700">Número de rastreo</p>
-                    <p className="mt-1 font-semibold text-blue-950">
-                      {order.trackingNumber || "Por confirmar"}
-                    </p>
-                  </div>
-                </div>
-
-                {order.customerVisibleNotes && (
-                  <p className="mt-4 text-sm text-blue-900">
-                    {order.customerVisibleNotes}
-                  </p>
-                )}
+            {error && (
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4">
+                <p className="text-sm font-medium text-red-700">{error}</p>
               </div>
             )}
+          </form>
+        </div>
 
-            <div className="mt-8">
-              <h3 className="text-xl font-semibold">Productos</h3>
+        {order && (
+          <div className="mt-10">
+            <div className="rounded-3xl border p-8">
+              <div className="flex flex-col justify-between gap-5 md:flex-row md:items-start">
+                <div>
+                  <p className="text-sm text-gray-500">Pedido</p>
 
-              <div className="mt-4 space-y-4">
-                {order.items.map((item) => (
-                  <div key={item.id} className="rounded-2xl border p-5">
-                    <div className="flex flex-col justify-between gap-4 md:flex-row">
-                      <div>
-                        <p className="font-semibold">{item.productName}</p>
-                        <p className="mt-1 text-sm text-gray-600">
-                          {item.lensOption}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {item.prescriptionMethod}
-                        </p>
-                        <p className="mt-2 text-sm text-gray-500">
-                          Cantidad: {item.quantity}
-                        </p>
-                      </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <h2 className="text-3xl font-bold">{order.orderNumber}</h2>
 
-                      <div className="md:text-right">
-                        <p>{formatMoney(item.unitPrice)} c/u</p>
-                        <p className="mt-1 font-semibold">
-                          {formatMoney(item.lineTotal)}
-                        </p>
-                      </div>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyText(order.orderNumber, "order")}
+                      className="rounded-full border px-4 py-2 text-sm"
+                    >
+                      {copied === "order" ? "Copiado" : "Copiar"}
+                    </button>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            <div className="mt-8 rounded-2xl border p-5">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>{formatMoney(order.subtotal)}</span>
-              </div>
+                  <p className="mt-2 text-sm text-gray-600">
+                    Creado el {formatDate(order.createdAt)}
+                  </p>
+                </div>
 
-              <div className="mt-3 flex justify-between text-gray-600">
-                <span>Envío</span>
-                <span>{formatMoney(order.shipping || 0)}</span>
-              </div>
+                <div className="flex flex-wrap gap-2 md:justify-end">
+                  <span
+                    className={`rounded-full px-4 py-2 text-sm font-semibold ${getStatusClassName(
+                      order.status
+                    )}`}
+                  >
+                    {getStatusLabel(order.status)}
+                  </span>
 
-              <div className="mt-5 border-t pt-5">
-                <div className="flex justify-between text-lg font-semibold">
-                  <span>Total</span>
-                  <span>{formatMoney(order.total)}</span>
+                  <span
+                    className={`rounded-full px-4 py-2 text-sm font-semibold ${getPaymentStatusClassName(
+                      order.paymentStatus
+                    )}`}
+                  >
+                    {getPaymentStatusLabel(order.paymentStatus)}
+                  </span>
                 </div>
               </div>
+
+              {order.status === "cancelled" ? (
+                <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-5">
+                  <h3 className="font-semibold text-red-800">
+                    Este pedido fue cancelado
+                  </h3>
+
+                  <p className="mt-2 text-sm text-red-700">
+                    Contáctanos si tienes preguntas sobre este pedido.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-8 rounded-2xl bg-gray-50 p-5">
+                  <h3 className="font-semibold">Progreso del pedido</h3>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-3">
+                    {[
+                      { step: 1, title: "Recibido", text: "Pedido creado" },
+                      { step: 2, title: "En proceso", text: "Preparando pedido" },
+                      { step: 3, title: "Completado", text: "Pedido finalizado" },
+                    ].map((item) => (
+                      <div
+                        key={item.step}
+                        className={`rounded-2xl border p-4 ${
+                          progressStep >= item.step
+                            ? "border-black bg-white"
+                            : "bg-white text-gray-400"
+                        }`}
+                      >
+                        <div
+                          className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${
+                            progressStep >= item.step
+                              ? "bg-black text-white"
+                              : "bg-gray-100 text-gray-400"
+                          }`}
+                        >
+                          {item.step}
+                        </div>
+
+                        <p className="mt-3 font-semibold">{item.title}</p>
+                        <p className="mt-1 text-sm">{item.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
+              <div className="space-y-8">
+                <section className="rounded-2xl border p-6">
+                  <h3 className="text-2xl font-semibold">Cliente</h3>
+
+                  <div className="mt-5 grid gap-4 text-sm md:grid-cols-2">
+                    <div>
+                      <p className="text-gray-500">Nombre</p>
+                      <p className="mt-1 font-medium">
+                        {order.customer.fullName}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-gray-500">Email</p>
+                      <p className="mt-1 font-medium">{order.customer.email}</p>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border p-6">
+                  <h3 className="text-2xl font-semibold">Envío y seguimiento</h3>
+
+                  <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+                    <div className="grid gap-5 md:grid-cols-2">
+                      <div>
+                        <p className="text-sm text-blue-700">Paquetería</p>
+                        <p className="mt-1 font-semibold text-blue-950">
+                          {order.shippingCarrier || "Por confirmar"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-sm text-blue-700">
+                          Número de rastreo
+                        </p>
+
+                        {order.trackingNumber ? (
+                          <div className="mt-1 flex flex-wrap items-center gap-3">
+                            <p className="font-semibold text-blue-950">
+                              {order.trackingNumber}
+                            </p>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                copyText(order.trackingNumber || "", "tracking")
+                              }
+                              className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs text-blue-950"
+                            >
+                              {copied === "tracking" ? "Copiado" : "Copiar"}
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="mt-1 font-semibold text-blue-950">
+                            Por confirmar
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {order.customerVisibleNotes ? (
+                      <div className="mt-5 rounded-2xl bg-white p-4">
+                        <p className="text-sm font-medium text-blue-950">
+                          Nota sobre tu pedido
+                        </p>
+
+                        <p className="mt-2 text-sm text-blue-900">
+                          {order.customerVisibleNotes}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-5 text-sm text-blue-900">
+                        Cuando el pedido tenga guía de envío, aparecerá aquí.
+                      </p>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border p-6">
+                  <h3 className="text-2xl font-semibold">Productos</h3>
+
+                  <div className="mt-5 space-y-4">
+                    {order.items.map((item) => (
+                      <div key={item.id} className="rounded-2xl bg-gray-50 p-5">
+                        <div className="flex flex-col justify-between gap-4 md:flex-row">
+                          <div>
+                            <p className="text-lg font-semibold">
+                              {item.productName}
+                            </p>
+
+                            <p className="mt-1 text-sm text-gray-600">
+                              {item.lensOption}
+                            </p>
+
+                            <p className="text-sm text-gray-600">
+                              {item.prescriptionMethod}
+                            </p>
+
+                            <p className="mt-2 text-sm text-gray-500">
+                              Cantidad: {item.quantity}
+                            </p>
+                          </div>
+
+                          <div className="md:text-right">
+                            <p className="text-sm text-gray-600">
+                              {formatMoney(item.unitPrice)} c/u
+                            </p>
+
+                            <p className="mt-1 text-lg font-semibold">
+                              {formatMoney(item.lineTotal)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </div>
+
+              <aside className="h-fit rounded-2xl border p-6">
+                <h3 className="text-2xl font-semibold">Resumen</h3>
+
+                <div className="mt-6 space-y-4">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span>{formatMoney(order.subtotal)}</span>
+                  </div>
+
+                  <div className="flex justify-between text-gray-600">
+                    <span>Envío</span>
+                    <span>
+                      {order.shipping ? formatMoney(order.shipping) : "Por confirmar"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-6 border-t pt-6">
+                  <div className="flex justify-between text-lg font-semibold">
+                    <span>Total</span>
+                    <span>{formatMoney(order.total)}</span>
+                  </div>
+                </div>
+
+                <div className="mt-6 rounded-2xl bg-gray-50 p-5">
+                  <h4 className="font-semibold">¿Qué sigue?</h4>
+
+                  <p className="mt-3 text-sm text-gray-600">
+                    Si tu pedido aún está pendiente, Óptica OLM revisará tus
+                    datos y te contactará para confirmar pago, graduación y
+                    envío.
+                  </p>
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3">
+                  <a
+                    href="/eyeglasses"
+                    className="rounded-full bg-black px-6 py-3 text-center text-white"
+                  >
+                    Seguir comprando
+                  </a>
+
+                  <a
+                    href="/"
+                    className="rounded-full border px-6 py-3 text-center"
+                  >
+                    Ir al inicio
+                  </a>
+                </div>
+              </aside>
             </div>
           </div>
         )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 type CheckoutCustomer = {
   fullName: string;
@@ -33,7 +33,7 @@ function validateCustomer(customer: CheckoutCustomer) {
 
   if (!customer.email.trim()) {
     errors.email = "El correo electrónico es obligatorio.";
-  } else if (!customer.email.includes("@")) {
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
     errors.email = "Escribe un correo electrónico válido.";
   }
 
@@ -68,8 +68,15 @@ export default function CheckoutForm() {
   useEffect(() => {
     const savedCustomer = localStorage.getItem("olm-checkout-customer");
 
-    if (savedCustomer) {
+    if (!savedCustomer) {
+      return;
+    }
+
+    try {
       setCustomer(JSON.parse(savedCustomer));
+    } catch (error) {
+      console.error("Could not read checkout customer:", error);
+      localStorage.removeItem("olm-checkout-customer");
     }
   }, []);
 
@@ -80,22 +87,26 @@ export default function CheckoutForm() {
     };
 
     setCustomer(updatedCustomer);
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      [field]: undefined,
+    }));
+    setSaved(false);
+
     localStorage.setItem(
       "olm-checkout-customer",
       JSON.stringify(updatedCustomer)
     );
-
-    setSaved(false);
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const validationErrors = validateCustomer(customer);
-
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length > 0) {
+      setSaved(false);
       return;
     }
 
@@ -105,104 +116,125 @@ export default function CheckoutForm() {
 
   return (
     <form onSubmit={handleSubmit} className="rounded-2xl border p-6">
-      <h2 className="text-2xl font-semibold">Datos de envío</h2>
-
-      <p className="mt-2 text-sm text-gray-600">
-        Completa tus datos para preparar tu pedido.
-      </p>
-
-      <div className="mt-6 grid gap-4">
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div>
-          <label className="text-sm font-medium">Nombre completo</label>
+          <h2 className="text-2xl font-semibold">Datos de envío</h2>
+
+          <p className="mt-2 text-sm text-gray-600">
+            Usaremos estos datos para preparar y dar seguimiento a tu pedido.
+          </p>
+        </div>
+
+        {saved && (
+          <span className="rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-700">
+            Datos guardados
+          </span>
+        )}
+      </div>
+
+      <div className="mt-6 grid gap-5">
+        <label className="block">
+          <span className="text-sm font-medium">Nombre completo</span>
           <input
             value={customer.fullName}
             onChange={(event) => updateCustomer("fullName", event.target.value)}
+            required
             className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
             placeholder="Alejandro Moncada"
           />
           {errors.fullName && (
             <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
           )}
+        </label>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          <label className="block">
+            <span className="text-sm font-medium">Correo electrónico</span>
+            <input
+              type="email"
+              value={customer.email}
+              onChange={(event) => updateCustomer("email", event.target.value)}
+              required
+              className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+              placeholder="correo@email.com"
+            />
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+            )}
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium">Teléfono</span>
+            <input
+              type="tel"
+              value={customer.phone}
+              onChange={(event) => updateCustomer("phone", event.target.value)}
+              required
+              className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+              placeholder="55 1234 5678"
+            />
+            {errors.phone && (
+              <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
+            )}
+          </label>
         </div>
 
-        <div>
-          <label className="text-sm font-medium">Correo electrónico</label>
-          <input
-            value={customer.email}
-            onChange={(event) => updateCustomer("email", event.target.value)}
-            className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-            placeholder="correo@email.com"
-          />
-          {errors.email && (
-            <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="text-sm font-medium">Teléfono</label>
-          <input
-            value={customer.phone}
-            onChange={(event) => updateCustomer("phone", event.target.value)}
-            className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-            placeholder="55 1234 5678"
-          />
-          {errors.phone && (
-            <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="text-sm font-medium">Dirección</label>
+        <label className="block">
+          <span className="text-sm font-medium">Dirección</span>
           <input
             value={customer.address}
             onChange={(event) => updateCustomer("address", event.target.value)}
+            required
             className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
             placeholder="Calle, número, colonia"
           />
           {errors.address && (
             <p className="mt-1 text-sm text-red-600">{errors.address}</p>
           )}
-        </div>
+        </label>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <div>
-            <label className="text-sm font-medium">Ciudad</label>
+        <div className="grid gap-5 md:grid-cols-3">
+          <label className="block">
+            <span className="text-sm font-medium">Ciudad</span>
             <input
               value={customer.city}
               onChange={(event) => updateCustomer("city", event.target.value)}
+              required
               className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
               placeholder="Ciudad"
             />
             {errors.city && (
               <p className="mt-1 text-sm text-red-600">{errors.city}</p>
             )}
-          </div>
+          </label>
 
-          <div>
-            <label className="text-sm font-medium">Estado</label>
+          <label className="block">
+            <span className="text-sm font-medium">Estado</span>
             <input
               value={customer.state}
               onChange={(event) => updateCustomer("state", event.target.value)}
+              required
               className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
               placeholder="Estado"
             />
             {errors.state && (
               <p className="mt-1 text-sm text-red-600">{errors.state}</p>
             )}
-          </div>
+          </label>
 
-          <div>
-            <label className="text-sm font-medium">Código postal</label>
+          <label className="block">
+            <span className="text-sm font-medium">Código postal</span>
             <input
               value={customer.zipCode}
               onChange={(event) => updateCustomer("zipCode", event.target.value)}
+              required
               className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
               placeholder="00000"
             />
             {errors.zipCode && (
               <p className="mt-1 text-sm text-red-600">{errors.zipCode}</p>
             )}
-          </div>
+          </label>
         </div>
       </div>
 
@@ -210,16 +242,13 @@ export default function CheckoutForm() {
         type="submit"
         className="mt-6 rounded-full bg-black px-6 py-3 text-white"
       >
-        Guardar datos
+        Guardar datos de envío
       </button>
 
-      {saved && (
-        <p className="mt-3 text-sm font-medium text-green-700">
-          Datos guardados correctamente.
-        </p>
-      )}
+      <p className="mt-3 text-xs text-gray-500">
+        Después de guardar, revisa el resumen y haz clic en “Finalizar pedido”.
+      </p>
     </form>
   );
 }
-
 

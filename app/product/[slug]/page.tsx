@@ -74,6 +74,40 @@ export default function ProductPage() {
     }
   }, [slug]);
 
+  useEffect(() => {
+    if (!isImageModalOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      const imageCount = product?.images?.length || 0;
+
+      if (event.key === "Escape") {
+        setIsImageModalOpen(false);
+      }
+
+      if (event.key === "ArrowLeft" && imageCount > 1) {
+        setSelectedImageIndex((currentIndex) =>
+          currentIndex === 0 ? imageCount - 1 : currentIndex - 1
+        );
+      }
+
+      if (event.key === "ArrowRight" && imageCount > 1) {
+        setSelectedImageIndex((currentIndex) =>
+          currentIndex === imageCount - 1 ? 0 : currentIndex + 1
+        );
+      }
+    }
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isImageModalOpen, product]);
+
   if (loading) {
     return (
       <main className="min-h-screen bg-white px-6 py-12 text-black">
@@ -186,11 +220,10 @@ export default function ProductPage() {
                   key={image.id}
                   type="button"
                   onClick={() => setSelectedImageIndex(index)}
-                  className={`flex h-24 items-center justify-center overflow-hidden rounded-2xl border bg-gray-100 transition ${
-                    selectedImageIndex === index
+                  className={`flex h-24 items-center justify-center overflow-hidden rounded-2xl border bg-gray-100 transition ${selectedImageIndex === index
                       ? "border-black ring-2 ring-black"
                       : "border-transparent hover:border-gray-400"
-                  }`}
+                    }`}
                 >
                   <img
                     src={image.imageUrl}
