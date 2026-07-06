@@ -127,10 +127,16 @@ function formatMoney(amount: number) {
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
+
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | PaymentStatus>(
+    "all"
+  );
   const [shippingFilter, setShippingFilter] = useState<
     "all" | "withTracking" | "missingTracking"
   >("all");
+
+
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingOrderNumber, setSavingOrderNumber] = useState("");
@@ -184,11 +190,11 @@ export default function AdminOrders() {
         currentOrders.map((order) =>
           order.orderNumber === orderNumber
             ? {
-                ...order,
-                status: data.order.status,
-                paymentStatus: data.order.paymentStatus,
-                updatedAt: data.order.updatedAt,
-              }
+              ...order,
+              status: data.order.status,
+              paymentStatus: data.order.paymentStatus,
+              updatedAt: data.order.updatedAt,
+            }
             : order
         )
       );
@@ -222,7 +228,12 @@ export default function AdminOrders() {
     const matchesStatus =
       statusFilter === "all" || order.status === statusFilter;
 
+
     const hasTracking = Boolean(order.shippingCarrier && order.trackingNumber);
+
+
+    const matchesPayment =
+      paymentFilter === "all" || order.paymentStatus === paymentFilter;
 
     const matchesShipping =
       shippingFilter === "all" ||
@@ -251,7 +262,7 @@ export default function AdminOrders() {
       normalizedSearchTerm === "" ||
       searchableText.includes(normalizedSearchTerm);
 
-    return matchesStatus && matchesShipping && matchesSearch;
+    return matchesStatus && matchesPayment && matchesShipping && matchesSearch;
   });
 
   function exportOrdersCsv() {
@@ -368,43 +379,51 @@ export default function AdminOrders() {
           </button>
 
           <button
+            onClick={() => {
+              setSearchTerm("");
+              setStatusFilter("all");
+              setPaymentFilter("all");
+              setShippingFilter("all");
+            }}
+            className="rounded-full border px-4 py-2 text-sm"
+          >
+            Limpiar filtros
+          </button>
+
+          <button
             onClick={() => setStatusFilter("all")}
-            className={`rounded-full border px-4 py-2 text-sm ${
-              statusFilter === "all" ? "border-black bg-black text-white" : ""
-            }`}
+            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "all" ? "border-black bg-black text-white" : ""
+              }`}
           >
             Todos
           </button>
 
           <button
             onClick={() => setStatusFilter("pending")}
-            className={`rounded-full border px-4 py-2 text-sm ${
-              statusFilter === "pending"
-                ? "border-black bg-black text-white"
-                : ""
-            }`}
+            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "pending"
+              ? "border-black bg-black text-white"
+              : ""
+              }`}
           >
             Pendientes
           </button>
 
           <button
             onClick={() => setStatusFilter("processing")}
-            className={`rounded-full border px-4 py-2 text-sm ${
-              statusFilter === "processing"
-                ? "border-black bg-black text-white"
-                : ""
-            }`}
+            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "processing"
+              ? "border-black bg-black text-white"
+              : ""
+              }`}
           >
             En proceso
           </button>
 
           <button
             onClick={() => setStatusFilter("completed")}
-            className={`rounded-full border px-4 py-2 text-sm ${
-              statusFilter === "completed"
-                ? "border-black bg-black text-white"
-                : ""
-            }`}
+            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "completed"
+              ? "border-black bg-black text-white"
+              : ""
+              }`}
           >
             Completados
           </button>
@@ -413,32 +432,73 @@ export default function AdminOrders() {
 
       <div className="mt-4 flex flex-wrap gap-2">
         <button
+          onClick={() => setPaymentFilter("all")}
+          className={`rounded-full border px-4 py-2 text-sm ${paymentFilter === "all" ? "border-black bg-black text-white" : ""
+            }`}
+        >
+          Todos los pagos
+        </button>
+
+        <button
+          onClick={() => setPaymentFilter("unpaid")}
+          className={`rounded-full border px-4 py-2 text-sm ${paymentFilter === "unpaid" ? "border-black bg-black text-white" : ""
+            }`}
+        >
+          Sin pagar
+        </button>
+
+        <button
+          onClick={() => setPaymentFilter("pending")}
+          className={`rounded-full border px-4 py-2 text-sm ${paymentFilter === "pending" ? "border-black bg-black text-white" : ""
+            }`}
+        >
+          Pago pendiente
+        </button>
+
+        <button
+          onClick={() => setPaymentFilter("paid")}
+          className={`rounded-full border px-4 py-2 text-sm ${paymentFilter === "paid" ? "border-black bg-black text-white" : ""
+            }`}
+        >
+          Pagados
+        </button>
+
+        <button
+          onClick={() => setPaymentFilter("failed")}
+          className={`rounded-full border px-4 py-2 text-sm ${paymentFilter === "failed" ? "border-black bg-black text-white" : ""
+            }`}
+        >
+          Fallidos
+        </button>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
           onClick={() => setShippingFilter("all")}
-          className={`rounded-full border px-4 py-2 text-sm ${
-            shippingFilter === "all" ? "border-black bg-black text-white" : ""
-          }`}
+
+
+          className={`rounded-full border px-4 py-2 text-sm ${shippingFilter === "all" ? "border-black bg-black text-white" : ""
+            }`}
         >
           Todos los envíos
         </button>
 
         <button
           onClick={() => setShippingFilter("missingTracking")}
-          className={`rounded-full border px-4 py-2 text-sm ${
-            shippingFilter === "missingTracking"
-              ? "border-black bg-black text-white"
-              : ""
-          }`}
+          className={`rounded-full border px-4 py-2 text-sm ${shippingFilter === "missingTracking"
+            ? "border-black bg-black text-white"
+            : ""
+            }`}
         >
           Falta rastreo
         </button>
 
         <button
           onClick={() => setShippingFilter("withTracking")}
-          className={`rounded-full border px-4 py-2 text-sm ${
-            shippingFilter === "withTracking"
-              ? "border-black bg-black text-white"
-              : ""
-          }`}
+          className={`rounded-full border px-4 py-2 text-sm ${shippingFilter === "withTracking"
+            ? "border-black bg-black text-white"
+            : ""
+            }`}
         >
           Con rastreo
         </button>

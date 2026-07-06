@@ -54,11 +54,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
       if (isLogin) {
         await login(email, password);
       } else {
-        await signup({
-          fullName,
-          email,
-          password,
-        });
+        await signup(fullName, email, password);
       }
 
       router.push(redirectPath || "/");

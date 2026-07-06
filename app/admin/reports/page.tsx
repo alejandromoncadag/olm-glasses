@@ -90,6 +90,46 @@ function getProductTypeLabel(type: "eyeglasses" | "sunglasses") {
   return "Producto";
 }
 
+function getStatusLabel(status: OrderStatus) {
+  if (status === "pending") return "Pendiente";
+  if (status === "processing") return "En proceso";
+  if (status === "completed") return "Completado";
+  if (status === "cancelled") return "Cancelado";
+
+  return "Pendiente";
+}
+
+function getStatusClassName(status: OrderStatus) {
+  if (status === "pending") return "bg-yellow-100 text-yellow-800";
+  if (status === "processing") return "bg-blue-100 text-blue-700";
+  if (status === "completed") return "bg-green-100 text-green-700";
+  if (status === "cancelled") return "bg-red-100 text-red-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
+function getPaymentStatusLabel(status: PaymentStatus) {
+  if (status === "unpaid") return "Sin pagar";
+  if (status === "pending") return "Pago pendiente";
+  if (status === "paid") return "Pagado";
+  if (status === "failed") return "Fallido";
+  if (status === "refunded") return "Reembolsado";
+
+  return "Sin pagar";
+}
+
+function getPaymentStatusClassName(status: PaymentStatus) {
+  if (status === "paid") return "bg-green-100 text-green-700";
+  if (status === "pending") return "bg-yellow-100 text-yellow-800";
+  if (status === "unpaid") return "bg-gray-100 text-gray-700";
+  if (status === "failed") return "bg-red-100 text-red-700";
+  if (status === "refunded") return "bg-blue-100 text-blue-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
+
+
 export default function AdminReportsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [productSales, setProductSales] = useState<ProductSalesReport[]>([]);
@@ -159,11 +199,21 @@ export default function AdminReportsPage() {
 
   const totalOrders = orders.length;
 
-  const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+  const validOrders = orders.filter((order) => order.status !== "cancelled");
 
-  const paidOrders = orders.filter((order) => order.paymentStatus === "paid");
+  const totalRevenue = validOrders.reduce(
+    (sum, order) => sum + order.total,
+    0
+  );
+
+  const paidOrders = validOrders.filter(
+    (order) => order.paymentStatus === "paid"
+  );
 
   const paidRevenue = paidOrders.reduce((sum, order) => sum + order.total, 0);
+
+
+
 
   const pendingOrders = orders.filter(
     (order) => order.status === "pending"
@@ -181,7 +231,7 @@ export default function AdminReportsPage() {
     (order) => order.status === "cancelled"
   ).length;
 
-  const last7DaysOrders = orders.filter((order) =>
+  const last7DaysOrders = validOrders.filter((order) =>
     isWithinLastDays(order.createdAt, 7)
   );
 
@@ -190,7 +240,8 @@ export default function AdminReportsPage() {
     0
   );
 
-  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const averageOrderValue =
+    validOrders.length > 0 ? totalRevenue / validOrders.length : 0;
 
   const recentOrders = [...orders]
     .sort(
@@ -728,13 +779,31 @@ export default function AdminReportsPage() {
                     </p>
                   </div>
 
+
+
                   <div className="md:text-right">
                     <p className="font-bold">{formatMoney(order.total)}</p>
 
-                    <p className="mt-1 text-xs text-gray-500">
-                      {order.status} · {order.paymentStatus}
-                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2 md:justify-end">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClassName(
+                          order.status
+                        )}`}
+                      >
+                        {getStatusLabel(order.status)}
+                      </span>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getPaymentStatusClassName(
+                          order.paymentStatus
+                        )}`}
+                      >
+                        {getPaymentStatusLabel(order.paymentStatus)}
+                      </span>
+                    </div>
                   </div>
+
+
                 </div>
               ))}
             </div>
