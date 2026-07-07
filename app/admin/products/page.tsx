@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminNav from "@/components/AdminNav";
 import { downloadCsv } from "@/lib/csv";
 
@@ -34,6 +34,35 @@ type ProductStatus =
   | "low-stock"
   | "out-of-stock"
   | "inactive";
+
+type ProductTypeFilter = "all" | "eyeglasses" | "sunglasses";
+
+type SortBy =
+  | "newest"
+  | "name"
+  | "price-high"
+  | "price-low"
+  | "stock-low"
+  | "stock-high";
+
+function formatMoney(amount: number) {
+  return `$${amount.toLocaleString("es-MX")} MXN`;
+}
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString("es-MX", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function getProductTypeLabel(type: Product["type"]) {
+  if (type === "eyeglasses") return "Lentes ópticos";
+  if (type === "sunglasses") return "Lentes de sol";
+
+  return "Producto";
+}
 
 function getProductStatus(product: Product) {
   if (!product.isActive) {
@@ -71,7 +100,10 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProductStatus>("all");
+  const [typeFilter, setTypeFilter] = useState<ProductTypeFilter>("all");
+  const [sortBy, setSortBy] = useState<SortBy>("newest");
   const [loading, setLoading] = useState(true);
+  const [savingSlug, setSavingSlug] = useState("");
   const [error, setError] = useState("");
 
   async function fetchProducts() {
@@ -103,6 +135,8 @@ export default function AdminProductsPage() {
     }
 
     try {
+      setSavingSlug(product.slug);
+
       const response = await fetch(`/api/products/${product.slug}`, {
         method: "PATCH",
         headers: {
@@ -136,15 +170,11 @@ export default function AdminProductsPage() {
           };
         })
       );
-
-      alert(
-        product.isActive
-          ? "Producto desactivado correctamente."
-          : "Producto activado correctamente."
-      );
     } catch (error) {
       console.error(error);
       alert("No pudimos actualizar el producto.");
+    } finally {
+      setSavingSlug("");
     }
   }
 
@@ -152,35 +182,84 @@ export default function AdminProductsPage() {
     fetchProducts();
   }, []);
 
-  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const filteredProducts = useMemo(() => {
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase();
 
-  const filteredProducts = products.filter((product) => {
-    const status = getProductStatus(product);
+    return products
+      .filter((product) => {
+        const status = getProductStatus(product);
 
-    const matchesStatus =
-      statusFilter === "all" || status.key === statusFilter;
+        const matchesStatus =
+          statusFilter === "all" || status.key === statusFilter;
 
-    const searchableText = [
-      product.name,
-      product.slug,
-      product.category,
-      product.description,
-      product.gender,
-      product.shape,
-      product.frameColor,
-      product.type,
-      product.mainImage?.imageUrl,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
+        const matchesType =
+          typeFilter === "all" || product.type === typeFilter;
 
-    const matchesSearch =
-      normalizedSearchTerm === "" ||
-      searchableText.includes(normalizedSearchTerm);
+        const searchableText = [
+          product.name,
+          product.slug,
+          product.category,
+          product.description,
+          product.gender,
+          product.shape,
+          product.frameColor,
+          product.type,
+          getProductTypeLabel(product.type),
+          product.mainImage?.imageUrl,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-    return matchesStatus && matchesSearch;
-  });
+        const matchesSearch =
+          normalizedSearchTerm === "" ||
+          searchableText.includes(normalizedSearchTerm);
+
+        return matchesStatus && matchesType && matchesSearch;
+      })
+      .sort((a, b) => {
+        if (sortBy === "name") {
+          return a.name.localeCompare(b.name);
+        }
+
+        if (sortBy === "price-high") {
+          return b.price - a.price;
+        }
+
+        if (sortBy === "price-low") {
+          return a.price - b.price;
+        }
+
+        if (sortBy === "stock-low") {
+          return a.stock - b.stock;
+        }
+
+        if (sortBy === "stock-high") {
+          return b.stock - a.stock;
+        }
+
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }, [products, searchTerm, sortBy, statusFilter, typeFilter]);
+
+  const totalProducts = products.length;
+  const activeProducts = products.filter((product) => product.isActive).length;
+  const inactiveProducts = products.filter((product) => !product.isActive).length;
+  const eyeglassesProducts = products.filter(
+    (product) => product.type === "eyeglasses"
+  ).length;
+  const sunglassesProducts = products.filter(
+    (product) => product.type === "sunglasses"
+  ).length;
+  const lowStockProducts = products.filter(
+    (product) => product.isActive && product.stock > 0 && product.stock <= 3
+  ).length;
+  const outOfStockProducts = products.filter(
+    (product) => product.isActive && product.stock === 0
+  ).length;
+  const inventoryValue = products
+    .filter((product) => product.isActive)
+    .reduce((sum, product) => sum + product.price * product.stock, 0);
 
   function exportProductsCsv() {
     const rows = [
@@ -250,6 +329,7 @@ export default function AdminProductsPage() {
           <p className="mt-4 text-red-600">{error}</p>
 
           <button
+            type="button"
             onClick={fetchProducts}
             className="mt-6 rounded-full bg-black px-6 py-3 text-white"
           >
@@ -263,18 +343,19 @@ export default function AdminProductsPage() {
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
       <section className="mx-auto max-w-6xl">
-        <h1 className="text-4xl font-bold">Productos</h1>
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+          <div>
+            <h1 className="text-4xl font-bold">Productos</h1>
 
-        <p className="mt-4 text-gray-600">
-          Catálogo conectado a PostgreSQL. Aquí puedes revisar productos,
-          imágenes, precios, stock y estado.
-        </p>
+            <p className="mt-4 max-w-2xl text-gray-600">
+              Administra catálogo, imágenes, precios, stock, tipo de producto y
+              estado de publicación.
+            </p>
+          </div>
 
-        <AdminNav />
-
-        <div className="mt-8 flex justify-end">
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
+              type="button"
               onClick={exportProductsCsv}
               className="rounded-full border px-6 py-3 text-center text-sm font-medium"
             >
@@ -290,73 +371,143 @@ export default function AdminProductsPage() {
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-          <input
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Buscar producto, categoría, color, forma o imagen..."
-            className="w-full rounded-full border px-5 py-2 text-sm outline-none focus:border-black md:max-w-sm"
-          />
+        <AdminNav />
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setStatusFilter("all")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "all" ? "border-black bg-black text-white" : ""
-              }`}
-            >
-              Todos
-            </button>
+        <div className="mt-10 grid gap-4 md:grid-cols-4">
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter("all");
+              setTypeFilter("all");
+            }}
+            className="rounded-2xl border p-5 text-left transition hover:shadow-sm"
+          >
+            <p className="text-sm text-gray-600">Productos totales</p>
+            <p className="mt-2 text-3xl font-bold">{totalProducts}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              {activeProducts} activos · {inactiveProducts} inactivos
+            </p>
+          </button>
 
-            <button
-              onClick={() => setStatusFilter("active")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "active"
-                  ? "border-black bg-black text-white"
-                  : ""
-              }`}
-            >
-              Activos
-            </button>
+          <button
+            type="button"
+            onClick={() => setTypeFilter("eyeglasses")}
+            className="rounded-2xl border p-5 text-left transition hover:shadow-sm"
+          >
+            <p className="text-sm text-gray-600">Lentes ópticos</p>
+            <p className="mt-2 text-3xl font-bold">{eyeglassesProducts}</p>
+          </button>
 
-            <button
-              onClick={() => setStatusFilter("low-stock")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "low-stock"
-                  ? "border-black bg-black text-white"
-                  : ""
-              }`}
-            >
-              Stock bajo
-            </button>
+          <button
+            type="button"
+            onClick={() => setTypeFilter("sunglasses")}
+            className="rounded-2xl border p-5 text-left transition hover:shadow-sm"
+          >
+            <p className="text-sm text-gray-600">Lentes de sol</p>
+            <p className="mt-2 text-3xl font-bold">{sunglassesProducts}</p>
+          </button>
 
-            <button
-              onClick={() => setStatusFilter("out-of-stock")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "out-of-stock"
-                  ? "border-black bg-black text-white"
-                  : ""
-              }`}
-            >
-              Agotados
-            </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("low-stock")}
+            className="rounded-2xl border p-5 text-left transition hover:shadow-sm"
+          >
+            <p className="text-sm text-gray-600">Alertas de stock</p>
+            <p className="mt-2 text-3xl font-bold">
+              {lowStockProducts + outOfStockProducts}
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              {lowStockProducts} bajo stock · {outOfStockProducts} agotados
+            </p>
+          </button>
+        </div>
 
-            <button
-              onClick={() => setStatusFilter("inactive")}
-              className={`rounded-full border px-4 py-2 text-sm ${
-                statusFilter === "inactive"
-                  ? "border-black bg-black text-white"
-                  : ""
-              }`}
+        <div className="mt-6 rounded-2xl border bg-gray-50 p-5">
+          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+            <div>
+              <p className="text-sm text-gray-500">Valor estimado inventario</p>
+              <p className="mt-1 text-2xl font-bold">
+                {formatMoney(inventoryValue)}
+              </p>
+            </div>
+
+            <a
+              href="/admin/inventory"
+              className="rounded-full bg-black px-5 py-2 text-center text-sm text-white"
             >
-              Inactivos
-            </button>
+              Administrar inventario
+            </a>
           </div>
         </div>
 
-        <p className="mt-4 text-sm text-gray-600">
-          Mostrando {filteredProducts.length} de {products.length} productos
-        </p>
+        <div className="mt-8 rounded-2xl border p-5">
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto_auto_auto] lg:items-center">
+            <input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar producto, slug, categoría, color o forma..."
+              className="w-full rounded-full border px-5 py-3 text-sm outline-none focus:border-black"
+            />
+
+            <select
+              value={typeFilter}
+              onChange={(event) =>
+                setTypeFilter(event.target.value as ProductTypeFilter)
+              }
+              className="rounded-full border px-5 py-3 text-sm outline-none focus:border-black"
+            >
+              <option value="all">Todos los tipos</option>
+              <option value="eyeglasses">Lentes ópticos</option>
+              <option value="sunglasses">Lentes de sol</option>
+            </select>
+
+            <select
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as ProductStatus)
+              }
+              className="rounded-full border px-5 py-3 text-sm outline-none focus:border-black"
+            >
+              <option value="all">Todos los estados</option>
+              <option value="active">Activos</option>
+              <option value="low-stock">Stock bajo</option>
+              <option value="out-of-stock">Agotados</option>
+              <option value="inactive">Inactivos</option>
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as SortBy)}
+              className="rounded-full border px-5 py-3 text-sm outline-none focus:border-black"
+            >
+              <option value="newest">Más recientes</option>
+              <option value="name">Nombre A-Z</option>
+              <option value="price-high">Precio mayor</option>
+              <option value="price-low">Precio menor</option>
+              <option value="stock-low">Stock menor</option>
+              <option value="stock-high">Stock mayor</option>
+            </select>
+          </div>
+
+          <div className="mt-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <p className="text-sm text-gray-600">
+              Mostrando {filteredProducts.length} de {products.length} productos
+            </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm("");
+                setStatusFilter("all");
+                setTypeFilter("all");
+                setSortBy("newest");
+              }}
+              className="text-left text-sm text-gray-500 underline sm:text-right"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
 
         {filteredProducts.length === 0 ? (
           <div className="mt-10 rounded-2xl border p-8 text-center">
@@ -374,12 +525,15 @@ export default function AdminProductsPage() {
               const status = getProductStatus(product);
 
               return (
-                <div
+                <article
                   key={product.slug}
                   className="rounded-2xl border p-6 transition hover:shadow-sm"
                 >
                   <div className="grid gap-6 md:grid-cols-[160px_1fr_auto]">
-                    <div className="overflow-hidden rounded-xl border bg-gray-100">
+                    <a
+                      href={`/admin/products/${product.slug}/edit`}
+                      className="overflow-hidden rounded-xl border bg-gray-100"
+                    >
                       <div className="flex h-36 items-center justify-center">
                         {product.mainImage?.imageUrl ? (
                           <img
@@ -399,7 +553,7 @@ export default function AdminProductsPage() {
                           {product.mainImage.imageUrl}
                         </p>
                       )}
-                    </div>
+                    </a>
 
                     <div>
                       <div className="flex flex-wrap items-center gap-3">
@@ -412,10 +566,14 @@ export default function AdminProductsPage() {
                         >
                           {status.label}
                         </span>
+
+                        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+                          {getProductTypeLabel(product.type)}
+                        </span>
                       </div>
 
                       <p className="mt-2 text-sm text-gray-500">
-                        {product.category}
+                        Slug: {product.slug}
                       </p>
 
                       <p className="mt-3 text-gray-600">
@@ -423,6 +581,10 @@ export default function AdminProductsPage() {
                       </p>
 
                       <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-full bg-gray-100 px-3 py-1">
+                          {product.category}
+                        </span>
+
                         <span className="rounded-full bg-gray-100 px-3 py-1">
                           {product.gender}
                         </span>
@@ -434,32 +596,38 @@ export default function AdminProductsPage() {
                         <span className="rounded-full bg-gray-100 px-3 py-1">
                           {product.frameColor}
                         </span>
-
-                        <span className="rounded-full bg-gray-100 px-3 py-1">
-                          {product.type}
-                        </span>
                       </div>
+
+                      <p className="mt-4 text-xs text-gray-500">
+                        Creado: {formatDate(product.createdAt)} · Actualizado:{" "}
+                        {formatDate(product.updatedAt)}
+                      </p>
                     </div>
 
                     <div className="md:text-right">
                       <p className="text-2xl font-bold">
-                        ${product.price.toLocaleString("es-MX")} MXN
+                        {formatMoney(product.price)}
                       </p>
 
                       <p className="mt-2 text-sm text-gray-600">
-                        Stock: {product.stock}
+                        Stock:{" "}
+                        <span className="font-semibold">{product.stock}</span>
                       </p>
 
-                      <p className="mt-1 text-xs text-gray-500">
-                        Slug: {product.slug}
+                      <p className="mt-1 text-sm text-gray-600">
+                        Valor stock:{" "}
+                        <span className="font-semibold">
+                          {formatMoney(product.price * product.stock)}
+                        </span>
                       </p>
 
                       <div className="mt-5 flex flex-col gap-2 md:items-end">
                         <a
                           href={`/product/${product.slug}`}
+                          target="_blank"
                           className="inline-block rounded-full border px-5 py-2 text-center text-sm"
                         >
-                          Ver producto
+                          Ver público
                         </a>
 
                         <a
@@ -470,19 +638,25 @@ export default function AdminProductsPage() {
                         </a>
 
                         <button
+                          type="button"
                           onClick={() => toggleProductActive(product)}
-                          className={`inline-block rounded-full px-5 py-2 text-center text-sm ${
+                          disabled={savingSlug === product.slug}
+                          className={`inline-block rounded-full px-5 py-2 text-center text-sm disabled:cursor-not-allowed disabled:opacity-50 ${
                             product.isActive
                               ? "border border-red-200 text-red-600"
                               : "border border-green-200 text-green-700"
                           }`}
                         >
-                          {product.isActive ? "Desactivar" : "Activar"}
+                          {savingSlug === product.slug
+                            ? "Guardando..."
+                            : product.isActive
+                              ? "Desactivar"
+                              : "Activar"}
                         </button>
                       </div>
                     </div>
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>

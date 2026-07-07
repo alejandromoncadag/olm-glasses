@@ -3,6 +3,8 @@
 
 import { useEffect, useState } from "react";
 
+type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+
 type CartItem = {
   slug: string;
   name: string;
@@ -20,6 +22,8 @@ type CheckoutCustomer = {
   city?: string;
   state?: string;
   zipCode?: string;
+  customerNotes?: string;
+  paymentMethod?: PaymentMethod;
 };
 
 type ProductFromApi = {
@@ -49,6 +53,8 @@ type OrderSuccessData = {
   items: OrderSuccessItem[];
   subtotal: number;
   total: number;
+  paymentMethod: PaymentMethod;
+  customerNotes?: string;
 };
 
 function generateFallbackOrderNumber() {
@@ -57,6 +63,38 @@ function generateFallbackOrderNumber() {
 
 function formatMoney(amount: number) {
   return `$${amount.toLocaleString("es-MX")} MXN`;
+}
+
+function isPaymentMethod(value: unknown): value is PaymentMethod {
+  return (
+    value === "bank_transfer" ||
+    value === "store_payment" ||
+    value === "cash_on_delivery"
+  );
+}
+
+function getPaymentMethodLabel(method?: PaymentMethod) {
+  if (method === "bank_transfer") return "Transferencia bancaria";
+  if (method === "store_payment") return "Pago en tienda";
+  if (method === "cash_on_delivery") return "Pago contra entrega";
+
+  return "Sin seleccionar";
+}
+
+function readSavedCustomer() {
+  const savedCustomer = localStorage.getItem("olm-checkout-customer");
+
+  if (!savedCustomer) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(savedCustomer) as CheckoutCustomer;
+  } catch (error) {
+    console.error("Could not read checkout customer:", error);
+    localStorage.removeItem("olm-checkout-customer");
+    return {};
+  }
 }
 
 function findProductFromCartItem(item: CartItem, products: ProductFromApi[]) {
@@ -100,6 +138,7 @@ async function readApiError(response: Response) {
 export default function CheckoutSummary() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [products, setProducts] = useState<ProductFromApi[]>([]);
+  const [checkoutCustomer, setCheckoutCustomer] = useState<CheckoutCustomer>({});
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -115,7 +154,24 @@ export default function CheckoutSummary() {
       }
     }
 
+    setCheckoutCustomer(readSavedCustomer());
     fetchProducts();
+
+    function handleCustomerUpdate() {
+      setCheckoutCustomer(readSavedCustomer());
+    }
+
+    window.addEventListener(
+      "olm-checkout-customer-updated",
+      handleCustomerUpdate
+    );
+
+    return () => {
+      window.removeEventListener(
+        "olm-checkout-customer-updated",
+        handleCustomerUpdate
+      );
+    };
   }, []);
 
   async function fetchProducts() {
@@ -141,18 +197,27 @@ export default function CheckoutSummary() {
   const total = subtotal;
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
+  const selectedPaymentMethod = isPaymentMethod(checkoutCustomer.paymentMethod)
+    ? checkoutCustomer.paymentMethod
+    : undefined;
+
+  const customerNotes = String(checkoutCustomer.customerNotes || "").trim();
+
   async function handlePlaceOrder() {
     try {
       setIsPlacingOrder(true);
       setErrorMessage("");
 
       const savedCart = localStorage.getItem("olm-cart");
-      const savedCustomer = localStorage.getItem("olm-checkout-customer");
 
       const latestCartItems: CartItem[] = savedCart ? JSON.parse(savedCart) : [];
-      const customer: CheckoutCustomer = savedCustomer
-        ? JSON.parse(savedCustomer)
-        : {};
+      const customer = readSavedCustomer();
+
+      const paymentMethod = isPaymentMethod(customer.paymentMethod)
+        ? customer.paymentMethod
+        : null;
+
+      const latestCustomerNotes = String(customer.customerNotes || "").trim();
 
       if (latestCartItems.length === 0) {
         window.location.href = "/cart";
@@ -166,9 +231,17 @@ export default function CheckoutSummary() {
         !customer.address ||
         !customer.city ||
         !customer.state ||
-        !customer.zipCode
+        !customer.zipCode ||
+        !paymentMethod
       ) {
-        setErrorMessage("Completa y guarda tus datos de envío antes de continuar.");
+        setErrorMessage(
+          "Completa y guarda tus datos de envío y forma de pago antes de continuar."
+        );
+        return;
+      }
+
+      if (latestCustomerNotes.length > 500) {
+        setErrorMessage("La nota del pedido no puede tener más de 500 caracteres.");
         return;
       }
 
@@ -203,6 +276,8 @@ export default function CheckoutSummary() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          paymentMethod,
+          customerNotes: latestCustomerNotes,
           customer: {
             fullName: customer.fullName,
             email: customer.email,
@@ -232,9 +307,15 @@ export default function CheckoutSummary() {
         orderNumber,
         createdAt: new Date().toISOString(),
         status: "pending",
-        customer,
+        customer: {
+          ...customer,
+          customerNotes: latestCustomerNotes,
+          paymentMethod,
+        },
         subtotal: createdOrder?.subtotal ?? subtotal,
         total: createdOrder?.total ?? total,
+        paymentMethod,
+        customerNotes: latestCustomerNotes,
         items: latestCartItems.map((item) => ({
           slug: item.slug,
           name: item.name,
@@ -342,7 +423,21 @@ export default function CheckoutSummary() {
           <span>Envío</span>
           <span>Se calcula después</span>
         </div>
+
+        <div className="flex justify-between text-gray-600">
+          <span>Forma de pago</span>
+          <span className="text-right">
+            {getPaymentMethodLabel(selectedPaymentMethod)}
+          </span>
+        </div>
       </div>
+
+      {customerNotes && (
+        <div className="mt-6 rounded-2xl bg-gray-50 p-4">
+          <p className="text-sm font-medium">Nota del pedido</p>
+          <p className="mt-2 text-sm text-gray-600">{customerNotes}</p>
+        </div>
+      )}
 
       <div className="mt-6 border-t pt-6">
         <div className="flex justify-between text-lg font-semibold">
@@ -367,7 +462,8 @@ export default function CheckoutSummary() {
       </button>
 
       <p className="mt-3 text-center text-xs text-gray-500">
-        Pedido conectado a PostgreSQL. Próximamente conectaremos Mercado Pago.
+        El pedido se guardará como sin pagar. Próximamente conectaremos Mercado
+        Pago.
       </p>
     </aside>
   );

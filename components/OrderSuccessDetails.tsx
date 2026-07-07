@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
+type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
 
 type OrderItem = {
   id?: string;
@@ -24,6 +25,8 @@ type Order = {
   createdAt: string;
   status: OrderStatus;
   paymentStatus?: string;
+  paymentMethod?: PaymentMethod;
+  customerNotes?: string | null;
   customer: {
     fullName?: string;
     email?: string;
@@ -33,6 +36,8 @@ type Order = {
     state?: string;
     zipCode?: string;
     country?: string;
+    paymentMethod?: PaymentMethod;
+    customerNotes?: string | null;
   };
   items: OrderItem[];
   subtotal: number;
@@ -81,6 +86,30 @@ function getPaymentStatusLabel(status?: string) {
   return "Pago por confirmar";
 }
 
+function getPaymentMethodLabel(method?: PaymentMethod) {
+  if (method === "bank_transfer") return "Transferencia bancaria";
+  if (method === "store_payment") return "Pago en tienda";
+  if (method === "cash_on_delivery") return "Pago contra entrega";
+
+  return "Por confirmar";
+}
+
+function getPaymentMethodInstructions(method?: PaymentMethod) {
+  if (method === "bank_transfer") {
+    return "Te enviaremos los datos bancarios para realizar la transferencia.";
+  }
+
+  if (method === "store_payment") {
+    return "Podrás pagar directamente en la óptica al recoger o confirmar tu pedido.";
+  }
+
+  if (method === "cash_on_delivery") {
+    return "Confirmaremos si el pago contra entrega está disponible para tu zona.";
+  }
+
+  return "Te contactaremos para confirmar la forma de pago.";
+}
+
 function getItemName(item: OrderItem) {
   return item.productName || item.name || "Producto";
 }
@@ -91,6 +120,14 @@ function getItemPrice(item: OrderItem) {
 
 function getItemTotal(item: OrderItem) {
   return item.lineTotal ?? getItemPrice(item) * item.quantity;
+}
+
+function getOrderPaymentMethod(order: Order) {
+  return order.paymentMethod || order.customer.paymentMethod;
+}
+
+function getOrderCustomerNotes(order: Order) {
+  return String(order.customerNotes || order.customer.customerNotes || "").trim();
 }
 
 export default function OrderSuccessDetails() {
@@ -173,6 +210,8 @@ export default function OrderSuccessDetails() {
 
   const formattedDate = formatDate(order.createdAt);
   const shipping = order.shipping ?? 0;
+  const paymentMethod = getOrderPaymentMethod(order);
+  const customerNotes = getOrderCustomerNotes(order);
 
   return (
     <div>
@@ -209,7 +248,7 @@ export default function OrderSuccessDetails() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-6 md:grid-cols-4">
+      <div className="mt-8 grid gap-6 md:grid-cols-5">
         <div className="rounded-2xl border p-5">
           <p className="text-sm text-gray-500">Fecha</p>
           <p className="mt-1 font-semibold">{formattedDate}</p>
@@ -234,10 +273,27 @@ export default function OrderSuccessDetails() {
         </div>
 
         <div className="rounded-2xl border p-5">
+          <p className="text-sm text-gray-500">Forma de pago</p>
+          <p className="mt-1 font-semibold">
+            {getPaymentMethodLabel(paymentMethod)}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border p-5">
           <p className="text-sm text-gray-500">Total</p>
           <p className="mt-1 text-xl font-bold">{formatMoney(order.total)}</p>
         </div>
       </div>
+
+      {customerNotes && (
+        <section className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-6">
+          <h2 className="text-2xl font-semibold text-blue-950">
+            Nota de tu pedido
+          </h2>
+
+          <p className="mt-3 text-sm text-blue-900">{customerNotes}</p>
+        </section>
+      )}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-8">
@@ -343,7 +399,21 @@ export default function OrderSuccessDetails() {
               <span>Envío</span>
               <span>{shipping ? formatMoney(shipping) : "Por confirmar"}</span>
             </div>
+
+            <div className="flex justify-between text-gray-600">
+              <span>Forma de pago</span>
+              <span className="text-right">
+                {getPaymentMethodLabel(paymentMethod)}
+              </span>
+            </div>
           </div>
+
+          {customerNotes && (
+            <div className="mt-6 rounded-2xl bg-gray-50 p-4">
+              <p className="text-sm font-medium">Nota del pedido</p>
+              <p className="mt-2 text-sm text-gray-600">{customerNotes}</p>
+            </div>
+          )}
 
           <div className="mt-6 border-t pt-6">
             <div className="flex justify-between text-lg font-semibold">
@@ -358,8 +428,20 @@ export default function OrderSuccessDetails() {
             <ol className="mt-4 space-y-3 text-sm text-gray-600">
               <li>1. Revisaremos tu pedido.</li>
               <li>2. Confirmaremos tu información de envío y graduación.</li>
-              <li>3. Te enviaremos instrucciones de pago.</li>
+              <li>3. Confirmaremos tu pago.</li>
             </ol>
+
+            <div className="mt-5 rounded-2xl bg-white p-4">
+              <p className="text-sm font-medium">Forma de pago seleccionada</p>
+
+              <p className="mt-1 text-sm text-gray-600">
+                {getPaymentMethodLabel(paymentMethod)}
+              </p>
+
+              <p className="mt-2 text-sm text-gray-600">
+                {getPaymentMethodInstructions(paymentMethod)}
+              </p>
+            </div>
 
             <p className="mt-4 text-xs text-gray-500">
               Próximamente conectaremos Mercado Pago para pagar directamente en

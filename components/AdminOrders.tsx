@@ -5,12 +5,14 @@ import { downloadCsv } from "@/lib/csv";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
+type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
 
 type Order = {
   id: string;
   orderNumber: string;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod;
   subtotal: number;
   shipping: number;
   total: number;
@@ -71,6 +73,22 @@ function getPaymentStatusClassName(status: PaymentStatus) {
   return "bg-gray-100 text-gray-700";
 }
 
+function getPaymentMethodLabel(method?: PaymentMethod) {
+  if (method === "bank_transfer") return "Transferencia bancaria";
+  if (method === "store_payment") return "Pago en tienda";
+  if (method === "cash_on_delivery") return "Pago contra entrega";
+
+  return "Por confirmar";
+}
+
+function getPaymentMethodClassName(method?: PaymentMethod) {
+  if (method === "bank_transfer") return "bg-blue-100 text-blue-700";
+  if (method === "store_payment") return "bg-purple-100 text-purple-700";
+  if (method === "cash_on_delivery") return "bg-orange-100 text-orange-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
 function getShippingClassName(order: Order) {
   if (order.shippingCarrier && order.trackingNumber) {
     return "bg-green-100 text-green-700";
@@ -127,16 +145,16 @@ function formatMoney(amount: number) {
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
-
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all");
   const [paymentFilter, setPaymentFilter] = useState<"all" | PaymentStatus>(
     "all"
   );
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<
+    "all" | PaymentMethod
+  >("all");
   const [shippingFilter, setShippingFilter] = useState<
     "all" | "withTracking" | "missingTracking"
   >("all");
-
-
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingOrderNumber, setSavingOrderNumber] = useState("");
@@ -190,11 +208,11 @@ export default function AdminOrders() {
         currentOrders.map((order) =>
           order.orderNumber === orderNumber
             ? {
-              ...order,
-              status: data.order.status,
-              paymentStatus: data.order.paymentStatus,
-              updatedAt: data.order.updatedAt,
-            }
+                ...order,
+                status: data.order.status,
+                paymentStatus: data.order.paymentStatus,
+                updatedAt: data.order.updatedAt,
+              }
             : order
         )
       );
@@ -207,19 +225,27 @@ export default function AdminOrders() {
   }
 
   const totalOrders = orders.length;
+
   const pendingOrders = orders.filter(
     (order) => order.status === "pending"
   ).length;
+
   const processingOrders = orders.filter(
     (order) => order.status === "processing"
   ).length;
+
   const completedOrders = orders.filter(
     (order) => order.status === "completed"
   ).length;
+
   const missingTrackingOrders = orders.filter(
     (order) =>
       order.status !== "cancelled" &&
       (!order.shippingCarrier || !order.trackingNumber)
+  ).length;
+
+  const unpaidOrders = orders.filter(
+    (order) => order.paymentStatus === "unpaid"
   ).length;
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
@@ -228,12 +254,14 @@ export default function AdminOrders() {
     const matchesStatus =
       statusFilter === "all" || order.status === statusFilter;
 
-
-    const hasTracking = Boolean(order.shippingCarrier && order.trackingNumber);
-
-
     const matchesPayment =
       paymentFilter === "all" || order.paymentStatus === paymentFilter;
+
+    const matchesPaymentMethod =
+      paymentMethodFilter === "all" ||
+      order.paymentMethod === paymentMethodFilter;
+
+    const hasTracking = Boolean(order.shippingCarrier && order.trackingNumber);
 
     const matchesShipping =
       shippingFilter === "all" ||
@@ -248,7 +276,11 @@ export default function AdminOrders() {
       order.customer?.email,
       order.customer?.phone,
       order.status,
+      getStatusLabel(order.status),
       order.paymentStatus,
+      getPaymentStatusLabel(order.paymentStatus),
+      order.paymentMethod,
+      getPaymentMethodLabel(order.paymentMethod),
       order.shippingCarrier,
       order.trackingNumber,
       order.customerVisibleNotes,
@@ -262,7 +294,13 @@ export default function AdminOrders() {
       normalizedSearchTerm === "" ||
       searchableText.includes(normalizedSearchTerm);
 
-    return matchesStatus && matchesPayment && matchesShipping && matchesSearch;
+    return (
+      matchesStatus &&
+      matchesPayment &&
+      matchesPaymentMethod &&
+      matchesShipping &&
+      matchesSearch
+    );
   });
 
   function exportOrdersCsv() {
@@ -274,6 +312,7 @@ export default function AdminOrders() {
         "Customer Phone",
         "Status",
         "Payment Status",
+        "Payment Method",
         "Shipping Carrier",
         "Tracking Number",
         "Customer Visible Notes",
@@ -290,6 +329,7 @@ export default function AdminOrders() {
         order.customer?.phone || "",
         getStatusLabel(order.status),
         getPaymentStatusLabel(order.paymentStatus),
+        getPaymentMethodLabel(order.paymentMethod),
         order.shippingCarrier || "",
         order.trackingNumber || "",
         order.customerVisibleNotes || "",
@@ -324,6 +364,7 @@ export default function AdminOrders() {
         <p className="mt-3 text-red-600">{error}</p>
 
         <button
+          type="button"
           onClick={fetchOrders}
           className="mt-6 rounded-full bg-black px-6 py-3 text-white"
         >
@@ -335,7 +376,7 @@ export default function AdminOrders() {
 
   return (
     <div>
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-6">
         <div className="rounded-2xl border p-5">
           <p className="text-sm text-gray-600">Pedidos totales</p>
           <p className="mt-2 text-3xl font-bold">{totalOrders}</p>
@@ -357,6 +398,11 @@ export default function AdminOrders() {
         </div>
 
         <div className="rounded-2xl border p-5">
+          <p className="text-sm text-gray-600">Sin pagar</p>
+          <p className="mt-2 text-3xl font-bold">{unpaidOrders}</p>
+        </div>
+
+        <div className="rounded-2xl border p-5">
           <p className="text-sm text-gray-600">Falta rastreo</p>
           <p className="mt-2 text-3xl font-bold">{missingTrackingOrders}</p>
         </div>
@@ -366,12 +412,13 @@ export default function AdminOrders() {
         <input
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Buscar por pedido, cliente, email, rastreo..."
+          placeholder="Buscar por pedido, cliente, email, pago, rastreo..."
           className="w-full rounded-full border px-5 py-2 text-sm outline-none focus:border-black md:max-w-sm"
         />
 
         <div className="flex flex-wrap gap-2">
           <button
+            type="button"
             onClick={exportOrdersCsv}
             className="rounded-full bg-black px-4 py-2 text-sm text-white"
           >
@@ -379,10 +426,12 @@ export default function AdminOrders() {
           </button>
 
           <button
+            type="button"
             onClick={() => {
               setSearchTerm("");
               setStatusFilter("all");
               setPaymentFilter("all");
+              setPaymentMethodFilter("all");
               setShippingFilter("all");
             }}
             className="rounded-full border px-4 py-2 text-sm"
@@ -391,39 +440,47 @@ export default function AdminOrders() {
           </button>
 
           <button
+            type="button"
             onClick={() => setStatusFilter("all")}
-            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "all" ? "border-black bg-black text-white" : ""
-              }`}
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "all" ? "border-black bg-black text-white" : ""
+            }`}
           >
             Todos
           </button>
 
           <button
+            type="button"
             onClick={() => setStatusFilter("pending")}
-            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "pending"
-              ? "border-black bg-black text-white"
-              : ""
-              }`}
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "pending"
+                ? "border-black bg-black text-white"
+                : ""
+            }`}
           >
             Pendientes
           </button>
 
           <button
+            type="button"
             onClick={() => setStatusFilter("processing")}
-            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "processing"
-              ? "border-black bg-black text-white"
-              : ""
-              }`}
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "processing"
+                ? "border-black bg-black text-white"
+                : ""
+            }`}
           >
             En proceso
           </button>
 
           <button
+            type="button"
             onClick={() => setStatusFilter("completed")}
-            className={`rounded-full border px-4 py-2 text-sm ${statusFilter === "completed"
-              ? "border-black bg-black text-white"
-              : ""
-              }`}
+            className={`rounded-full border px-4 py-2 text-sm ${
+              statusFilter === "completed"
+                ? "border-black bg-black text-white"
+                : ""
+            }`}
           >
             Completados
           </button>
@@ -432,41 +489,51 @@ export default function AdminOrders() {
 
       <div className="mt-4 flex flex-wrap gap-2">
         <button
+          type="button"
           onClick={() => setPaymentFilter("all")}
-          className={`rounded-full border px-4 py-2 text-sm ${paymentFilter === "all" ? "border-black bg-black text-white" : ""
-            }`}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            paymentFilter === "all" ? "border-black bg-black text-white" : ""
+          }`}
         >
           Todos los pagos
         </button>
 
         <button
+          type="button"
           onClick={() => setPaymentFilter("unpaid")}
-          className={`rounded-full border px-4 py-2 text-sm ${paymentFilter === "unpaid" ? "border-black bg-black text-white" : ""
-            }`}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            paymentFilter === "unpaid" ? "border-black bg-black text-white" : ""
+          }`}
         >
           Sin pagar
         </button>
 
         <button
+          type="button"
           onClick={() => setPaymentFilter("pending")}
-          className={`rounded-full border px-4 py-2 text-sm ${paymentFilter === "pending" ? "border-black bg-black text-white" : ""
-            }`}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            paymentFilter === "pending" ? "border-black bg-black text-white" : ""
+          }`}
         >
           Pago pendiente
         </button>
 
         <button
+          type="button"
           onClick={() => setPaymentFilter("paid")}
-          className={`rounded-full border px-4 py-2 text-sm ${paymentFilter === "paid" ? "border-black bg-black text-white" : ""
-            }`}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            paymentFilter === "paid" ? "border-black bg-black text-white" : ""
+          }`}
         >
           Pagados
         </button>
 
         <button
+          type="button"
           onClick={() => setPaymentFilter("failed")}
-          className={`rounded-full border px-4 py-2 text-sm ${paymentFilter === "failed" ? "border-black bg-black text-white" : ""
-            }`}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            paymentFilter === "failed" ? "border-black bg-black text-white" : ""
+          }`}
         >
           Fallidos
         </button>
@@ -474,31 +541,85 @@ export default function AdminOrders() {
 
       <div className="mt-4 flex flex-wrap gap-2">
         <button
+          type="button"
+          onClick={() => setPaymentMethodFilter("all")}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            paymentMethodFilter === "all"
+              ? "border-black bg-black text-white"
+              : ""
+          }`}
+        >
+          Todas las formas de pago
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPaymentMethodFilter("bank_transfer")}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            paymentMethodFilter === "bank_transfer"
+              ? "border-black bg-black text-white"
+              : ""
+          }`}
+        >
+          Transferencia
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPaymentMethodFilter("store_payment")}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            paymentMethodFilter === "store_payment"
+              ? "border-black bg-black text-white"
+              : ""
+          }`}
+        >
+          Pago en tienda
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPaymentMethodFilter("cash_on_delivery")}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            paymentMethodFilter === "cash_on_delivery"
+              ? "border-black bg-black text-white"
+              : ""
+          }`}
+        >
+          Contra entrega
+        </button>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
           onClick={() => setShippingFilter("all")}
-
-
-          className={`rounded-full border px-4 py-2 text-sm ${shippingFilter === "all" ? "border-black bg-black text-white" : ""
-            }`}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            shippingFilter === "all" ? "border-black bg-black text-white" : ""
+          }`}
         >
           Todos los envíos
         </button>
 
         <button
+          type="button"
           onClick={() => setShippingFilter("missingTracking")}
-          className={`rounded-full border px-4 py-2 text-sm ${shippingFilter === "missingTracking"
-            ? "border-black bg-black text-white"
-            : ""
-            }`}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            shippingFilter === "missingTracking"
+              ? "border-black bg-black text-white"
+              : ""
+          }`}
         >
           Falta rastreo
         </button>
 
         <button
+          type="button"
           onClick={() => setShippingFilter("withTracking")}
-          className={`rounded-full border px-4 py-2 text-sm ${shippingFilter === "withTracking"
-            ? "border-black bg-black text-white"
-            : ""
-            }`}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            shippingFilter === "withTracking"
+              ? "border-black bg-black text-white"
+              : ""
+          }`}
         >
           Con rastreo
         </button>
@@ -544,6 +665,14 @@ export default function AdminOrders() {
                     </span>
 
                     <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getPaymentMethodClassName(
+                        order.paymentMethod
+                      )}`}
+                    >
+                      {getPaymentMethodLabel(order.paymentMethod)}
+                    </span>
+
+                    <span
                       className={`rounded-full px-3 py-1 text-xs font-semibold ${getShippingClassName(
                         order
                       )}`}
@@ -556,13 +685,21 @@ export default function AdminOrders() {
                     Pedido creado el {formatDate(order.createdAt)}
                   </p>
 
-                  <div className="mt-4 grid gap-3 text-sm text-gray-700 md:grid-cols-3">
+                  <div className="mt-4 grid gap-3 text-sm text-gray-700 md:grid-cols-4">
                     <div>
                       <p className="text-gray-500">Cliente</p>
                       <p className="font-medium">
                         {order.customer?.fullName || "Sin nombre"}
                       </p>
                       <p>{order.customer?.email || "Sin email"}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-gray-500">Pago</p>
+                      <p className="font-medium">
+                        {getPaymentStatusLabel(order.paymentStatus)}
+                      </p>
+                      <p>{getPaymentMethodLabel(order.paymentMethod)}</p>
                     </div>
 
                     <div>
@@ -638,7 +775,6 @@ export default function AdminOrders() {
     </div>
   );
 }
-
 
 
 

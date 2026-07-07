@@ -6,6 +6,7 @@ import AdminNav from "@/components/AdminNav";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
+type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
 
 type OrderItem = {
   id?: string;
@@ -23,6 +24,7 @@ type Order = {
   orderNumber: string;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod;
   subtotal: number;
   shipping: number;
   total: number;
@@ -118,6 +120,38 @@ function getPaymentStatusClassName(status: PaymentStatus) {
   return "bg-gray-100 text-gray-700";
 }
 
+function getPaymentMethodLabel(method?: PaymentMethod) {
+  if (method === "bank_transfer") return "Transferencia bancaria";
+  if (method === "store_payment") return "Pago en tienda";
+  if (method === "cash_on_delivery") return "Pago contra entrega";
+
+  return "Por confirmar";
+}
+
+function getPaymentMethodClassName(method?: PaymentMethod) {
+  if (method === "bank_transfer") return "bg-blue-100 text-blue-700";
+  if (method === "store_payment") return "bg-purple-100 text-purple-700";
+  if (method === "cash_on_delivery") return "bg-orange-100 text-orange-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
+function getPaymentInstructions(method?: PaymentMethod) {
+  if (method === "bank_transfer") {
+    return "Enviar datos bancarios al cliente y marcar como pagado cuando se confirme la transferencia.";
+  }
+
+  if (method === "store_payment") {
+    return "El cliente pagará directamente en tienda. Confirma el pago antes de entregar el pedido.";
+  }
+
+  if (method === "cash_on_delivery") {
+    return "Confirmar si la zona acepta pago contra entrega antes de enviar.";
+  }
+
+  return "Confirma la forma de pago con el cliente.";
+}
+
 export default function AdminOrderDetailPage() {
   const params = useParams();
 
@@ -169,7 +203,10 @@ export default function AdminOrderDetailPage() {
     }
   }, [orderNumber]);
 
-  async function copyText(value: string | undefined, type: "order" | "email" | "tracking") {
+  async function copyText(
+    value: string | undefined,
+    type: "order" | "email" | "tracking"
+  ) {
     if (!value) return;
 
     try {
@@ -184,7 +221,10 @@ export default function AdminOrderDetailPage() {
     }
   }
 
-  async function updateOrder(updates: OrderUpdate, message = "Pedido actualizado.") {
+  async function updateOrder(
+    updates: OrderUpdate,
+    message = "Pedido actualizado."
+  ) {
     if (!orderNumber) return;
 
     try {
@@ -213,6 +253,7 @@ export default function AdminOrderDetailPage() {
               ...currentOrder,
               status: data.order.status,
               paymentStatus: data.order.paymentStatus,
+              paymentMethod: data.order.paymentMethod || currentOrder.paymentMethod,
               adminNotes: data.order.adminNotes,
               shippingCarrier: data.order.shippingCarrier,
               trackingNumber: data.order.trackingNumber,
@@ -313,6 +354,14 @@ export default function AdminOrderDetailPage() {
             >
               {getPaymentStatusLabel(order.paymentStatus)}
             </span>
+
+            <span
+              className={`rounded-full px-4 py-2 text-sm font-semibold ${getPaymentMethodClassName(
+                order.paymentMethod
+              )}`}
+            >
+              {getPaymentMethodLabel(order.paymentMethod)}
+            </span>
           </div>
         </div>
 
@@ -332,7 +381,7 @@ export default function AdminOrderDetailPage() {
           </div>
         )}
 
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
+        <div className="mt-8 grid gap-6 md:grid-cols-4">
           <section className="rounded-2xl border p-5">
             <p className="text-sm text-gray-600">Estado del pedido</p>
 
@@ -386,6 +435,18 @@ export default function AdminOrderDetailPage() {
               <option value="failed">Fallido</option>
               <option value="refunded">Reembolsado</option>
             </select>
+          </section>
+
+          <section className="rounded-2xl border p-5">
+            <p className="text-sm text-gray-600">Forma de pago</p>
+
+            <p className="mt-2 text-xl font-semibold">
+              {getPaymentMethodLabel(order.paymentMethod)}
+            </p>
+
+            <p className="mt-3 text-sm text-gray-500">
+              {getPaymentInstructions(order.paymentMethod)}
+            </p>
           </section>
 
           <section className="rounded-2xl border p-5">
@@ -642,12 +703,37 @@ export default function AdminOrderDetailPage() {
                   {order.shipping ? formatMoney(order.shipping) : "Por confirmar"}
                 </span>
               </div>
+
+              <div className="flex justify-between text-gray-600">
+                <span>Forma de pago</span>
+                <span className="text-right">
+                  {getPaymentMethodLabel(order.paymentMethod)}
+                </span>
+              </div>
             </div>
 
             <div className="mt-6 border-t pt-6">
               <div className="flex justify-between text-lg font-semibold">
                 <span>Total</span>
                 <span>{formatMoney(order.total)}</span>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl bg-gray-50 p-5">
+              <h3 className="font-semibold">Pago</h3>
+
+              <div className="mt-4 space-y-3 text-sm text-gray-600">
+                <p>
+                  <span className="font-medium text-black">Estado:</span>{" "}
+                  {getPaymentStatusLabel(order.paymentStatus)}
+                </p>
+
+                <p>
+                  <span className="font-medium text-black">Forma:</span>{" "}
+                  {getPaymentMethodLabel(order.paymentMethod)}
+                </p>
+
+                <p>{getPaymentInstructions(order.paymentMethod)}</p>
               </div>
             </div>
 

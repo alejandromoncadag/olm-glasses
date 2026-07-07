@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
+type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+
 type CheckoutCustomer = {
   fullName: string;
   email: string;
@@ -10,6 +12,8 @@ type CheckoutCustomer = {
   city: string;
   state: string;
   zipCode: string;
+  customerNotes: string;
+  paymentMethod: PaymentMethod;
 };
 
 type FormErrors = Partial<Record<keyof CheckoutCustomer, string>>;
@@ -22,7 +26,39 @@ const emptyCustomer: CheckoutCustomer = {
   city: "",
   state: "",
   zipCode: "",
+  customerNotes: "",
+  paymentMethod: "bank_transfer",
 };
+
+const paymentOptions: {
+  value: PaymentMethod;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "bank_transfer",
+    label: "Transferencia bancaria",
+    description: "Te enviaremos los datos para realizar la transferencia.",
+  },
+  {
+    value: "store_payment",
+    label: "Pago en tienda",
+    description: "Paga directamente en la óptica al recoger tu pedido.",
+  },
+  {
+    value: "cash_on_delivery",
+    label: "Pago contra entrega",
+    description: "Paga cuando recibas tu pedido, si está disponible en tu zona.",
+  },
+];
+
+function isPaymentMethod(value: unknown): value is PaymentMethod {
+  return (
+    value === "bank_transfer" ||
+    value === "store_payment" ||
+    value === "cash_on_delivery"
+  );
+}
 
 function validateCustomer(customer: CheckoutCustomer) {
   const errors: FormErrors = {};
@@ -57,6 +93,14 @@ function validateCustomer(customer: CheckoutCustomer) {
     errors.zipCode = "El código postal es obligatorio.";
   }
 
+  if (customer.customerNotes.length > 500) {
+    errors.customerNotes = "La nota no puede tener más de 500 caracteres.";
+  }
+
+  if (!customer.paymentMethod) {
+    errors.paymentMethod = "Selecciona una forma de pago.";
+  }
+
   return errors;
 }
 
@@ -73,18 +117,38 @@ export default function CheckoutForm() {
     }
 
     try {
-      setCustomer(JSON.parse(savedCustomer));
+      const parsedCustomer = JSON.parse(
+        savedCustomer
+      ) as Partial<CheckoutCustomer>;
+
+      setCustomer({
+        ...emptyCustomer,
+        ...parsedCustomer,
+        customerNotes: parsedCustomer.customerNotes || "",
+        paymentMethod: isPaymentMethod(parsedCustomer.paymentMethod)
+          ? parsedCustomer.paymentMethod
+          : "bank_transfer",
+      });
     } catch (error) {
       console.error("Could not read checkout customer:", error);
       localStorage.removeItem("olm-checkout-customer");
     }
   }, []);
 
+  function saveCustomerToStorage(updatedCustomer: CheckoutCustomer) {
+    localStorage.setItem(
+      "olm-checkout-customer",
+      JSON.stringify(updatedCustomer)
+    );
+
+    window.dispatchEvent(new Event("olm-checkout-customer-updated"));
+  }
+
   function updateCustomer(field: keyof CheckoutCustomer, value: string) {
     const updatedCustomer = {
       ...customer,
       [field]: value,
-    };
+    } as CheckoutCustomer;
 
     setCustomer(updatedCustomer);
     setErrors((currentErrors) => ({
@@ -93,10 +157,7 @@ export default function CheckoutForm() {
     }));
     setSaved(false);
 
-    localStorage.setItem(
-      "olm-checkout-customer",
-      JSON.stringify(updatedCustomer)
-    );
+    saveCustomerToStorage(updatedCustomer);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -110,7 +171,7 @@ export default function CheckoutForm() {
       return;
     }
 
-    localStorage.setItem("olm-checkout-customer", JSON.stringify(customer));
+    saveCustomerToStorage(customer);
     setSaved(true);
   }
 
@@ -236,13 +297,90 @@ export default function CheckoutForm() {
             )}
           </label>
         </div>
+
+        <label className="block rounded-2xl bg-gray-50 p-5">
+          <span className="text-xl font-semibold">Notas para tu pedido</span>
+
+          <p className="mt-2 text-sm text-gray-600">
+            Puedes agregar instrucciones sobre tu graduación, envío o cualquier
+            detalle importante.
+          </p>
+
+          <textarea
+            value={customer.customerNotes}
+            onChange={(event) =>
+              updateCustomer("customerNotes", event.target.value)
+            }
+            rows={4}
+            maxLength={500}
+            className="mt-4 w-full rounded-xl border bg-white px-4 py-3 outline-none focus:border-black"
+            placeholder="Ejemplo: Voy a enviar mi receta por WhatsApp. Por favor llámenme antes de enviar."
+          />
+
+          <div className="mt-2 flex justify-between gap-3 text-xs text-gray-500">
+            <span>Opcional</span>
+            <span>{customer.customerNotes.length}/500</span>
+          </div>
+
+          {errors.customerNotes && (
+            <p className="mt-2 text-sm text-red-600">{errors.customerNotes}</p>
+          )}
+        </label>
+      </div>
+
+      <div className="mt-8 rounded-2xl bg-gray-50 p-5">
+        <h3 className="text-xl font-semibold">Forma de pago</h3>
+
+        <p className="mt-2 text-sm text-gray-600">
+          Por ahora el pedido se crea como “sin pagar”. Después podrás marcarlo
+          como pagado desde admin.
+        </p>
+
+        <div className="mt-5 grid gap-3">
+          {paymentOptions.map((option) => (
+            <label
+              key={option.value}
+              className={`block cursor-pointer rounded-2xl border bg-white p-4 ${
+                customer.paymentMethod === option.value ? "border-black" : ""
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  checked={customer.paymentMethod === option.value}
+                  onChange={() => updateCustomer("paymentMethod", option.value)}
+                  className="mt-1"
+                />
+
+                <div>
+                  <p className="font-medium">{option.label}</p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {option.description}
+                  </p>
+                </div>
+              </div>
+            </label>
+          ))}
+
+          <div className="rounded-2xl border border-dashed bg-white p-4 opacity-60">
+            <p className="font-medium">Mercado Pago</p>
+            <p className="mt-1 text-sm text-gray-600">
+              Próximamente conectaremos Mercado Pago para pagar en línea.
+            </p>
+          </div>
+        </div>
+
+        {errors.paymentMethod && (
+          <p className="mt-3 text-sm text-red-600">{errors.paymentMethod}</p>
+        )}
       </div>
 
       <button
         type="submit"
         className="mt-6 rounded-full bg-black px-6 py-3 text-white"
       >
-        Guardar datos de envío
+        Guardar datos de envío y pago
       </button>
 
       <p className="mt-3 text-xs text-gray-500">

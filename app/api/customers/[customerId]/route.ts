@@ -64,6 +64,9 @@ export async function GET(_request: Request, context: RouteContext) {
           orders.shipping_cents,
           orders.total_cents,
           orders.currency,
+          orders.shipping_carrier,
+          orders.tracking_number,
+          orders.customer_visible_notes,
           orders.created_at,
           orders.updated_at
         FROM orders
@@ -95,6 +98,9 @@ export async function GET(_request: Request, context: RouteContext) {
           shipping: order.shipping_cents / 100,
           total: order.total_cents / 100,
           currency: order.currency,
+          shippingCarrier: order.shipping_carrier,
+          trackingNumber: order.tracking_number,
+          customerVisibleNotes: order.customer_visible_notes,
           createdAt: order.created_at,
           updatedAt: order.updated_at,
         })),
@@ -109,6 +115,4 @@ export async function GET(_request: Request, context: RouteContext) {
     );
   }
 }
-
-
 

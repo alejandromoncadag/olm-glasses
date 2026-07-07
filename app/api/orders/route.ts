@@ -7,6 +7,8 @@ import {
 
 export const runtime = "nodejs";
 
+type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+
 type OrderItemInput = {
   productSlug: string;
   quantity: number;
@@ -15,6 +17,8 @@ type OrderItemInput = {
 };
 
 type CreateOrderInput = {
+  paymentMethod?: PaymentMethod;
+  customerNotes?: string;
   customer: {
     fullName: string;
     email: string;
@@ -51,9 +55,37 @@ function cleanText(value: string | undefined) {
   return String(value || "").trim();
 }
 
+function cleanNullableText(value: string | undefined) {
+  const cleanedValue = cleanText(value);
+
+  return cleanedValue.length > 0 ? cleanedValue : null;
+}
+
+function getValidPaymentMethod(value: string | undefined) {
+  const paymentMethod = cleanText(value);
+
+  if (
+    paymentMethod === "bank_transfer" ||
+    paymentMethod === "store_payment" ||
+    paymentMethod === "cash_on_delivery"
+  ) {
+    return paymentMethod;
+  }
+
+  return null;
+}
+
 function validateOrderInput(body: CreateOrderInput) {
   if (!body.customer || !body.items || body.items.length === 0) {
     return "Customer and items are required";
+  }
+
+  if (!getValidPaymentMethod(body.paymentMethod)) {
+    return "A valid payment method is required";
+  }
+
+  if (cleanText(body.customerNotes).length > 500) {
+    return "Customer notes are too long";
   }
 
   const customer = {
@@ -135,6 +167,8 @@ export async function GET() {
         orders.order_number,
         orders.status,
         orders.payment_status,
+        orders.payment_method,
+        orders.customer_notes,
         orders.subtotal_cents,
         orders.shipping_cents,
         orders.total_cents,
@@ -157,6 +191,8 @@ export async function GET() {
         orderNumber: order.order_number,
         status: order.status,
         paymentStatus: order.payment_status,
+        paymentMethod: order.payment_method,
+        customerNotes: order.customer_notes,
         subtotal: order.subtotal_cents / 100,
         shipping: order.shipping_cents / 100,
         total: order.total_cents / 100,
@@ -194,6 +230,17 @@ export async function POST(request: Request) {
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
+
+    const paymentMethod = getValidPaymentMethod(body.paymentMethod);
+
+    if (!paymentMethod) {
+      return NextResponse.json(
+        { error: "A valid payment method is required" },
+        { status: 400 }
+      );
+    }
+
+    const customerNotes = cleanNullableText(body.customerNotes);
 
     await client.query("BEGIN");
     transactionStarted = true;
@@ -298,15 +345,19 @@ export async function POST(request: Request) {
         customer_id,
         status,
         payment_status,
+        payment_method,
+        customer_notes,
         subtotal_cents,
         shipping_cents,
         total_cents
-      ) VALUES ($1, $2, 'pending', 'unpaid', $3, $4, $5)
+      ) VALUES ($1, $2, 'pending', 'unpaid', $3, $4, $5, $6, $7)
       RETURNING id, order_number;
       `,
       [
         generateOrderNumber(),
         customerId,
+        paymentMethod,
+        customerNotes,
         subtotalCents,
         shippingCents,
         totalCents,
@@ -385,6 +436,8 @@ export async function POST(request: Request) {
           shipping: shippingCents / 100,
           total: totalCents / 100,
           currency: "MXN",
+          paymentMethod,
+          customerNotes,
         },
       },
       { status: 201 }
@@ -411,4 +464,6 @@ export async function POST(request: Request) {
     client.release();
   }
 }
+
+
 

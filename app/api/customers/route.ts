@@ -31,7 +31,9 @@ export async function GET() {
         COALESCE(SUM(orders.total_cents), 0)::int AS total_spent_cents,
         MAX(orders.created_at) AS last_order_at
       FROM customers
-      LEFT JOIN orders ON orders.customer_id = customers.id
+      LEFT JOIN orders
+        ON orders.customer_id = customers.id
+        AND orders.status::text != 'cancelled'
       GROUP BY customers.id
       ORDER BY customers.created_at DESC;
     `);
@@ -62,3 +64,4 @@ export async function GET() {
     );
   }
 }
+

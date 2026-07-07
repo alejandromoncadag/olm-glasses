@@ -16,20 +16,23 @@ type CustomerOrder = {
   shipping: number;
   total: number;
   currency: string;
+  shippingCarrier?: string | null;
+  trackingNumber?: string | null;
+  customerVisibleNotes?: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
 type Customer = {
   id: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
+  fullName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  country?: string | null;
   createdAt: string;
   updatedAt: string;
   orders: CustomerOrder[];
@@ -39,7 +42,9 @@ function formatMoney(amount: number) {
   return `$${amount.toLocaleString("es-MX")} MXN`;
 }
 
-function formatDate(date: string) {
+function formatDate(date: string | null | undefined) {
+  if (!date) return "Sin fecha";
+
   return new Date(date).toLocaleDateString("es-MX", {
     year: "numeric",
     month: "long",
@@ -56,6 +61,15 @@ function getStatusLabel(status: OrderStatus) {
   return "Pendiente";
 }
 
+function getStatusClassName(status: OrderStatus) {
+  if (status === "pending") return "bg-yellow-100 text-yellow-800";
+  if (status === "processing") return "bg-blue-100 text-blue-700";
+  if (status === "completed") return "bg-green-100 text-green-700";
+  if (status === "cancelled") return "bg-red-100 text-red-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
 function getPaymentStatusLabel(status: PaymentStatus) {
   if (status === "unpaid") return "Sin pagar";
   if (status === "pending") return "Pago pendiente";
@@ -64,6 +78,28 @@ function getPaymentStatusLabel(status: PaymentStatus) {
   if (status === "refunded") return "Reembolsado";
 
   return "Sin pagar";
+}
+
+function getPaymentStatusClassName(status: PaymentStatus) {
+  if (status === "paid") return "bg-green-100 text-green-700";
+  if (status === "pending") return "bg-yellow-100 text-yellow-800";
+  if (status === "unpaid") return "bg-gray-100 text-gray-700";
+  if (status === "failed") return "bg-red-100 text-red-700";
+  if (status === "refunded") return "bg-blue-100 text-blue-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
+function getCustomerName(customer: Customer) {
+  return customer.fullName || "Sin nombre";
+}
+
+function getCustomerAddress(customer: Customer) {
+  return (
+    [customer.address, customer.city, customer.state, customer.zipCode]
+      .filter(Boolean)
+      .join(", ") || "Sin dirección"
+  );
 }
 
 export default function AdminCustomerDetailPage() {
@@ -138,133 +174,303 @@ export default function AdminCustomerDetailPage() {
     );
   }
 
-  const totalSpent = customer.orders.reduce(
-    (sum, order) => sum + order.total,
-    0
+  const validOrders = customer.orders.filter(
+    (order) => order.status !== "cancelled"
   );
+
+  const totalSpent = validOrders.reduce((sum, order) => sum + order.total, 0);
+
+  const paidOrders = validOrders.filter(
+    (order) => order.paymentStatus === "paid"
+  );
+
+  const paidTotal = paidOrders.reduce((sum, order) => sum + order.total, 0);
+
+  const pendingOrders = customer.orders.filter(
+    (order) => order.status === "pending"
+  ).length;
+
+  const lastOrder = customer.orders[0];
 
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
       <section className="mx-auto max-w-6xl">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
           <div>
-            <h1 className="text-4xl font-bold">{customer.fullName}</h1>
+            <a href="/admin/customers" className="text-sm text-gray-500 underline">
+              ← Regresar a clientes
+            </a>
+
+            <h1 className="mt-4 text-4xl font-bold">
+              {getCustomerName(customer)}
+            </h1>
 
             <p className="mt-4 text-gray-600">
               Cliente desde {formatDate(customer.createdAt)}
             </p>
           </div>
 
-          <a
-            href="/admin/customers"
-            className="rounded-full border px-6 py-3 text-center"
-          >
-            Regresar a clientes
-          </a>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <a
+              href={`mailto:${customer.email || ""}`}
+              className="rounded-full border px-6 py-3 text-center"
+            >
+              Enviar email
+            </a>
+
+            <a
+              href="/admin/customers"
+              className="rounded-full bg-black px-6 py-3 text-center text-white"
+            >
+              Clientes
+            </a>
+          </div>
         </div>
 
         <AdminNav />
 
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
+        <div className="mt-10 grid gap-4 md:grid-cols-4">
           <div className="rounded-2xl border p-5">
-            <p className="text-sm text-gray-600">Pedidos</p>
-            <p className="mt-2 text-3xl font-bold">
-              {customer.orders.length}
+            <p className="text-sm text-gray-600">Pedidos totales</p>
+            <p className="mt-2 text-3xl font-bold">{customer.orders.length}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              {pendingOrders} pendientes
             </p>
           </div>
 
           <div className="rounded-2xl border p-5">
             <p className="text-sm text-gray-600">Total gastado</p>
-            <p className="mt-2 text-3xl font-bold">
-              {formatMoney(totalSpent)}
+            <p className="mt-2 text-3xl font-bold">{formatMoney(totalSpent)}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              No incluye pedidos cancelados
+            </p>
+          </div>
+
+          <div className="rounded-2xl border p-5">
+            <p className="text-sm text-gray-600">Pagado</p>
+            <p className="mt-2 text-3xl font-bold">{formatMoney(paidTotal)}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              {paidOrders.length} pedidos pagados
             </p>
           </div>
 
           <div className="rounded-2xl border p-5">
             <p className="text-sm text-gray-600">Último pedido</p>
             <p className="mt-2 text-lg font-semibold">
-              {customer.orders[0]
-                ? formatDate(customer.orders[0].createdAt)
-                : "Sin pedidos"}
+              {lastOrder ? formatDate(lastOrder.createdAt) : "Sin pedidos"}
             </p>
           </div>
         </div>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
-          <div className="rounded-2xl border p-6">
-            <h2 className="text-2xl font-semibold">Contacto</h2>
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_380px]">
+          <div className="space-y-6">
+            <section className="rounded-2xl border p-6">
+              <h2 className="text-2xl font-semibold">Información del cliente</h2>
 
-            <div className="mt-4 space-y-2 text-gray-700">
-              <p>{customer.email || "Sin email"}</p>
-              <p>{customer.phone || "Sin teléfono"}</p>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border p-6">
-            <h2 className="text-2xl font-semibold">Dirección</h2>
-
-            <div className="mt-4 space-y-2 text-gray-700">
-              <p>{customer.address || "Sin dirección"}</p>
-              <p>
-                {[customer.city, customer.state, customer.zipCode]
-                  .filter(Boolean)
-                  .join(", ") || "Sin ubicación"}
-              </p>
-              <p>{customer.country || "México"}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-8 rounded-2xl border p-6">
-          <h2 className="text-2xl font-semibold">Historial de pedidos</h2>
-
-          {customer.orders.length === 0 ? (
-            <p className="mt-4 text-gray-600">
-              Este cliente todavía no tiene pedidos.
-            </p>
-          ) : (
-            <div className="mt-5 space-y-4">
-              {customer.orders.map((order) => (
-                <div key={order.id} className="rounded-2xl border p-5">
-                  <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-                    <div>
-                      <a
-                        href={`/admin/orders/${order.orderNumber}`}
-                        className="text-lg font-semibold underline"
-                      >
-                        {order.orderNumber}
-                      </a>
-
-                      <p className="mt-1 text-sm text-gray-600">
-                        {formatDate(order.createdAt)}
-                      </p>
-
-                      <p className="mt-2 text-sm text-gray-600">
-                        Estado: {getStatusLabel(order.status)} · Pago:{" "}
-                        {getPaymentStatusLabel(order.paymentStatus)}
-                      </p>
-                    </div>
-
-                    <div className="md:text-right">
-                      <p className="text-xl font-bold">
-                        {formatMoney(order.total)}
-                      </p>
-
-                      <a
-                        href={`/admin/orders/${order.orderNumber}`}
-                        className="mt-2 inline-block rounded-full bg-black px-4 py-2 text-sm text-white"
-                      >
-                        Ver pedido
-                      </a>
-                    </div>
-                  </div>
+              <div className="mt-5 grid gap-5 text-sm md:grid-cols-2">
+                <div>
+                  <p className="text-gray-500">Nombre</p>
+                  <p className="mt-1 font-medium">
+                    {customer.fullName || "Sin nombre"}
+                  </p>
                 </div>
-              ))}
-            </div>
-          )}
+
+                <div>
+                  <p className="text-gray-500">Email</p>
+                  <p className="mt-1 font-medium">
+                    {customer.email || "Sin email"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-gray-500">Teléfono</p>
+                  <p className="mt-1 font-medium">
+                    {customer.phone || "Sin teléfono"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-gray-500">País</p>
+                  <p className="mt-1 font-medium">
+                    {customer.country || "México"}
+                  </p>
+                </div>
+
+                <div className="md:col-span-2">
+                  <p className="text-gray-500">Dirección</p>
+                  <p className="mt-1 font-medium">
+                    {getCustomerAddress(customer)}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border p-6">
+              <h2 className="text-2xl font-semibold">Historial de pedidos</h2>
+
+              {customer.orders.length === 0 ? (
+                <div className="mt-5 rounded-2xl bg-gray-50 p-5">
+                  <p className="text-gray-600">
+                    Este cliente todavía no tiene pedidos.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-5 space-y-4">
+                  {customer.orders.map((order) => (
+                    <article key={order.id} className="rounded-2xl bg-gray-50 p-5">
+                      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <a
+                              href={`/admin/orders/${order.orderNumber}`}
+                              className="text-lg font-semibold underline"
+                            >
+                              {order.orderNumber}
+                            </a>
+
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClassName(
+                                order.status
+                              )}`}
+                            >
+                              {getStatusLabel(order.status)}
+                            </span>
+
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${getPaymentStatusClassName(
+                                order.paymentStatus
+                              )}`}
+                            >
+                              {getPaymentStatusLabel(order.paymentStatus)}
+                            </span>
+                          </div>
+
+                          <p className="mt-2 text-sm text-gray-600">
+                            {formatDate(order.createdAt)}
+                          </p>
+
+                          <div className="mt-3 text-sm text-gray-600">
+                            <p>
+                              Paquetería:{" "}
+                              <span className="font-medium text-black">
+                                {order.shippingCarrier || "Por confirmar"}
+                              </span>
+                            </p>
+
+                            <p>
+                              Rastreo:{" "}
+                              <span className="font-medium text-black">
+                                {order.trackingNumber || "Por confirmar"}
+                              </span>
+                            </p>
+                          </div>
+
+                          {order.customerVisibleNotes && (
+                            <div className="mt-3 rounded-xl bg-white p-3 text-sm text-gray-700">
+                              <p className="font-medium text-black">
+                                Nota visible:
+                              </p>
+                              <p className="mt-1">
+                                {order.customerVisibleNotes}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="md:text-right">
+                          <p className="text-xl font-bold">
+                            {formatMoney(order.total)}
+                          </p>
+
+                          <p className="mt-1 text-sm text-gray-500">
+                            Envío:{" "}
+                            {order.shipping
+                              ? formatMoney(order.shipping)
+                              : "Por confirmar"}
+                          </p>
+
+                          <a
+                            href={`/admin/orders/${order.orderNumber}`}
+                            className="mt-4 inline-block rounded-full bg-black px-4 py-2 text-sm text-white"
+                          >
+                            Ver pedido
+                          </a>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+
+          <aside className="space-y-6">
+            <section className="rounded-2xl border p-6">
+              <h2 className="text-2xl font-semibold">Contacto rápido</h2>
+
+              <div className="mt-5 space-y-4 text-sm">
+                <div>
+                  <p className="text-gray-500">Email</p>
+                  <p className="mt-1 font-medium">
+                    {customer.email || "Sin email"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-gray-500">Teléfono</p>
+                  <p className="mt-1 font-medium">
+                    {customer.phone || "Sin teléfono"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3">
+                <a
+                  href={`mailto:${customer.email || ""}`}
+                  className="rounded-full bg-black px-5 py-3 text-center text-white"
+                >
+                  Enviar email
+                </a>
+
+                <a
+                  href="/admin/orders"
+                  className="rounded-full border px-5 py-3 text-center"
+                >
+                  Ver pedidos
+                </a>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border p-6">
+              <h2 className="text-2xl font-semibold">Resumen</h2>
+
+              <div className="mt-5 space-y-4">
+                <div className="flex justify-between">
+                  <span>Pedidos activos</span>
+                  <span className="font-semibold">{validOrders.length}</span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span>Pedidos cancelados</span>
+                  <span className="font-semibold">
+                    {customer.orders.length - validOrders.length}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span>Total gastado</span>
+                  <span className="font-semibold">{formatMoney(totalSpent)}</span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span>Total pagado</span>
+                  <span className="font-semibold">{formatMoney(paidTotal)}</span>
+                </div>
+              </div>
+            </section>
+          </aside>
         </div>
       </section>
     </main>
   );
 }
-

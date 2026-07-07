@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
+type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
 
 type OrderItem = {
   id: string;
@@ -20,6 +21,8 @@ type Order = {
   orderNumber: string;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod;
+  customerNotes?: string | null;
   subtotal: number;
   shipping: number;
   total: number;
@@ -83,6 +86,14 @@ function getPaymentStatusClassName(status: PaymentStatus) {
   if (status === "refunded") return "bg-blue-100 text-blue-700";
 
   return "bg-gray-100 text-gray-700";
+}
+
+function getPaymentMethodLabel(method?: PaymentMethod) {
+  if (method === "bank_transfer") return "Transferencia bancaria";
+  if (method === "store_payment") return "Pago en tienda";
+  if (method === "cash_on_delivery") return "Pago contra entrega";
+
+  return "Por confirmar";
 }
 
 function getProgressStep(status: OrderStatus) {
@@ -175,6 +186,7 @@ export default function OrderStatusPage() {
   }
 
   const progressStep = order ? getProgressStep(order.status) : 0;
+  const customerNotes = String(order?.customerNotes || "").trim();
 
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
@@ -273,6 +285,10 @@ export default function OrderStatusPage() {
                   >
                     {getPaymentStatusLabel(order.paymentStatus)}
                   </span>
+
+                  <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700">
+                    {getPaymentMethodLabel(order.paymentMethod)}
+                  </span>
                 </div>
               </div>
 
@@ -342,6 +358,18 @@ export default function OrderStatusPage() {
                     </div>
                   </div>
                 </section>
+
+                {customerNotes && (
+                  <section className="rounded-2xl border border-blue-100 bg-blue-50 p-6">
+                    <h3 className="text-2xl font-semibold text-blue-950">
+                      Nota de tu pedido
+                    </h3>
+
+                    <p className="mt-3 text-sm text-blue-900">
+                      {customerNotes}
+                    </p>
+                  </section>
+                )}
 
                 <section className="rounded-2xl border p-6">
                   <h3 className="text-2xl font-semibold">Envío y seguimiento</h3>
@@ -455,10 +483,28 @@ export default function OrderStatusPage() {
                   <div className="flex justify-between text-gray-600">
                     <span>Envío</span>
                     <span>
-                      {order.shipping ? formatMoney(order.shipping) : "Por confirmar"}
+                      {order.shipping
+                        ? formatMoney(order.shipping)
+                        : "Por confirmar"}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-gray-600">
+                    <span>Forma de pago</span>
+                    <span className="text-right">
+                      {getPaymentMethodLabel(order.paymentMethod)}
                     </span>
                   </div>
                 </div>
+
+                {customerNotes && (
+                  <div className="mt-6 rounded-2xl bg-gray-50 p-4">
+                    <p className="text-sm font-medium">Nota del pedido</p>
+                    <p className="mt-2 text-sm text-gray-600">
+                      {customerNotes}
+                    </p>
+                  </div>
+                )}
 
                 <div className="mt-6 border-t pt-6">
                   <div className="flex justify-between text-lg font-semibold">
@@ -485,10 +531,7 @@ export default function OrderStatusPage() {
                     Seguir comprando
                   </a>
 
-                  <a
-                    href="/"
-                    className="rounded-full border px-6 py-3 text-center"
-                  >
+                  <a href="/" className="rounded-full border px-6 py-3 text-center">
                     Ir al inicio
                   </a>
                 </div>
