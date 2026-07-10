@@ -6,12 +6,17 @@ import AdminNav from "@/components/AdminNav";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
+type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type DeliveryMethod = "shipping" | "pickup";
 
 type CustomerOrder = {
   id: string;
   orderNumber: string;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod;
+  deliveryMethod?: DeliveryMethod;
+  customerNotes?: string | null;
   subtotal: number;
   shipping: number;
   total: number;
@@ -90,6 +95,36 @@ function getPaymentStatusClassName(status: PaymentStatus) {
   return "bg-gray-100 text-gray-700";
 }
 
+function getPaymentMethodLabel(method?: PaymentMethod) {
+  if (method === "bank_transfer") return "Transferencia bancaria";
+  if (method === "store_payment") return "Pago en tienda";
+  if (method === "cash_on_delivery") return "Pago contra entrega";
+
+  return "Por confirmar";
+}
+
+function getPaymentMethodClassName(method?: PaymentMethod) {
+  if (method === "bank_transfer") return "bg-blue-100 text-blue-700";
+  if (method === "store_payment") return "bg-purple-100 text-purple-700";
+  if (method === "cash_on_delivery") return "bg-orange-100 text-orange-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
+function getDeliveryMethodLabel(method?: DeliveryMethod) {
+  if (method === "shipping") return "Envío a domicilio";
+  if (method === "pickup") return "Recoger en tienda";
+
+  return "Por confirmar";
+}
+
+function getDeliveryMethodClassName(method?: DeliveryMethod) {
+  if (method === "shipping") return "bg-blue-100 text-blue-700";
+  if (method === "pickup") return "bg-green-100 text-green-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
 function getCustomerName(customer: Customer) {
   return customer.fullName || "Sin nombre";
 }
@@ -100,6 +135,34 @@ function getCustomerAddress(customer: Customer) {
       .filter(Boolean)
       .join(", ") || "Sin dirección"
   );
+}
+
+function getOrderCustomerNotes(order: CustomerOrder) {
+  return String(order.customerNotes || "").trim();
+}
+
+function getShippingLabel(order: CustomerOrder) {
+  if (order.deliveryMethod === "pickup") {
+    return "Sin costo · recoger en tienda";
+  }
+
+  return order.shipping ? formatMoney(order.shipping) : "Por confirmar";
+}
+
+function getCarrierLabel(order: CustomerOrder) {
+  if (order.deliveryMethod === "pickup") {
+    return "No aplica";
+  }
+
+  return order.shippingCarrier || "Por confirmar";
+}
+
+function getTrackingLabel(order: CustomerOrder) {
+  if (order.deliveryMethod === "pickup") {
+    return "No aplica";
+  }
+
+  return order.trackingNumber || "Por confirmar";
 }
 
 export default function AdminCustomerDetailPage() {
@@ -190,6 +253,14 @@ export default function AdminCustomerDetailPage() {
     (order) => order.status === "pending"
   ).length;
 
+  const pickupOrders = customer.orders.filter(
+    (order) => order.deliveryMethod === "pickup"
+  ).length;
+
+  const ordersWithNotes = customer.orders.filter((order) =>
+    getOrderCustomerNotes(order)
+  ).length;
+
   const lastOrder = customer.orders[0];
 
   return (
@@ -229,7 +300,7 @@ export default function AdminCustomerDetailPage() {
 
         <AdminNav />
 
-        <div className="mt-10 grid gap-4 md:grid-cols-4">
+        <div className="mt-10 grid gap-4 md:grid-cols-5">
           <div className="rounded-2xl border p-5">
             <p className="text-sm text-gray-600">Pedidos totales</p>
             <p className="mt-2 text-3xl font-bold">{customer.orders.length}</p>
@@ -255,9 +326,18 @@ export default function AdminCustomerDetailPage() {
           </div>
 
           <div className="rounded-2xl border p-5">
-            <p className="text-sm text-gray-600">Último pedido</p>
-            <p className="mt-2 text-lg font-semibold">
-              {lastOrder ? formatDate(lastOrder.createdAt) : "Sin pedidos"}
+            <p className="text-sm text-gray-600">Recogen tienda</p>
+            <p className="mt-2 text-3xl font-bold">{pickupOrders}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              Pedidos con pickup
+            </p>
+          </div>
+
+          <div className="rounded-2xl border p-5">
+            <p className="text-sm text-gray-600">Con nota</p>
+            <p className="mt-2 text-3xl font-bold">{ordersWithNotes}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              Notas de checkout
             </p>
           </div>
         </div>
@@ -297,7 +377,7 @@ export default function AdminCustomerDetailPage() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <p className="text-gray-500">Dirección</p>
+                  <p className="text-gray-500">Dirección guardada</p>
                   <p className="mt-1 font-medium">
                     {getCustomerAddress(customer)}
                   </p>
@@ -316,89 +396,128 @@ export default function AdminCustomerDetailPage() {
                 </div>
               ) : (
                 <div className="mt-5 space-y-4">
-                  {customer.orders.map((order) => (
-                    <article key={order.id} className="rounded-2xl bg-gray-50 p-5">
-                      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
+                  {customer.orders.map((order) => {
+                    const customerNotes = getOrderCustomerNotes(order);
+
+                    return (
+                      <article
+                        key={order.id}
+                        className="rounded-2xl bg-gray-50 p-5"
+                      >
+                        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <a
+                                href={`/admin/orders/${order.orderNumber}`}
+                                className="text-lg font-semibold underline"
+                              >
+                                {order.orderNumber}
+                              </a>
+
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClassName(
+                                  order.status
+                                )}`}
+                              >
+                                {getStatusLabel(order.status)}
+                              </span>
+
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${getPaymentStatusClassName(
+                                  order.paymentStatus
+                                )}`}
+                              >
+                                {getPaymentStatusLabel(order.paymentStatus)}
+                              </span>
+
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${getPaymentMethodClassName(
+                                  order.paymentMethod
+                                )}`}
+                              >
+                                {getPaymentMethodLabel(order.paymentMethod)}
+                              </span>
+
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${getDeliveryMethodClassName(
+                                  order.deliveryMethod
+                                )}`}
+                              >
+                                {getDeliveryMethodLabel(order.deliveryMethod)}
+                              </span>
+                            </div>
+
+                            <p className="mt-2 text-sm text-gray-600">
+                              {formatDate(order.createdAt)}
+                            </p>
+
+                            <div className="mt-4 grid gap-3 text-sm text-gray-600 md:grid-cols-3">
+                              <div>
+                                <p className="text-gray-500">Pago</p>
+                                <p className="font-medium text-black">
+                                  {getPaymentStatusLabel(order.paymentStatus)}
+                                </p>
+                                <p>{getPaymentMethodLabel(order.paymentMethod)}</p>
+                              </div>
+
+                              <div>
+                                <p className="text-gray-500">Entrega</p>
+                                <p className="font-medium text-black">
+                                  {getDeliveryMethodLabel(order.deliveryMethod)}
+                                </p>
+                                <p>{getShippingLabel(order)}</p>
+                              </div>
+
+                              <div>
+                                <p className="text-gray-500">Rastreo</p>
+                                <p className="font-medium text-black">
+                                  {getCarrierLabel(order)}
+                                </p>
+                                <p>{getTrackingLabel(order)}</p>
+                              </div>
+                            </div>
+
+                            {customerNotes && (
+                              <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
+                                <p className="font-medium text-blue-950">
+                                  Nota del cliente:
+                                </p>
+                                <p className="mt-1">{customerNotes}</p>
+                              </div>
+                            )}
+
+                            {order.customerVisibleNotes && (
+                              <div className="mt-3 rounded-xl bg-white p-3 text-sm text-gray-700">
+                                <p className="font-medium text-black">
+                                  Nota visible:
+                                </p>
+                                <p className="mt-1">
+                                  {order.customerVisibleNotes}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="md:text-right">
+                            <p className="text-xl font-bold">
+                              {formatMoney(order.total)}
+                            </p>
+
+                            <p className="mt-1 text-sm text-gray-500">
+                              Envío: {getShippingLabel(order)}
+                            </p>
+
                             <a
                               href={`/admin/orders/${order.orderNumber}`}
-                              className="text-lg font-semibold underline"
+                              className="mt-4 inline-block rounded-full bg-black px-4 py-2 text-sm text-white"
                             >
-                              {order.orderNumber}
+                              Ver pedido
                             </a>
-
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClassName(
-                                order.status
-                              )}`}
-                            >
-                              {getStatusLabel(order.status)}
-                            </span>
-
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-semibold ${getPaymentStatusClassName(
-                                order.paymentStatus
-                              )}`}
-                            >
-                              {getPaymentStatusLabel(order.paymentStatus)}
-                            </span>
                           </div>
-
-                          <p className="mt-2 text-sm text-gray-600">
-                            {formatDate(order.createdAt)}
-                          </p>
-
-                          <div className="mt-3 text-sm text-gray-600">
-                            <p>
-                              Paquetería:{" "}
-                              <span className="font-medium text-black">
-                                {order.shippingCarrier || "Por confirmar"}
-                              </span>
-                            </p>
-
-                            <p>
-                              Rastreo:{" "}
-                              <span className="font-medium text-black">
-                                {order.trackingNumber || "Por confirmar"}
-                              </span>
-                            </p>
-                          </div>
-
-                          {order.customerVisibleNotes && (
-                            <div className="mt-3 rounded-xl bg-white p-3 text-sm text-gray-700">
-                              <p className="font-medium text-black">
-                                Nota visible:
-                              </p>
-                              <p className="mt-1">
-                                {order.customerVisibleNotes}
-                              </p>
-                            </div>
-                          )}
                         </div>
-
-                        <div className="md:text-right">
-                          <p className="text-xl font-bold">
-                            {formatMoney(order.total)}
-                          </p>
-
-                          <p className="mt-1 text-sm text-gray-500">
-                            Envío:{" "}
-                            {order.shipping
-                              ? formatMoney(order.shipping)
-                              : "Por confirmar"}
-                          </p>
-
-                          <a
-                            href={`/admin/orders/${order.orderNumber}`}
-                            className="mt-4 inline-block rounded-full bg-black px-4 py-2 text-sm text-white"
-                          >
-                            Ver pedido
-                          </a>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
+                      </article>
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -458,6 +577,16 @@ export default function AdminCustomerDetailPage() {
                 </div>
 
                 <div className="flex justify-between">
+                  <span>Recogen tienda</span>
+                  <span className="font-semibold">{pickupOrders}</span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span>Pedidos con nota</span>
+                  <span className="font-semibold">{ordersWithNotes}</span>
+                </div>
+
+                <div className="flex justify-between">
                   <span>Total gastado</span>
                   <span className="font-semibold">{formatMoney(totalSpent)}</span>
                 </div>
@@ -474,3 +603,4 @@ export default function AdminCustomerDetailPage() {
     </main>
   );
 }
+

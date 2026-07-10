@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 
 type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type DeliveryMethod = "shipping" | "pickup";
 
 type CartItem = {
   slug: string;
@@ -23,6 +24,7 @@ type CheckoutCustomer = {
   state?: string;
   zipCode?: string;
   customerNotes?: string;
+  deliveryMethod?: DeliveryMethod;
   paymentMethod?: PaymentMethod;
 };
 
@@ -54,6 +56,7 @@ type OrderSuccessData = {
   subtotal: number;
   total: number;
   paymentMethod: PaymentMethod;
+  deliveryMethod: DeliveryMethod;
   customerNotes?: string;
 };
 
@@ -73,12 +76,29 @@ function isPaymentMethod(value: unknown): value is PaymentMethod {
   );
 }
 
+function isDeliveryMethod(value: unknown): value is DeliveryMethod {
+  return value === "shipping" || value === "pickup";
+}
+
 function getPaymentMethodLabel(method?: PaymentMethod) {
   if (method === "bank_transfer") return "Transferencia bancaria";
   if (method === "store_payment") return "Pago en tienda";
   if (method === "cash_on_delivery") return "Pago contra entrega";
 
   return "Sin seleccionar";
+}
+
+function getDeliveryMethodLabel(method?: DeliveryMethod) {
+  if (method === "shipping") return "Envío a domicilio";
+  if (method === "pickup") return "Recoger en tienda";
+
+  return "Sin seleccionar";
+}
+
+function getShippingLabel(method?: DeliveryMethod) {
+  if (method === "pickup") return "Sin costo · recoger en tienda";
+
+  return "Se calcula después";
 }
 
 function readSavedCustomer() {
@@ -201,6 +221,12 @@ export default function CheckoutSummary() {
     ? checkoutCustomer.paymentMethod
     : undefined;
 
+  const selectedDeliveryMethod = isDeliveryMethod(
+    checkoutCustomer.deliveryMethod
+  )
+    ? checkoutCustomer.deliveryMethod
+    : undefined;
+
   const customerNotes = String(checkoutCustomer.customerNotes || "").trim();
 
   async function handlePlaceOrder() {
@@ -217,6 +243,10 @@ export default function CheckoutSummary() {
         ? customer.paymentMethod
         : null;
 
+      const deliveryMethod = isDeliveryMethod(customer.deliveryMethod)
+        ? customer.deliveryMethod
+        : null;
+
       const latestCustomerNotes = String(customer.customerNotes || "").trim();
 
       if (latestCartItems.length === 0) {
@@ -228,14 +258,24 @@ export default function CheckoutSummary() {
         !customer.fullName ||
         !customer.email ||
         !customer.phone ||
-        !customer.address ||
-        !customer.city ||
-        !customer.state ||
-        !customer.zipCode ||
-        !paymentMethod
+        !paymentMethod ||
+        !deliveryMethod
       ) {
         setErrorMessage(
-          "Completa y guarda tus datos de envío y forma de pago antes de continuar."
+          "Completa y guarda tus datos de pedido, entrega y forma de pago antes de continuar."
+        );
+        return;
+      }
+
+      if (
+        deliveryMethod === "shipping" &&
+        (!customer.address ||
+          !customer.city ||
+          !customer.state ||
+          !customer.zipCode)
+      ) {
+        setErrorMessage(
+          "Completa y guarda tu dirección para envío a domicilio."
         );
         return;
       }
@@ -277,15 +317,16 @@ export default function CheckoutSummary() {
         },
         body: JSON.stringify({
           paymentMethod,
+          deliveryMethod,
           customerNotes: latestCustomerNotes,
           customer: {
             fullName: customer.fullName,
             email: customer.email,
             phone: customer.phone,
-            address: customer.address,
-            city: customer.city,
-            state: customer.state,
-            zipCode: customer.zipCode,
+            address: customer.address || "",
+            city: customer.city || "",
+            state: customer.state || "",
+            zipCode: customer.zipCode || "",
           },
           items: apiItems,
         }),
@@ -310,11 +351,13 @@ export default function CheckoutSummary() {
         customer: {
           ...customer,
           customerNotes: latestCustomerNotes,
+          deliveryMethod,
           paymentMethod,
         },
         subtotal: createdOrder?.subtotal ?? subtotal,
         total: createdOrder?.total ?? total,
         paymentMethod,
+        deliveryMethod,
         customerNotes: latestCustomerNotes,
         items: latestCartItems.map((item) => ({
           slug: item.slug,
@@ -420,8 +463,17 @@ export default function CheckoutSummary() {
         </div>
 
         <div className="flex justify-between text-gray-600">
+          <span>Entrega</span>
+          <span className="text-right">
+            {getDeliveryMethodLabel(selectedDeliveryMethod)}
+          </span>
+        </div>
+
+        <div className="flex justify-between text-gray-600">
           <span>Envío</span>
-          <span>Se calcula después</span>
+          <span className="text-right">
+            {getShippingLabel(selectedDeliveryMethod)}
+          </span>
         </div>
 
         <div className="flex justify-between text-gray-600">

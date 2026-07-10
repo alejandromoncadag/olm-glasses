@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 
 type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type DeliveryMethod = "shipping" | "pickup";
 
 type CheckoutCustomer = {
   fullName: string;
@@ -13,6 +14,7 @@ type CheckoutCustomer = {
   state: string;
   zipCode: string;
   customerNotes: string;
+  deliveryMethod: DeliveryMethod;
   paymentMethod: PaymentMethod;
 };
 
@@ -27,8 +29,26 @@ const emptyCustomer: CheckoutCustomer = {
   state: "",
   zipCode: "",
   customerNotes: "",
+  deliveryMethod: "shipping",
   paymentMethod: "bank_transfer",
 };
+
+const deliveryOptions: {
+  value: DeliveryMethod;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "shipping",
+    label: "Envío a domicilio",
+    description: "Enviaremos tu pedido a la dirección que escribas.",
+  },
+  {
+    value: "pickup",
+    label: "Recoger en tienda",
+    description: "Te avisaremos cuando tu pedido esté listo para recoger.",
+  },
+];
 
 const paymentOptions: {
   value: PaymentMethod;
@@ -60,6 +80,10 @@ function isPaymentMethod(value: unknown): value is PaymentMethod {
   );
 }
 
+function isDeliveryMethod(value: unknown): value is DeliveryMethod {
+  return value === "shipping" || value === "pickup";
+}
+
 function validateCustomer(customer: CheckoutCustomer) {
   const errors: FormErrors = {};
 
@@ -77,20 +101,26 @@ function validateCustomer(customer: CheckoutCustomer) {
     errors.phone = "El teléfono es obligatorio.";
   }
 
-  if (!customer.address.trim()) {
-    errors.address = "La dirección es obligatoria.";
+  if (!customer.deliveryMethod) {
+    errors.deliveryMethod = "Selecciona una forma de entrega.";
   }
 
-  if (!customer.city.trim()) {
-    errors.city = "La ciudad es obligatoria.";
-  }
+  if (customer.deliveryMethod === "shipping") {
+    if (!customer.address.trim()) {
+      errors.address = "La dirección es obligatoria para envío a domicilio.";
+    }
 
-  if (!customer.state.trim()) {
-    errors.state = "El estado es obligatorio.";
-  }
+    if (!customer.city.trim()) {
+      errors.city = "La ciudad es obligatoria para envío a domicilio.";
+    }
 
-  if (!customer.zipCode.trim()) {
-    errors.zipCode = "El código postal es obligatorio.";
+    if (!customer.state.trim()) {
+      errors.state = "El estado es obligatorio para envío a domicilio.";
+    }
+
+    if (!customer.zipCode.trim()) {
+      errors.zipCode = "El código postal es obligatorio para envío a domicilio.";
+    }
   }
 
   if (customer.customerNotes.length > 500) {
@@ -125,6 +155,9 @@ export default function CheckoutForm() {
         ...emptyCustomer,
         ...parsedCustomer,
         customerNotes: parsedCustomer.customerNotes || "",
+        deliveryMethod: isDeliveryMethod(parsedCustomer.deliveryMethod)
+          ? parsedCustomer.deliveryMethod
+          : "shipping",
         paymentMethod: isPaymentMethod(parsedCustomer.paymentMethod)
           ? parsedCustomer.paymentMethod
           : "bank_transfer",
@@ -151,12 +184,21 @@ export default function CheckoutForm() {
     } as CheckoutCustomer;
 
     setCustomer(updatedCustomer);
+
     setErrors((currentErrors) => ({
       ...currentErrors,
       [field]: undefined,
+      ...(field === "deliveryMethod" && value === "pickup"
+        ? {
+            address: undefined,
+            city: undefined,
+            state: undefined,
+            zipCode: undefined,
+          }
+        : {}),
     }));
-    setSaved(false);
 
+    setSaved(false);
     saveCustomerToStorage(updatedCustomer);
   }
 
@@ -179,7 +221,7 @@ export default function CheckoutForm() {
     <form onSubmit={handleSubmit} className="rounded-2xl border p-6">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div>
-          <h2 className="text-2xl font-semibold">Datos de envío</h2>
+          <h2 className="text-2xl font-semibold">Datos del pedido</h2>
 
           <p className="mt-2 text-sm text-gray-600">
             Usaremos estos datos para preparar y dar seguimiento a tu pedido.
@@ -240,63 +282,128 @@ export default function CheckoutForm() {
           </label>
         </div>
 
-        <label className="block">
-          <span className="text-sm font-medium">Dirección</span>
-          <input
-            value={customer.address}
-            onChange={(event) => updateCustomer("address", event.target.value)}
-            required
-            className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-            placeholder="Calle, número, colonia"
-          />
-          {errors.address && (
-            <p className="mt-1 text-sm text-red-600">{errors.address}</p>
+        <div className="rounded-2xl bg-gray-50 p-5">
+          <h3 className="text-xl font-semibold">Forma de entrega</h3>
+
+          <p className="mt-2 text-sm text-gray-600">
+            Elige si quieres recibir tu pedido en casa o recogerlo en tienda.
+          </p>
+
+          <div className="mt-5 grid gap-3">
+            {deliveryOptions.map((option) => (
+              <label
+                key={option.value}
+                className={`block cursor-pointer rounded-2xl border bg-white p-4 ${
+                  customer.deliveryMethod === option.value ? "border-black" : ""
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <input
+                    type="radio"
+                    name="deliveryMethod"
+                    checked={customer.deliveryMethod === option.value}
+                    onChange={() =>
+                      updateCustomer("deliveryMethod", option.value)
+                    }
+                    className="mt-1"
+                  />
+
+                  <div>
+                    <p className="font-medium">{option.label}</p>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {option.description}
+                    </p>
+                  </div>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          {errors.deliveryMethod && (
+            <p className="mt-3 text-sm text-red-600">
+              {errors.deliveryMethod}
+            </p>
           )}
-        </label>
-
-        <div className="grid gap-5 md:grid-cols-3">
-          <label className="block">
-            <span className="text-sm font-medium">Ciudad</span>
-            <input
-              value={customer.city}
-              onChange={(event) => updateCustomer("city", event.target.value)}
-              required
-              className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-              placeholder="Ciudad"
-            />
-            {errors.city && (
-              <p className="mt-1 text-sm text-red-600">{errors.city}</p>
-            )}
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium">Estado</span>
-            <input
-              value={customer.state}
-              onChange={(event) => updateCustomer("state", event.target.value)}
-              required
-              className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-              placeholder="Estado"
-            />
-            {errors.state && (
-              <p className="mt-1 text-sm text-red-600">{errors.state}</p>
-            )}
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium">Código postal</span>
-            <input
-              value={customer.zipCode}
-              onChange={(event) => updateCustomer("zipCode", event.target.value)}
-              required
-              className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-              placeholder="00000"
-            />
-            {errors.zipCode && (
-              <p className="mt-1 text-sm text-red-600">{errors.zipCode}</p>
-            )}
-          </label>
         </div>
+
+        {customer.deliveryMethod === "shipping" ? (
+          <>
+            <label className="block">
+              <span className="text-sm font-medium">Dirección</span>
+              <input
+                value={customer.address}
+                onChange={(event) =>
+                  updateCustomer("address", event.target.value)
+                }
+                required
+                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                placeholder="Calle, número, colonia"
+              />
+              {errors.address && (
+                <p className="mt-1 text-sm text-red-600">{errors.address}</p>
+              )}
+            </label>
+
+            <div className="grid gap-5 md:grid-cols-3">
+              <label className="block">
+                <span className="text-sm font-medium">Ciudad</span>
+                <input
+                  value={customer.city}
+                  onChange={(event) =>
+                    updateCustomer("city", event.target.value)
+                  }
+                  required
+                  className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                  placeholder="Ciudad"
+                />
+                {errors.city && (
+                  <p className="mt-1 text-sm text-red-600">{errors.city}</p>
+                )}
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium">Estado</span>
+                <input
+                  value={customer.state}
+                  onChange={(event) =>
+                    updateCustomer("state", event.target.value)
+                  }
+                  required
+                  className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                  placeholder="Estado"
+                />
+                {errors.state && (
+                  <p className="mt-1 text-sm text-red-600">{errors.state}</p>
+                )}
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium">Código postal</span>
+                <input
+                  value={customer.zipCode}
+                  onChange={(event) =>
+                    updateCustomer("zipCode", event.target.value)
+                  }
+                  required
+                  className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                  placeholder="00000"
+                />
+                {errors.zipCode && (
+                  <p className="mt-1 text-sm text-red-600">{errors.zipCode}</p>
+                )}
+              </label>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
+            <h3 className="font-semibold text-blue-950">Recoger en tienda</h3>
+
+            <p className="mt-2 text-sm text-blue-900">
+              No necesitas escribir dirección. Te contactaremos cuando el pedido
+              esté listo para recoger en la óptica.
+            </p>
+          </div>
+        )}
 
         <label className="block rounded-2xl bg-gray-50 p-5">
           <span className="text-xl font-semibold">Notas para tu pedido</span>
@@ -380,7 +487,7 @@ export default function CheckoutForm() {
         type="submit"
         className="mt-6 rounded-full bg-black px-6 py-3 text-white"
       >
-        Guardar datos de envío y pago
+        Guardar datos de pedido y pago
       </button>
 
       <p className="mt-3 text-xs text-gray-500">
@@ -389,4 +496,6 @@ export default function CheckoutForm() {
     </form>
   );
 }
+
+
 

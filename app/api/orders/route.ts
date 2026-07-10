@@ -8,6 +8,7 @@ import {
 export const runtime = "nodejs";
 
 type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type DeliveryMethod = "shipping" | "pickup";
 
 type OrderItemInput = {
   productSlug: string;
@@ -18,6 +19,7 @@ type OrderItemInput = {
 
 type CreateOrderInput = {
   paymentMethod?: PaymentMethod;
+  deliveryMethod?: DeliveryMethod;
   customerNotes?: string;
   customer: {
     fullName: string;
@@ -75,13 +77,30 @@ function getValidPaymentMethod(value: string | undefined) {
   return null;
 }
 
+function getValidDeliveryMethod(value: string | undefined) {
+  const deliveryMethod = cleanText(value);
+
+  if (deliveryMethod === "shipping" || deliveryMethod === "pickup") {
+    return deliveryMethod;
+  }
+
+  return null;
+}
+
 function validateOrderInput(body: CreateOrderInput) {
   if (!body.customer || !body.items || body.items.length === 0) {
     return "Customer and items are required";
   }
 
-  if (!getValidPaymentMethod(body.paymentMethod)) {
+  const paymentMethod = getValidPaymentMethod(body.paymentMethod);
+  const deliveryMethod = getValidDeliveryMethod(body.deliveryMethod);
+
+  if (!paymentMethod) {
     return "A valid payment method is required";
+  }
+
+  if (!deliveryMethod) {
+    return "A valid delivery method is required";
   }
 
   if (cleanText(body.customerNotes).length > 500) {
@@ -98,16 +117,19 @@ function validateOrderInput(body: CreateOrderInput) {
     zipCode: cleanText(body.customer.zipCode),
   };
 
-  if (
-    !customer.fullName ||
-    !customer.email ||
-    !customer.phone ||
-    !customer.address ||
-    !customer.city ||
-    !customer.state ||
-    !customer.zipCode
-  ) {
-    return "All customer fields are required";
+  if (!customer.fullName || !customer.email || !customer.phone) {
+    return "Customer name, email, and phone are required";
+  }
+
+  if (deliveryMethod === "shipping") {
+    if (
+      !customer.address ||
+      !customer.city ||
+      !customer.state ||
+      !customer.zipCode
+    ) {
+      return "Shipping address fields are required";
+    }
   }
 
   if (!isValidEmail(customer.email)) {
@@ -168,6 +190,7 @@ export async function GET() {
         orders.status,
         orders.payment_status,
         orders.payment_method,
+        orders.delivery_method,
         orders.customer_notes,
         orders.subtotal_cents,
         orders.shipping_cents,
@@ -192,6 +215,7 @@ export async function GET() {
         status: order.status,
         paymentStatus: order.payment_status,
         paymentMethod: order.payment_method,
+        deliveryMethod: order.delivery_method,
         customerNotes: order.customer_notes,
         subtotal: order.subtotal_cents / 100,
         shipping: order.shipping_cents / 100,
@@ -232,6 +256,7 @@ export async function POST(request: Request) {
     }
 
     const paymentMethod = getValidPaymentMethod(body.paymentMethod);
+    const deliveryMethod = getValidDeliveryMethod(body.deliveryMethod);
 
     if (!paymentMethod) {
       return NextResponse.json(
@@ -240,7 +265,24 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!deliveryMethod) {
+      return NextResponse.json(
+        { error: "A valid delivery method is required" },
+        { status: 400 }
+      );
+    }
+
     const customerNotes = cleanNullableText(body.customerNotes);
+
+    const customer = {
+      fullName: cleanText(body.customer.fullName),
+      email: cleanText(body.customer.email).toLowerCase(),
+      phone: cleanText(body.customer.phone),
+      address: cleanText(body.customer.address),
+      city: cleanText(body.customer.city),
+      state: cleanText(body.customer.state),
+      zipCode: cleanText(body.customer.zipCode),
+    };
 
     await client.query("BEGIN");
     transactionStarted = true;
@@ -268,13 +310,13 @@ export async function POST(request: Request) {
       RETURNING id;
       `,
       [
-        body.customer.fullName.trim(),
-        body.customer.email.trim(),
-        body.customer.phone.trim(),
-        body.customer.address.trim(),
-        body.customer.city.trim(),
-        body.customer.state.trim(),
-        body.customer.zipCode.trim(),
+        customer.fullName,
+        customer.email,
+        customer.phone,
+        customer.address,
+        customer.city,
+        customer.state,
+        customer.zipCode,
       ]
     );
 
@@ -346,17 +388,19 @@ export async function POST(request: Request) {
         status,
         payment_status,
         payment_method,
+        delivery_method,
         customer_notes,
         subtotal_cents,
         shipping_cents,
         total_cents
-      ) VALUES ($1, $2, 'pending', 'unpaid', $3, $4, $5, $6, $7)
+      ) VALUES ($1, $2, 'pending', 'unpaid', $3, $4, $5, $6, $7, $8)
       RETURNING id, order_number;
       `,
       [
         generateOrderNumber(),
         customerId,
         paymentMethod,
+        deliveryMethod,
         customerNotes,
         subtotalCents,
         shippingCents,
@@ -437,6 +481,7 @@ export async function POST(request: Request) {
           total: totalCents / 100,
           currency: "MXN",
           paymentMethod,
+          deliveryMethod,
           customerNotes,
         },
       },
@@ -464,6 +509,5 @@ export async function POST(request: Request) {
     client.release();
   }
 }
-
 
 

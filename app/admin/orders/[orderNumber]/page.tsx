@@ -7,6 +7,7 @@ import AdminNav from "@/components/AdminNav";
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
 type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type DeliveryMethod = "shipping" | "pickup";
 
 type OrderItem = {
   id?: string;
@@ -25,6 +26,8 @@ type Order = {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod?: PaymentMethod;
+  deliveryMethod?: DeliveryMethod;
+  customerNotes?: string | null;
   subtotal: number;
   shipping: number;
   total: number;
@@ -136,6 +139,32 @@ function getPaymentMethodClassName(method?: PaymentMethod) {
   return "bg-gray-100 text-gray-700";
 }
 
+function getDeliveryMethodLabel(method?: DeliveryMethod) {
+  if (method === "shipping") return "Envío a domicilio";
+  if (method === "pickup") return "Recoger en tienda";
+
+  return "Por confirmar";
+}
+
+function getDeliveryMethodClassName(method?: DeliveryMethod) {
+  if (method === "shipping") return "bg-blue-100 text-blue-700";
+  if (method === "pickup") return "bg-green-100 text-green-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
+function getDeliveryInstructions(method?: DeliveryMethod) {
+  if (method === "shipping") {
+    return "El cliente eligió envío a domicilio. Confirma la dirección, paquetería y número de rastreo.";
+  }
+
+  if (method === "pickup") {
+    return "El cliente eligió recoger en tienda. Avísale cuando el pedido esté listo para recoger.";
+  }
+
+  return "Confirma la forma de entrega con el cliente.";
+}
+
 function getPaymentInstructions(method?: PaymentMethod) {
   if (method === "bank_transfer") {
     return "Enviar datos bancarios al cliente y marcar como pagado cuando se confirme la transferencia.";
@@ -150,6 +179,10 @@ function getPaymentInstructions(method?: PaymentMethod) {
   }
 
   return "Confirma la forma de pago con el cliente.";
+}
+
+function getCustomerNotes(order: Order) {
+  return String(order.customerNotes || "").trim();
 }
 
 export default function AdminOrderDetailPage() {
@@ -253,7 +286,12 @@ export default function AdminOrderDetailPage() {
               ...currentOrder,
               status: data.order.status,
               paymentStatus: data.order.paymentStatus,
-              paymentMethod: data.order.paymentMethod || currentOrder.paymentMethod,
+              paymentMethod:
+                data.order.paymentMethod || currentOrder.paymentMethod,
+              deliveryMethod:
+                data.order.deliveryMethod || currentOrder.deliveryMethod,
+              customerNotes:
+                data.order.customerNotes ?? currentOrder.customerNotes,
               adminNotes: data.order.adminNotes,
               shippingCarrier: data.order.shippingCarrier,
               trackingNumber: data.order.trackingNumber,
@@ -307,6 +345,8 @@ export default function AdminOrderDetailPage() {
   if (!order) {
     return null;
   }
+
+  const customerNotes = getCustomerNotes(order);
 
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
@@ -362,6 +402,14 @@ export default function AdminOrderDetailPage() {
             >
               {getPaymentMethodLabel(order.paymentMethod)}
             </span>
+
+            <span
+              className={`rounded-full px-4 py-2 text-sm font-semibold ${getDeliveryMethodClassName(
+                order.deliveryMethod
+              )}`}
+            >
+              {getDeliveryMethodLabel(order.deliveryMethod)}
+            </span>
           </div>
         </div>
 
@@ -381,7 +429,7 @@ export default function AdminOrderDetailPage() {
           </div>
         )}
 
-        <div className="mt-8 grid gap-6 md:grid-cols-4">
+        <div className="mt-8 grid gap-6 md:grid-cols-5">
           <section className="rounded-2xl border p-5">
             <p className="text-sm text-gray-600">Estado del pedido</p>
 
@@ -450,6 +498,18 @@ export default function AdminOrderDetailPage() {
           </section>
 
           <section className="rounded-2xl border p-5">
+            <p className="text-sm text-gray-600">Entrega</p>
+
+            <p className="mt-2 text-xl font-semibold">
+              {getDeliveryMethodLabel(order.deliveryMethod)}
+            </p>
+
+            <p className="mt-3 text-sm text-gray-500">
+              {getDeliveryInstructions(order.deliveryMethod)}
+            </p>
+          </section>
+
+          <section className="rounded-2xl border p-5">
             <p className="text-sm text-gray-600">Total</p>
             <p className="mt-2 text-3xl font-bold">{formatMoney(order.total)}</p>
 
@@ -503,21 +563,25 @@ export default function AdminOrderDetailPage() {
                 <div>
                   <p className="text-gray-500">Ciudad</p>
                   <p className="mt-1 font-medium">
-                    {order.customer.city || "Sin ciudad"}
+                    {order.deliveryMethod === "pickup"
+                      ? "Recoger en tienda"
+                      : order.customer.city || "Sin ciudad"}
                   </p>
                 </div>
 
                 <div className="md:col-span-2">
                   <p className="text-gray-500">Dirección</p>
                   <p className="mt-1 font-medium">
-                    {[
-                      order.customer.address,
-                      order.customer.city,
-                      order.customer.state,
-                      order.customer.zipCode,
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || "Sin dirección"}
+                    {order.deliveryMethod === "pickup"
+                      ? "Recoger en tienda"
+                      : [
+                          order.customer.address,
+                          order.customer.city,
+                          order.customer.state,
+                          order.customer.zipCode,
+                        ]
+                          .filter(Boolean)
+                          .join(", ") || "Sin dirección"}
                   </p>
                 </div>
               </div>
@@ -530,36 +594,82 @@ export default function AdminOrderDetailPage() {
               </a>
             </section>
 
+            <section className="rounded-2xl border border-blue-100 bg-blue-50 p-6">
+              <h2 className="text-2xl font-semibold text-blue-950">Entrega</h2>
+
+              <p className="mt-3 font-medium text-blue-950">
+                {getDeliveryMethodLabel(order.deliveryMethod)}
+              </p>
+
+              <p className="mt-2 text-sm text-blue-900">
+                {getDeliveryInstructions(order.deliveryMethod)}
+              </p>
+            </section>
+
+            <section className="rounded-2xl border border-blue-100 bg-blue-50 p-6">
+              <h2 className="text-2xl font-semibold text-blue-950">
+                Nota del cliente
+              </h2>
+
+              {customerNotes ? (
+                <p className="mt-3 text-sm text-blue-900">{customerNotes}</p>
+              ) : (
+                <p className="mt-3 text-sm text-blue-900">
+                  El cliente no agregó una nota en checkout.
+                </p>
+              )}
+            </section>
+
             <section className="rounded-2xl border p-6">
-              <h2 className="text-2xl font-semibold">Envío y seguimiento</h2>
+              <h2 className="text-2xl font-semibold">
+                {order.deliveryMethod === "pickup"
+                  ? "Entrega y mensaje al cliente"
+                  : "Envío y seguimiento"}
+              </h2>
 
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <label className="block">
-                  <span className="text-sm font-medium">Paquetería</span>
-                  <input
-                    value={shippingCarrierDraft}
-                    onChange={(event) =>
-                      setShippingCarrierDraft(event.target.value)
-                    }
-                    placeholder="Ejemplo: DHL, FedEx, Estafeta"
-                    className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                  />
-                </label>
+              {order.deliveryMethod === "pickup" ? (
+                <div className="mt-5 rounded-2xl border border-green-100 bg-green-50 p-5">
+                  <p className="font-semibold text-green-900">
+                    Este pedido será recogido en tienda.
+                  </p>
 
-                <label className="block">
-                  <span className="text-sm font-medium">Número de rastreo</span>
-                  <input
-                    value={trackingNumberDraft}
-                    onChange={(event) =>
-                      setTrackingNumberDraft(event.target.value)
-                    }
-                    placeholder="Ejemplo: 1234567890"
-                    className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                  />
-                </label>
-              </div>
+                  <p className="mt-2 text-sm text-green-800">
+                    No necesitas agregar paquetería ni número de rastreo. Puedes
+                    usar la nota visible para avisar que el pedido está listo
+                    para recoger.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-medium">Paquetería</span>
+                    <input
+                      value={shippingCarrierDraft}
+                      onChange={(event) =>
+                        setShippingCarrierDraft(event.target.value)
+                      }
+                      placeholder="Ejemplo: DHL, FedEx, Estafeta"
+                      className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                    />
+                  </label>
 
-              {trackingNumberDraft && (
+                  <label className="block">
+                    <span className="text-sm font-medium">
+                      Número de rastreo
+                    </span>
+                    <input
+                      value={trackingNumberDraft}
+                      onChange={(event) =>
+                        setTrackingNumberDraft(event.target.value)
+                      }
+                      placeholder="Ejemplo: 1234567890"
+                      className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {trackingNumberDraft && order.deliveryMethod !== "pickup" && (
                 <button
                   type="button"
                   onClick={() => copyText(trackingNumberDraft, "tracking")}
@@ -580,7 +690,11 @@ export default function AdminOrderDetailPage() {
                     setCustomerVisibleNotesDraft(event.target.value)
                   }
                   rows={4}
-                  placeholder="Ejemplo: Tu pedido ya fue enviado. Te compartimos el número de rastreo."
+                  placeholder={
+                    order.deliveryMethod === "pickup"
+                      ? "Ejemplo: Tu pedido ya está listo para recoger en tienda."
+                      : "Ejemplo: Tu pedido ya fue enviado. Te compartimos el número de rastreo."
+                  }
                   className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
                 />
               </label>
@@ -590,17 +704,23 @@ export default function AdminOrderDetailPage() {
                 onClick={() =>
                   updateOrder(
                     {
-                      shippingCarrier: shippingCarrierDraft,
-                      trackingNumber: trackingNumberDraft,
+                      shippingCarrier:
+                        order.deliveryMethod === "pickup"
+                          ? ""
+                          : shippingCarrierDraft,
+                      trackingNumber:
+                        order.deliveryMethod === "pickup"
+                          ? ""
+                          : trackingNumberDraft,
                       customerVisibleNotes: customerVisibleNotesDraft,
                     },
-                    "Información de envío guardada."
+                    "Información de entrega guardada."
                   )
                 }
                 disabled={saving}
                 className="mt-5 rounded-full bg-black px-6 py-3 text-white disabled:cursor-not-allowed disabled:bg-gray-300"
               >
-                {saving ? "Guardando..." : "Guardar envío"}
+                {saving ? "Guardando..." : "Guardar entrega"}
               </button>
             </section>
 
@@ -698,9 +818,20 @@ export default function AdminOrderDetailPage() {
               </div>
 
               <div className="flex justify-between text-gray-600">
+                <span>Entrega</span>
+                <span className="text-right">
+                  {getDeliveryMethodLabel(order.deliveryMethod)}
+                </span>
+              </div>
+
+              <div className="flex justify-between text-gray-600">
                 <span>Envío</span>
                 <span>
-                  {order.shipping ? formatMoney(order.shipping) : "Por confirmar"}
+                  {order.deliveryMethod === "pickup"
+                    ? "Sin costo · recoger en tienda"
+                    : order.shipping
+                    ? formatMoney(order.shipping)
+                    : "Por confirmar"}
                 </span>
               </div>
 
@@ -717,6 +848,26 @@ export default function AdminOrderDetailPage() {
                 <span>Total</span>
                 <span>{formatMoney(order.total)}</span>
               </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl bg-blue-50 p-5">
+              <h3 className="font-semibold text-blue-950">Entrega</h3>
+
+              <p className="mt-3 text-sm text-blue-900">
+                {getDeliveryMethodLabel(order.deliveryMethod)}
+              </p>
+
+              <p className="mt-2 text-sm text-blue-900">
+                {getDeliveryInstructions(order.deliveryMethod)}
+              </p>
+            </div>
+
+            <div className="mt-6 rounded-2xl bg-blue-50 p-5">
+              <h3 className="font-semibold text-blue-950">Nota del cliente</h3>
+
+              <p className="mt-3 text-sm text-blue-900">
+                {customerNotes || "Sin nota del cliente"}
+              </p>
             </div>
 
             <div className="mt-6 rounded-2xl bg-gray-50 p-5">
@@ -759,13 +910,22 @@ export default function AdminOrderDetailPage() {
 
               <div className="mt-4 space-y-3 text-sm text-gray-600">
                 <p>
+                  <span className="font-medium text-black">Entrega:</span>{" "}
+                  {getDeliveryMethodLabel(order.deliveryMethod)}
+                </p>
+
+                <p>
                   <span className="font-medium text-black">Paquetería:</span>{" "}
-                  {order.shippingCarrier || "Por confirmar"}
+                  {order.deliveryMethod === "pickup"
+                    ? "No aplica"
+                    : order.shippingCarrier || "Por confirmar"}
                 </p>
 
                 <p>
                   <span className="font-medium text-black">Rastreo:</span>{" "}
-                  {order.trackingNumber || "Por confirmar"}
+                  {order.deliveryMethod === "pickup"
+                    ? "No aplica"
+                    : order.trackingNumber || "Por confirmar"}
                 </p>
 
                 <p>

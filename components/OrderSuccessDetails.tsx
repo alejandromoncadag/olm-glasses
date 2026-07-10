@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type DeliveryMethod = "shipping" | "pickup";
 
 type OrderItem = {
   id?: string;
@@ -26,6 +27,7 @@ type Order = {
   status: OrderStatus;
   paymentStatus?: string;
   paymentMethod?: PaymentMethod;
+  deliveryMethod?: DeliveryMethod;
   customerNotes?: string | null;
   customer: {
     fullName?: string;
@@ -37,6 +39,7 @@ type Order = {
     zipCode?: string;
     country?: string;
     paymentMethod?: PaymentMethod;
+    deliveryMethod?: DeliveryMethod;
     customerNotes?: string | null;
   };
   items: OrderItem[];
@@ -94,6 +97,31 @@ function getPaymentMethodLabel(method?: PaymentMethod) {
   return "Por confirmar";
 }
 
+function getDeliveryMethodLabel(method?: DeliveryMethod) {
+  if (method === "shipping") return "Envío a domicilio";
+  if (method === "pickup") return "Recoger en tienda";
+
+  return "Por confirmar";
+}
+
+function getDeliveryInstructions(method?: DeliveryMethod) {
+  if (method === "shipping") {
+    return "Confirmaremos la dirección y los detalles de envío antes de preparar el pedido.";
+  }
+
+  if (method === "pickup") {
+    return "Te contactaremos cuando tu pedido esté listo para recoger en la óptica.";
+  }
+
+  return "Te contactaremos para confirmar la forma de entrega.";
+}
+
+function getShippingLabel(method?: DeliveryMethod, shipping = 0) {
+  if (method === "pickup") return "Sin costo · recoger en tienda";
+
+  return shipping ? formatMoney(shipping) : "Por confirmar";
+}
+
 function getPaymentMethodInstructions(method?: PaymentMethod) {
   if (method === "bank_transfer") {
     return "Te enviaremos los datos bancarios para realizar la transferencia.";
@@ -124,6 +152,10 @@ function getItemTotal(item: OrderItem) {
 
 function getOrderPaymentMethod(order: Order) {
   return order.paymentMethod || order.customer.paymentMethod;
+}
+
+function getOrderDeliveryMethod(order: Order) {
+  return order.deliveryMethod || order.customer.deliveryMethod;
 }
 
 function getOrderCustomerNotes(order: Order) {
@@ -211,6 +243,7 @@ export default function OrderSuccessDetails() {
   const formattedDate = formatDate(order.createdAt);
   const shipping = order.shipping ?? 0;
   const paymentMethod = getOrderPaymentMethod(order);
+  const deliveryMethod = getOrderDeliveryMethod(order);
   const customerNotes = getOrderCustomerNotes(order);
 
   return (
@@ -248,7 +281,7 @@ export default function OrderSuccessDetails() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-6 md:grid-cols-5">
+      <div className="mt-8 grid gap-6 md:grid-cols-6">
         <div className="rounded-2xl border p-5">
           <p className="text-sm text-gray-500">Fecha</p>
           <p className="mt-1 font-semibold">{formattedDate}</p>
@@ -280,10 +313,29 @@ export default function OrderSuccessDetails() {
         </div>
 
         <div className="rounded-2xl border p-5">
+          <p className="text-sm text-gray-500">Entrega</p>
+          <p className="mt-1 font-semibold">
+            {getDeliveryMethodLabel(deliveryMethod)}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border p-5">
           <p className="text-sm text-gray-500">Total</p>
           <p className="mt-1 text-xl font-bold">{formatMoney(order.total)}</p>
         </div>
       </div>
+
+      <section className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-6">
+        <h2 className="text-2xl font-semibold text-blue-950">Entrega</h2>
+
+        <p className="mt-3 font-medium text-blue-950">
+          {getDeliveryMethodLabel(deliveryMethod)}
+        </p>
+
+        <p className="mt-2 text-sm text-blue-900">
+          {getDeliveryInstructions(deliveryMethod)}
+        </p>
+      </section>
 
       {customerNotes && (
         <section className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-6">
@@ -332,14 +384,16 @@ export default function OrderSuccessDetails() {
               <div className="md:col-span-2">
                 <p className="text-gray-500">Dirección</p>
                 <p className="mt-1 font-medium">
-                  {[
-                    order.customer.address,
-                    order.customer.city,
-                    order.customer.state,
-                    order.customer.zipCode,
-                  ]
-                    .filter(Boolean)
-                    .join(", ") || "Por confirmar"}
+                  {deliveryMethod === "pickup"
+                    ? "Recoger en tienda"
+                    : [
+                        order.customer.address,
+                        order.customer.city,
+                        order.customer.state,
+                        order.customer.zipCode,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "Por confirmar"}
                 </p>
               </div>
             </div>
@@ -396,8 +450,17 @@ export default function OrderSuccessDetails() {
             </div>
 
             <div className="flex justify-between text-gray-600">
+              <span>Entrega</span>
+              <span className="text-right">
+                {getDeliveryMethodLabel(deliveryMethod)}
+              </span>
+            </div>
+
+            <div className="flex justify-between text-gray-600">
               <span>Envío</span>
-              <span>{shipping ? formatMoney(shipping) : "Por confirmar"}</span>
+              <span className="text-right">
+                {getShippingLabel(deliveryMethod, shipping)}
+              </span>
             </div>
 
             <div className="flex justify-between text-gray-600">
@@ -427,9 +490,21 @@ export default function OrderSuccessDetails() {
 
             <ol className="mt-4 space-y-3 text-sm text-gray-600">
               <li>1. Revisaremos tu pedido.</li>
-              <li>2. Confirmaremos tu información de envío y graduación.</li>
+              <li>2. Confirmaremos tu información de entrega y graduación.</li>
               <li>3. Confirmaremos tu pago.</li>
             </ol>
+
+            <div className="mt-5 rounded-2xl bg-white p-4">
+              <p className="text-sm font-medium">Forma de entrega</p>
+
+              <p className="mt-1 text-sm text-gray-600">
+                {getDeliveryMethodLabel(deliveryMethod)}
+              </p>
+
+              <p className="mt-2 text-sm text-gray-600">
+                {getDeliveryInstructions(deliveryMethod)}
+              </p>
+            </div>
 
             <div className="mt-5 rounded-2xl bg-white p-4">
               <p className="text-sm font-medium">Forma de pago seleccionada</p>
@@ -469,6 +544,7 @@ export default function OrderSuccessDetails() {
     </div>
   );
 }
+
 
 
 

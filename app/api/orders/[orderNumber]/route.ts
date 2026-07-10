@@ -74,6 +74,7 @@ export async function GET(_request: Request, context: RouteContext) {
         orders.customer_id,
         orders.payment_status,
         orders.payment_method,
+        orders.delivery_method,
         orders.subtotal_cents,
         orders.shipping_cents,
         orders.total_cents,
@@ -133,6 +134,7 @@ export async function GET(_request: Request, context: RouteContext) {
         status: order.status,
         paymentStatus: order.payment_status,
         paymentMethod: order.payment_method,
+        deliveryMethod: order.delivery_method,
         subtotal: order.subtotal_cents / 100,
         subtotalCents: order.subtotal_cents,
         shipping: order.shipping_cents / 100,
@@ -239,10 +241,12 @@ export async function PATCH(request: Request, context: RouteContext) {
         status,
         payment_status,
         payment_method,
+        delivery_method,
         subtotal_cents,
         shipping_cents,
         total_cents,
         currency,
+        customer_notes,
         admin_notes,
         shipping_carrier,
         tracking_number,
@@ -278,10 +282,12 @@ export async function PATCH(request: Request, context: RouteContext) {
         status: order.status,
         paymentStatus: order.payment_status,
         paymentMethod: order.payment_method,
+        deliveryMethod: order.delivery_method,
         subtotal: order.subtotal_cents / 100,
         shipping: order.shipping_cents / 100,
         total: order.total_cents / 100,
         currency: order.currency,
+        customerNotes: order.customer_notes,
         adminNotes: order.admin_notes,
         shippingCarrier: order.shipping_carrier,
         trackingNumber: order.tracking_number,
@@ -299,4 +305,5 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 }
+
 

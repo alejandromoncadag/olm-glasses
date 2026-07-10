@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
 type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type DeliveryMethod = "shipping" | "pickup";
 
 type OrderItem = {
   id: string;
@@ -22,6 +23,7 @@ type Order = {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod?: PaymentMethod;
+  deliveryMethod?: DeliveryMethod;
   customerNotes?: string | null;
   subtotal: number;
   shipping: number;
@@ -94,6 +96,31 @@ function getPaymentMethodLabel(method?: PaymentMethod) {
   if (method === "cash_on_delivery") return "Pago contra entrega";
 
   return "Por confirmar";
+}
+
+function getDeliveryMethodLabel(method?: DeliveryMethod) {
+  if (method === "shipping") return "Envío a domicilio";
+  if (method === "pickup") return "Recoger en tienda";
+
+  return "Por confirmar";
+}
+
+function getDeliveryInstructions(method?: DeliveryMethod) {
+  if (method === "shipping") {
+    return "Óptica OLM confirmará los datos de envío y te compartirá rastreo cuando esté disponible.";
+  }
+
+  if (method === "pickup") {
+    return "Óptica OLM te avisará cuando el pedido esté listo para recoger en tienda.";
+  }
+
+  return "Óptica OLM te contactará para confirmar la forma de entrega.";
+}
+
+function getShippingLabel(method?: DeliveryMethod, shipping = 0) {
+  if (method === "pickup") return "Sin costo · recoger en tienda";
+
+  return shipping ? formatMoney(shipping) : "Por confirmar";
 }
 
 function getProgressStep(status: OrderStatus) {
@@ -200,7 +227,7 @@ export default function OrderStatusPage() {
 
           <p className="mt-4 max-w-2xl text-gray-600">
             Ingresa tu número de pedido y email para revisar el estado de tu
-            compra, pago y seguimiento de envío.
+            compra, pago y seguimiento de entrega.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8">
@@ -289,6 +316,10 @@ export default function OrderStatusPage() {
                   <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700">
                     {getPaymentMethodLabel(order.paymentMethod)}
                   </span>
+
+                  <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
+                    {getDeliveryMethodLabel(order.deliveryMethod)}
+                  </span>
                 </div>
               </div>
 
@@ -359,6 +390,20 @@ export default function OrderStatusPage() {
                   </div>
                 </section>
 
+                <section className="rounded-2xl border border-blue-100 bg-blue-50 p-6">
+                  <h3 className="text-2xl font-semibold text-blue-950">
+                    Entrega
+                  </h3>
+
+                  <p className="mt-3 font-medium text-blue-950">
+                    {getDeliveryMethodLabel(order.deliveryMethod)}
+                  </p>
+
+                  <p className="mt-2 text-sm text-blue-900">
+                    {getDeliveryInstructions(order.deliveryMethod)}
+                  </p>
+                </section>
+
                 {customerNotes && (
                   <section className="rounded-2xl border border-blue-100 bg-blue-50 p-6">
                     <h3 className="text-2xl font-semibold text-blue-950">
@@ -375,57 +420,79 @@ export default function OrderStatusPage() {
                   <h3 className="text-2xl font-semibold">Envío y seguimiento</h3>
 
                   <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-                    <div className="grid gap-5 md:grid-cols-2">
+                    {order.deliveryMethod === "pickup" ? (
                       <div>
-                        <p className="text-sm text-blue-700">Paquetería</p>
+                        <p className="text-sm text-blue-700">Entrega</p>
                         <p className="mt-1 font-semibold text-blue-950">
-                          {order.shippingCarrier || "Por confirmar"}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-blue-700">
-                          Número de rastreo
+                          Recoger en tienda
                         </p>
 
-                        {order.trackingNumber ? (
-                          <div className="mt-1 flex flex-wrap items-center gap-3">
-                            <p className="font-semibold text-blue-950">
-                              {order.trackingNumber}
-                            </p>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                copyText(order.trackingNumber || "", "tracking")
-                              }
-                              className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs text-blue-950"
-                            >
-                              {copied === "tracking" ? "Copiado" : "Copiar"}
-                            </button>
-                          </div>
-                        ) : (
-                          <p className="mt-1 font-semibold text-blue-950">
-                            Por confirmar
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {order.customerVisibleNotes ? (
-                      <div className="mt-5 rounded-2xl bg-white p-4">
-                        <p className="text-sm font-medium text-blue-950">
-                          Nota sobre tu pedido
-                        </p>
-
-                        <p className="mt-2 text-sm text-blue-900">
-                          {order.customerVisibleNotes}
+                        <p className="mt-3 text-sm text-blue-900">
+                          No hay número de rastreo porque seleccionaste recoger
+                          en tienda.
                         </p>
                       </div>
                     ) : (
-                      <p className="mt-5 text-sm text-blue-900">
-                        Cuando el pedido tenga guía de envío, aparecerá aquí.
-                      </p>
+                      <>
+                        <div className="grid gap-5 md:grid-cols-2">
+                          <div>
+                            <p className="text-sm text-blue-700">Paquetería</p>
+                            <p className="mt-1 font-semibold text-blue-950">
+                              {order.shippingCarrier || "Por confirmar"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-sm text-blue-700">
+                              Número de rastreo
+                            </p>
+
+                            {order.trackingNumber ? (
+                              <div className="mt-1 flex flex-wrap items-center gap-3">
+                                <p className="font-semibold text-blue-950">
+                                  {order.trackingNumber}
+                                </p>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    copyText(
+                                      order.trackingNumber || "",
+                                      "tracking"
+                                    )
+                                  }
+                                  className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs text-blue-950"
+                                >
+                                  {copied === "tracking"
+                                    ? "Copiado"
+                                    : "Copiar"}
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="mt-1 font-semibold text-blue-950">
+                                Por confirmar
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {order.customerVisibleNotes ? (
+                          <div className="mt-5 rounded-2xl bg-white p-4">
+                            <p className="text-sm font-medium text-blue-950">
+                              Nota sobre tu pedido
+                            </p>
+
+                            <p className="mt-2 text-sm text-blue-900">
+                              {order.customerVisibleNotes}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="mt-5 text-sm text-blue-900">
+                            Cuando el pedido tenga guía de envío, aparecerá
+                            aquí.
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </section>
@@ -481,11 +548,16 @@ export default function OrderStatusPage() {
                   </div>
 
                   <div className="flex justify-between text-gray-600">
+                    <span>Entrega</span>
+                    <span className="text-right">
+                      {getDeliveryMethodLabel(order.deliveryMethod)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-gray-600">
                     <span>Envío</span>
-                    <span>
-                      {order.shipping
-                        ? formatMoney(order.shipping)
-                        : "Por confirmar"}
+                    <span className="text-right">
+                      {getShippingLabel(order.deliveryMethod, order.shipping)}
                     </span>
                   </div>
 
@@ -519,7 +591,7 @@ export default function OrderStatusPage() {
                   <p className="mt-3 text-sm text-gray-600">
                     Si tu pedido aún está pendiente, Óptica OLM revisará tus
                     datos y te contactará para confirmar pago, graduación y
-                    envío.
+                    entrega.
                   </p>
                 </div>
 

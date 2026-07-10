@@ -6,6 +6,7 @@ import { downloadCsv } from "@/lib/csv";
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
 type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type DeliveryMethod = "shipping" | "pickup";
 
 type Order = {
   id: string;
@@ -13,6 +14,8 @@ type Order = {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod?: PaymentMethod;
+  deliveryMethod?: DeliveryMethod;
+  customerNotes?: string | null;
   subtotal: number;
   shipping: number;
   total: number;
@@ -89,7 +92,25 @@ function getPaymentMethodClassName(method?: PaymentMethod) {
   return "bg-gray-100 text-gray-700";
 }
 
+function getDeliveryMethodLabel(method?: DeliveryMethod) {
+  if (method === "shipping") return "Envío a domicilio";
+  if (method === "pickup") return "Recoger en tienda";
+
+  return "Por confirmar";
+}
+
+function getDeliveryMethodClassName(method?: DeliveryMethod) {
+  if (method === "shipping") return "bg-blue-100 text-blue-700";
+  if (method === "pickup") return "bg-green-100 text-green-700";
+
+  return "bg-gray-100 text-gray-700";
+}
+
 function getShippingClassName(order: Order) {
+  if (order.deliveryMethod === "pickup") {
+    return "bg-green-100 text-green-700";
+  }
+
   if (order.shippingCarrier && order.trackingNumber) {
     return "bg-green-100 text-green-700";
   }
@@ -102,6 +123,10 @@ function getShippingClassName(order: Order) {
 }
 
 function getShippingLabel(order: Order) {
+  if (order.deliveryMethod === "pickup") {
+    return "Recoger en tienda";
+  }
+
   if (order.shippingCarrier && order.trackingNumber) {
     return `${order.shippingCarrier} · ${order.trackingNumber}`;
   }
@@ -143,6 +168,10 @@ function formatMoney(amount: number) {
   return `$${amount.toLocaleString("es-MX")} MXN`;
 }
 
+function getCustomerNotes(order: Order) {
+  return String(order.customerNotes || "").trim();
+}
+
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all");
@@ -151,6 +180,9 @@ export default function AdminOrders() {
   );
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<
     "all" | PaymentMethod
+  >("all");
+  const [deliveryMethodFilter, setDeliveryMethodFilter] = useState<
+    "all" | DeliveryMethod
   >("all");
   const [shippingFilter, setShippingFilter] = useState<
     "all" | "withTracking" | "missingTracking"
@@ -238,14 +270,23 @@ export default function AdminOrders() {
     (order) => order.status === "completed"
   ).length;
 
+  const unpaidOrders = orders.filter(
+    (order) => order.paymentStatus === "unpaid"
+  ).length;
+
+  const pickupOrders = orders.filter(
+    (order) => order.deliveryMethod === "pickup"
+  ).length;
+
   const missingTrackingOrders = orders.filter(
     (order) =>
       order.status !== "cancelled" &&
+      order.deliveryMethod !== "pickup" &&
       (!order.shippingCarrier || !order.trackingNumber)
   ).length;
 
-  const unpaidOrders = orders.filter(
-    (order) => order.paymentStatus === "unpaid"
+  const ordersWithCustomerNotes = orders.filter((order) =>
+    getCustomerNotes(order)
   ).length;
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
@@ -261,6 +302,10 @@ export default function AdminOrders() {
       paymentMethodFilter === "all" ||
       order.paymentMethod === paymentMethodFilter;
 
+    const matchesDeliveryMethod =
+      deliveryMethodFilter === "all" ||
+      order.deliveryMethod === deliveryMethodFilter;
+
     const hasTracking = Boolean(order.shippingCarrier && order.trackingNumber);
 
     const matchesShipping =
@@ -268,6 +313,7 @@ export default function AdminOrders() {
       (shippingFilter === "withTracking" && hasTracking) ||
       (shippingFilter === "missingTracking" &&
         order.status !== "cancelled" &&
+        order.deliveryMethod !== "pickup" &&
         !hasTracking);
 
     const searchableText = [
@@ -281,6 +327,9 @@ export default function AdminOrders() {
       getPaymentStatusLabel(order.paymentStatus),
       order.paymentMethod,
       getPaymentMethodLabel(order.paymentMethod),
+      order.deliveryMethod,
+      getDeliveryMethodLabel(order.deliveryMethod),
+      order.customerNotes,
       order.shippingCarrier,
       order.trackingNumber,
       order.customerVisibleNotes,
@@ -298,6 +347,7 @@ export default function AdminOrders() {
       matchesStatus &&
       matchesPayment &&
       matchesPaymentMethod &&
+      matchesDeliveryMethod &&
       matchesShipping &&
       matchesSearch
     );
@@ -313,6 +363,8 @@ export default function AdminOrders() {
         "Status",
         "Payment Status",
         "Payment Method",
+        "Delivery Method",
+        "Customer Notes",
         "Shipping Carrier",
         "Tracking Number",
         "Customer Visible Notes",
@@ -330,6 +382,8 @@ export default function AdminOrders() {
         getStatusLabel(order.status),
         getPaymentStatusLabel(order.paymentStatus),
         getPaymentMethodLabel(order.paymentMethod),
+        getDeliveryMethodLabel(order.deliveryMethod),
+        order.customerNotes || "",
         order.shippingCarrier || "",
         order.trackingNumber || "",
         order.customerVisibleNotes || "",
@@ -376,7 +430,7 @@ export default function AdminOrders() {
 
   return (
     <div>
-      <div className="grid gap-4 md:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-8">
         <div className="rounded-2xl border p-5">
           <p className="text-sm text-gray-600">Pedidos totales</p>
           <p className="mt-2 text-3xl font-bold">{totalOrders}</p>
@@ -403,6 +457,16 @@ export default function AdminOrders() {
         </div>
 
         <div className="rounded-2xl border p-5">
+          <p className="text-sm text-gray-600">Recogen tienda</p>
+          <p className="mt-2 text-3xl font-bold">{pickupOrders}</p>
+        </div>
+
+        <div className="rounded-2xl border p-5">
+          <p className="text-sm text-gray-600">Con nota</p>
+          <p className="mt-2 text-3xl font-bold">{ordersWithCustomerNotes}</p>
+        </div>
+
+        <div className="rounded-2xl border p-5">
           <p className="text-sm text-gray-600">Falta rastreo</p>
           <p className="mt-2 text-3xl font-bold">{missingTrackingOrders}</p>
         </div>
@@ -412,7 +476,7 @@ export default function AdminOrders() {
         <input
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Buscar por pedido, cliente, email, pago, rastreo..."
+          placeholder="Buscar por pedido, cliente, email, entrega, pago, nota, rastreo..."
           className="w-full rounded-full border px-5 py-2 text-sm outline-none focus:border-black md:max-w-sm"
         />
 
@@ -432,6 +496,7 @@ export default function AdminOrders() {
               setStatusFilter("all");
               setPaymentFilter("all");
               setPaymentMethodFilter("all");
+              setDeliveryMethodFilter("all");
               setShippingFilter("all");
             }}
             className="rounded-full border px-4 py-2 text-sm"
@@ -592,6 +657,44 @@ export default function AdminOrders() {
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
+          onClick={() => setDeliveryMethodFilter("all")}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            deliveryMethodFilter === "all"
+              ? "border-black bg-black text-white"
+              : ""
+          }`}
+        >
+          Todas las entregas
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setDeliveryMethodFilter("shipping")}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            deliveryMethodFilter === "shipping"
+              ? "border-black bg-black text-white"
+              : ""
+          }`}
+        >
+          Envío a domicilio
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setDeliveryMethodFilter("pickup")}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            deliveryMethodFilter === "pickup"
+              ? "border-black bg-black text-white"
+              : ""
+          }`}
+        >
+          Recoger en tienda
+        </button>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
           onClick={() => setShippingFilter("all")}
           className={`rounded-full border px-4 py-2 text-sm ${
             shippingFilter === "all" ? "border-black bg-black text-white" : ""
@@ -639,142 +742,173 @@ export default function AdminOrders() {
         </div>
       ) : (
         <div className="mt-10 space-y-6">
-          {filteredOrders.map((order) => (
-            <article key={order.orderNumber} className="rounded-2xl border p-6">
-              <div className="flex flex-col justify-between gap-4 md:flex-row">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-2xl font-semibold">
-                      {order.orderNumber}
-                    </h2>
+          {filteredOrders.map((order) => {
+            const customerNotes = getCustomerNotes(order);
 
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClassName(
-                        order.status
-                      )}`}
-                    >
-                      {getStatusLabel(order.status)}
-                    </span>
+            return (
+              <article key={order.orderNumber} className="rounded-2xl border p-6">
+                <div className="flex flex-col justify-between gap-4 md:flex-row">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="text-2xl font-semibold">
+                        {order.orderNumber}
+                      </h2>
 
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getPaymentStatusClassName(
-                        order.paymentStatus
-                      )}`}
-                    >
-                      {getPaymentStatusLabel(order.paymentStatus)}
-                    </span>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClassName(
+                          order.status
+                        )}`}
+                      >
+                        {getStatusLabel(order.status)}
+                      </span>
 
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getPaymentMethodClassName(
-                        order.paymentMethod
-                      )}`}
-                    >
-                      {getPaymentMethodLabel(order.paymentMethod)}
-                    </span>
-
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getShippingClassName(
-                        order
-                      )}`}
-                    >
-                      {getShippingLabel(order)}
-                    </span>
-                  </div>
-
-                  <p className="mt-2 text-sm text-gray-500">
-                    Pedido creado el {formatDate(order.createdAt)}
-                  </p>
-
-                  <div className="mt-4 grid gap-3 text-sm text-gray-700 md:grid-cols-4">
-                    <div>
-                      <p className="text-gray-500">Cliente</p>
-                      <p className="font-medium">
-                        {order.customer?.fullName || "Sin nombre"}
-                      </p>
-                      <p>{order.customer?.email || "Sin email"}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-gray-500">Pago</p>
-                      <p className="font-medium">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getPaymentStatusClassName(
+                          order.paymentStatus
+                        )}`}
+                      >
                         {getPaymentStatusLabel(order.paymentStatus)}
-                      </p>
-                      <p>{getPaymentMethodLabel(order.paymentMethod)}</p>
+                      </span>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getPaymentMethodClassName(
+                          order.paymentMethod
+                        )}`}
+                      >
+                        {getPaymentMethodLabel(order.paymentMethod)}
+                      </span>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getDeliveryMethodClassName(
+                          order.deliveryMethod
+                        )}`}
+                      >
+                        {getDeliveryMethodLabel(order.deliveryMethod)}
+                      </span>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getShippingClassName(
+                          order
+                        )}`}
+                      >
+                        {getShippingLabel(order)}
+                      </span>
                     </div>
 
-                    <div>
-                      <p className="text-gray-500">Envío</p>
-                      <p className="font-medium">
-                        {order.shippingCarrier || "Sin paquetería"}
-                      </p>
-                      <p>{order.trackingNumber || "Sin rastreo"}</p>
+                    <p className="mt-2 text-sm text-gray-500">
+                      Pedido creado el {formatDate(order.createdAt)}
+                    </p>
+
+                    <div className="mt-4 grid gap-3 text-sm text-gray-700 md:grid-cols-5">
+                      <div>
+                        <p className="text-gray-500">Cliente</p>
+                        <p className="font-medium">
+                          {order.customer?.fullName || "Sin nombre"}
+                        </p>
+                        <p>{order.customer?.email || "Sin email"}</p>
+                      </div>
+
+                      <div>
+                        <p className="text-gray-500">Pago</p>
+                        <p className="font-medium">
+                          {getPaymentStatusLabel(order.paymentStatus)}
+                        </p>
+                        <p>{getPaymentMethodLabel(order.paymentMethod)}</p>
+                      </div>
+
+                      <div>
+                        <p className="text-gray-500">Entrega</p>
+                        <p className="font-medium">
+                          {getDeliveryMethodLabel(order.deliveryMethod)}
+                        </p>
+                        <p>
+                          {order.deliveryMethod === "pickup"
+                            ? "Sin rastreo"
+                            : "Requiere envío"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-gray-500">Envío</p>
+                        <p className="font-medium">
+                          {order.shippingCarrier || "Sin paquetería"}
+                        </p>
+                        <p>{order.trackingNumber || "Sin rastreo"}</p>
+                      </div>
+
+                      <div>
+                        <p className="text-gray-500">Total</p>
+                        <p className="font-semibold">{formatMoney(order.total)}</p>
+                      </div>
                     </div>
 
-                    <div>
-                      <p className="text-gray-500">Total</p>
-                      <p className="font-semibold">{formatMoney(order.total)}</p>
-                    </div>
+                    {customerNotes && (
+                      <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
+                        <p className="font-medium text-blue-950">
+                          Nota del cliente:
+                        </p>
+                        <p className="mt-1">{customerNotes}</p>
+                      </div>
+                    )}
+
+                    {order.customerVisibleNotes && (
+                      <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
+                        <p className="font-medium text-black">
+                          Nota visible para cliente:
+                        </p>
+                        <p className="mt-1">{order.customerVisibleNotes}</p>
+                      </div>
+                    )}
                   </div>
 
-                  {order.customerVisibleNotes && (
-                    <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
-                      <p className="font-medium text-black">
-                        Nota visible para cliente:
-                      </p>
-                      <p className="mt-1">{order.customerVisibleNotes}</p>
-                    </div>
-                  )}
+                  <div className="flex flex-col gap-3 md:min-w-48 md:items-end">
+                    <a
+                      href={`/admin/orders/${order.orderNumber}`}
+                      className="rounded-full bg-black px-5 py-2 text-center text-sm text-white"
+                    >
+                      Ver detalle
+                    </a>
+
+                    <select
+                      value={order.status}
+                      disabled={savingOrderNumber === order.orderNumber}
+                      onChange={(event) =>
+                        updateOrder(order.orderNumber, {
+                          status: event.target.value as OrderStatus,
+                        })
+                      }
+                      className="rounded-xl border px-3 py-2 text-sm"
+                    >
+                      <option value="pending">Pendiente</option>
+                      <option value="processing">En proceso</option>
+                      <option value="completed">Completado</option>
+                      <option value="cancelled">Cancelado</option>
+                    </select>
+
+                    <select
+                      value={order.paymentStatus}
+                      disabled={savingOrderNumber === order.orderNumber}
+                      onChange={(event) =>
+                        updateOrder(order.orderNumber, {
+                          paymentStatus: event.target.value as PaymentStatus,
+                        })
+                      }
+                      className="rounded-xl border px-3 py-2 text-sm"
+                    >
+                      <option value="unpaid">Sin pagar</option>
+                      <option value="pending">Pago pendiente</option>
+                      <option value="paid">Pagado</option>
+                      <option value="failed">Fallido</option>
+                      <option value="refunded">Reembolsado</option>
+                    </select>
+                  </div>
                 </div>
-
-                <div className="flex flex-col gap-3 md:min-w-48 md:items-end">
-                  <a
-                    href={`/admin/orders/${order.orderNumber}`}
-                    className="rounded-full bg-black px-5 py-2 text-center text-sm text-white"
-                  >
-                    Ver detalle
-                  </a>
-
-                  <select
-                    value={order.status}
-                    disabled={savingOrderNumber === order.orderNumber}
-                    onChange={(event) =>
-                      updateOrder(order.orderNumber, {
-                        status: event.target.value as OrderStatus,
-                      })
-                    }
-                    className="rounded-xl border px-3 py-2 text-sm"
-                  >
-                    <option value="pending">Pendiente</option>
-                    <option value="processing">En proceso</option>
-                    <option value="completed">Completado</option>
-                    <option value="cancelled">Cancelado</option>
-                  </select>
-
-                  <select
-                    value={order.paymentStatus}
-                    disabled={savingOrderNumber === order.orderNumber}
-                    onChange={(event) =>
-                      updateOrder(order.orderNumber, {
-                        paymentStatus: event.target.value as PaymentStatus,
-                      })
-                    }
-                    className="rounded-xl border px-3 py-2 text-sm"
-                  >
-                    <option value="unpaid">Sin pagar</option>
-                    <option value="pending">Pago pendiente</option>
-                    <option value="paid">Pagado</option>
-                    <option value="failed">Fallido</option>
-                    <option value="refunded">Reembolsado</option>
-                  </select>
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
-
-
 
