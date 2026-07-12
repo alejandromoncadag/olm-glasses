@@ -105,9 +105,31 @@ function getDeliveryMethodLabel(method?: DeliveryMethod) {
   return "Por confirmar";
 }
 
-function getDeliveryInstructions(method?: DeliveryMethod) {
-  if (method === "shipping") {
-    return "Óptica OLM confirmará los datos de envío y te compartirá rastreo cuando esté disponible.";
+function isShippingPending(method?: DeliveryMethod, shipping = 0) {
+  return method === "shipping" && shipping <= 0;
+}
+
+function getShippingLabel(method?: DeliveryMethod, shipping = 0) {
+  if (method === "pickup") return "Sin costo · recoger en tienda";
+
+  return shipping > 0 ? formatMoney(shipping) : "Por confirmar";
+}
+
+function getTotalLabel(method?: DeliveryMethod, shipping = 0) {
+  if (isShippingPending(method, shipping)) {
+    return "Total estimado";
+  }
+
+  return "Total";
+}
+
+function getDeliveryInstructions(method?: DeliveryMethod, shipping = 0) {
+  if (method === "shipping" && shipping <= 0) {
+    return "Óptica OLM está revisando el costo de envío. El total final se confirmará antes del pago.";
+  }
+
+  if (method === "shipping" && shipping > 0) {
+    return "El costo de envío ya fue confirmado. El total mostrado es el total final del pedido.";
   }
 
   if (method === "pickup") {
@@ -117,10 +139,28 @@ function getDeliveryInstructions(method?: DeliveryMethod) {
   return "Óptica OLM te contactará para confirmar la forma de entrega.";
 }
 
-function getShippingLabel(method?: DeliveryMethod, shipping = 0) {
-  if (method === "pickup") return "Sin costo · recoger en tienda";
+function getPaymentMessage(
+  paymentMethod?: PaymentMethod,
+  deliveryMethod?: DeliveryMethod,
+  shipping = 0
+) {
+  if (isShippingPending(deliveryMethod, shipping)) {
+    return "Espera a que Óptica OLM confirme el costo de envío y el total final antes de pagar.";
+  }
 
-  return shipping ? formatMoney(shipping) : "Por confirmar";
+  if (paymentMethod === "bank_transfer") {
+    return "Puedes realizar el pago cuando Óptica OLM te comparta los datos bancarios.";
+  }
+
+  if (paymentMethod === "store_payment") {
+    return "Podrás pagar en tienda cuando confirmes o recojas tu pedido.";
+  }
+
+  if (paymentMethod === "cash_on_delivery") {
+    return "Óptica OLM confirmará si el pago contra entrega está disponible para tu zona.";
+  }
+
+  return "Óptica OLM te contactará para confirmar la forma de pago.";
 }
 
 function getProgressStep(status: OrderStatus) {
@@ -214,6 +254,9 @@ export default function OrderStatusPage() {
 
   const progressStep = order ? getProgressStep(order.status) : 0;
   const customerNotes = String(order?.customerNotes || "").trim();
+  const shippingPending = order
+    ? isShippingPending(order.deliveryMethod, order.shipping)
+    : false;
 
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
@@ -323,6 +366,23 @@ export default function OrderStatusPage() {
                 </div>
               </div>
 
+              {shippingPending && (
+                <div className="mt-8 rounded-2xl border border-yellow-200 bg-yellow-50 p-5">
+                  <h3 className="font-semibold text-yellow-900">
+                    Envío por confirmar
+                  </h3>
+
+                  <p className="mt-2 text-sm text-yellow-800">
+                    El costo de envío todavía no está confirmado. El total que
+                    ves ahora es estimado y puede cambiar.
+                  </p>
+
+                  <p className="mt-2 text-sm font-medium text-yellow-900">
+                    Espera la confirmación final de Óptica OLM antes de pagar.
+                  </p>
+                </div>
+              )}
+
               {order.status === "cancelled" ? (
                 <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-5">
                   <h3 className="font-semibold text-red-800">
@@ -400,7 +460,17 @@ export default function OrderStatusPage() {
                   </p>
 
                   <p className="mt-2 text-sm text-blue-900">
-                    {getDeliveryInstructions(order.deliveryMethod)}
+                    {getDeliveryInstructions(
+                      order.deliveryMethod,
+                      order.shipping
+                    )}
+                  </p>
+
+                  <p className="mt-3 text-sm text-blue-900">
+                    Envío:{" "}
+                    <span className="font-semibold">
+                      {getShippingLabel(order.deliveryMethod, order.shipping)}
+                    </span>
                   </p>
                 </section>
 
@@ -434,6 +504,26 @@ export default function OrderStatusPage() {
                       </div>
                     ) : (
                       <>
+                        <div className="mb-5 rounded-2xl bg-white p-4">
+                          <p className="text-sm font-medium text-blue-950">
+                            Costo de envío
+                          </p>
+
+                          <p className="mt-2 text-sm text-blue-900">
+                            {getShippingLabel(
+                              order.deliveryMethod,
+                              order.shipping
+                            )}
+                          </p>
+
+                          {shippingPending && (
+                            <p className="mt-2 text-sm text-yellow-700">
+                              Óptica OLM confirmará el costo de envío antes del
+                              pago.
+                            </p>
+                          )}
+                        </div>
+
                         <div className="grid gap-5 md:grid-cols-2">
                           <div>
                             <p className="text-sm text-blue-700">Paquetería</p>
@@ -580,18 +670,34 @@ export default function OrderStatusPage() {
 
                 <div className="mt-6 border-t pt-6">
                   <div className="flex justify-between text-lg font-semibold">
-                    <span>Total</span>
+                    <span>
+                      {getTotalLabel(order.deliveryMethod, order.shipping)}
+                    </span>
                     <span>{formatMoney(order.total)}</span>
                   </div>
+
+                  {shippingPending && (
+                    <p className="mt-3 text-sm text-yellow-700">
+                      El total final puede cambiar cuando se confirme el envío.
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-6 rounded-2xl bg-gray-50 p-5">
                   <h4 className="font-semibold">¿Qué sigue?</h4>
 
                   <p className="mt-3 text-sm text-gray-600">
-                    Si tu pedido aún está pendiente, Óptica OLM revisará tus
-                    datos y te contactará para confirmar pago, graduación y
-                    entrega.
+                    {shippingPending
+                      ? "Óptica OLM revisará tu dirección, confirmará el costo de envío y después confirmará el pago."
+                      : "Óptica OLM revisará tus datos y te contactará para confirmar pago, graduación y entrega."}
+                  </p>
+
+                  <p className="mt-4 text-sm text-gray-600">
+                    {getPaymentMessage(
+                      order.paymentMethod,
+                      order.deliveryMethod,
+                      order.shipping
+                    )}
                   </p>
                 </div>
 
@@ -615,5 +721,6 @@ export default function OrderStatusPage() {
     </main>
   );
 }
+
 
 

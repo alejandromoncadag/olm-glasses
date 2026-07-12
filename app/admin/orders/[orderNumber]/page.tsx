@@ -55,6 +55,7 @@ type Order = {
 type OrderUpdate = {
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
+  shipping?: number;
   adminNotes?: string;
   shippingCarrier?: string;
   trackingNumber?: string;
@@ -155,7 +156,7 @@ function getDeliveryMethodClassName(method?: DeliveryMethod) {
 
 function getDeliveryInstructions(method?: DeliveryMethod) {
   if (method === "shipping") {
-    return "El cliente eligió envío a domicilio. Confirma la dirección, paquetería y número de rastreo.";
+    return "El cliente eligió envío a domicilio. Confirma el costo de envío, dirección, paquetería y número de rastreo.";
   }
 
   if (method === "pickup") {
@@ -185,6 +186,14 @@ function getCustomerNotes(order: Order) {
   return String(order.customerNotes || "").trim();
 }
 
+function getShippingDisplay(order: Order) {
+  if (order.deliveryMethod === "pickup") {
+    return "Sin costo · recoger en tienda";
+  }
+
+  return order.shipping ? formatMoney(order.shipping) : "Por confirmar";
+}
+
 export default function AdminOrderDetailPage() {
   const params = useParams();
 
@@ -195,6 +204,7 @@ export default function AdminOrderDetailPage() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [adminNotesDraft, setAdminNotesDraft] = useState("");
+  const [shippingQuoteDraft, setShippingQuoteDraft] = useState("");
   const [shippingCarrierDraft, setShippingCarrierDraft] = useState("");
   const [trackingNumberDraft, setTrackingNumberDraft] = useState("");
   const [customerVisibleNotesDraft, setCustomerVisibleNotesDraft] = useState("");
@@ -220,6 +230,7 @@ export default function AdminOrderDetailPage() {
 
         setOrder(data.order);
         setAdminNotesDraft(data.order.adminNotes || "");
+        setShippingQuoteDraft(data.order.shipping ? String(data.order.shipping) : "");
         setShippingCarrierDraft(data.order.shippingCarrier || "");
         setTrackingNumberDraft(data.order.trackingNumber || "");
         setCustomerVisibleNotesDraft(data.order.customerVisibleNotes || "");
@@ -292,6 +303,9 @@ export default function AdminOrderDetailPage() {
                 data.order.deliveryMethod || currentOrder.deliveryMethod,
               customerNotes:
                 data.order.customerNotes ?? currentOrder.customerNotes,
+              subtotal: data.order.subtotal ?? currentOrder.subtotal,
+              shipping: data.order.shipping ?? currentOrder.shipping,
+              total: data.order.total ?? currentOrder.total,
               adminNotes: data.order.adminNotes,
               shippingCarrier: data.order.shippingCarrier,
               trackingNumber: data.order.trackingNumber,
@@ -301,6 +315,12 @@ export default function AdminOrderDetailPage() {
           : currentOrder
       );
 
+      if (typeof data.order.shipping === "number") {
+        setShippingQuoteDraft(
+          data.order.shipping > 0 ? String(data.order.shipping) : ""
+        );
+      }
+
       setSuccessMessage(message);
     } catch (error) {
       console.error(error);
@@ -308,6 +328,56 @@ export default function AdminOrderDetailPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function saveShippingQuote() {
+    if (!order) return;
+
+    if (order.deliveryMethod === "pickup") {
+      await updateOrder(
+        {
+          shipping: 0,
+        },
+        "Envío actualizado a $0 porque el pedido es para recoger en tienda."
+      );
+      return;
+    }
+
+    const trimmedValue = shippingQuoteDraft.trim();
+
+    if (!trimmedValue) {
+      setError(
+        "Escribe un costo de envío o usa “Volver a por confirmar” para dejarlo pendiente."
+      );
+      setSuccessMessage("");
+      return;
+    }
+
+    const amount = Number(trimmedValue.replace(",", "."));
+
+    if (!Number.isFinite(amount) || amount < 0) {
+      setError("Escribe un costo de envío válido.");
+      setSuccessMessage("");
+      return;
+    }
+
+    await updateOrder(
+      {
+        shipping: amount,
+      },
+      "Costo de envío guardado."
+    );
+  }
+
+  async function clearShippingQuote() {
+    setShippingQuoteDraft("");
+
+    await updateOrder(
+      {
+        shipping: 0,
+      },
+      "El envío volvió a quedar por confirmar."
+    );
   }
 
   if (loading) {
@@ -514,8 +584,7 @@ export default function AdminOrderDetailPage() {
             <p className="mt-2 text-3xl font-bold">{formatMoney(order.total)}</p>
 
             <p className="mt-3 text-sm text-gray-500">
-              {order.items.length}{" "}
-              {order.items.length === 1 ? "producto" : "productos"}
+              Envío: {getShippingDisplay(order)}
             </p>
           </section>
         </div>
@@ -634,39 +703,95 @@ export default function AdminOrderDetailPage() {
                   </p>
 
                   <p className="mt-2 text-sm text-green-800">
-                    No necesitas agregar paquetería ni número de rastreo. Puedes
-                    usar la nota visible para avisar que el pedido está listo
-                    para recoger.
+                    No necesitas agregar costo de envío, paquetería ni número de
+                    rastreo. Puedes usar la nota visible para avisar que el
+                    pedido está listo para recoger.
                   </p>
                 </div>
               ) : (
-                <div className="mt-5 grid gap-4 md:grid-cols-2">
-                  <label className="block">
-                    <span className="text-sm font-medium">Paquetería</span>
-                    <input
-                      value={shippingCarrierDraft}
-                      onChange={(event) =>
-                        setShippingCarrierDraft(event.target.value)
-                      }
-                      placeholder="Ejemplo: DHL, FedEx, Estafeta"
-                      className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                    />
-                  </label>
+                <>
+                  <div className="mt-5 rounded-2xl border bg-gray-50 p-5">
+                    <h3 className="text-lg font-semibold">Costo de envío</h3>
 
-                  <label className="block">
-                    <span className="text-sm font-medium">
-                      Número de rastreo
-                    </span>
-                    <input
-                      value={trackingNumberDraft}
-                      onChange={(event) =>
-                        setTrackingNumberDraft(event.target.value)
-                      }
-                      placeholder="Ejemplo: 1234567890"
-                      className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                    />
-                  </label>
-                </div>
+                    <p className="mt-2 text-sm text-gray-600">
+                      El cliente verá el envío como “por confirmar” hasta que
+                      guardes un costo real aquí.
+                    </p>
+
+                    <p className="mt-4 text-sm">
+                      <span className="text-gray-500">Envío actual:</span>{" "}
+                      <span className="font-semibold">
+                        {getShippingDisplay(order)}
+                      </span>
+                    </p>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+                      <label className="block">
+                        <span className="text-sm font-medium">
+                          Costo de envío en MXN
+                        </span>
+
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={shippingQuoteDraft}
+                          onChange={(event) =>
+                            setShippingQuoteDraft(event.target.value)
+                          }
+                          placeholder="Ejemplo: 150"
+                          className="mt-2 w-full rounded-xl border bg-white px-4 py-3 outline-none focus:border-black"
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={saveShippingQuote}
+                        disabled={saving}
+                        className="self-end rounded-full bg-black px-6 py-3 text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+                      >
+                        {saving ? "Guardando..." : "Guardar costo"}
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={clearShippingQuote}
+                      disabled={saving}
+                      className="mt-3 rounded-full border px-5 py-2 text-sm disabled:cursor-not-allowed disabled:bg-gray-100"
+                    >
+                      Volver a por confirmar
+                    </button>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-2">
+                    <label className="block">
+                      <span className="text-sm font-medium">Paquetería</span>
+                      <input
+                        value={shippingCarrierDraft}
+                        onChange={(event) =>
+                          setShippingCarrierDraft(event.target.value)
+                        }
+                        placeholder="Ejemplo: DHL, FedEx, Estafeta"
+                        className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="text-sm font-medium">
+                        Número de rastreo
+                      </span>
+                      <input
+                        value={trackingNumberDraft}
+                        onChange={(event) =>
+                          setTrackingNumberDraft(event.target.value)
+                        }
+                        placeholder="Ejemplo: 1234567890"
+                        className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                      />
+                    </label>
+                  </div>
+                </>
               )}
 
               {trackingNumberDraft && order.deliveryMethod !== "pickup" && (
@@ -826,13 +951,7 @@ export default function AdminOrderDetailPage() {
 
               <div className="flex justify-between text-gray-600">
                 <span>Envío</span>
-                <span>
-                  {order.deliveryMethod === "pickup"
-                    ? "Sin costo · recoger en tienda"
-                    : order.shipping
-                    ? formatMoney(order.shipping)
-                    : "Por confirmar"}
-                </span>
+                <span className="text-right">{getShippingDisplay(order)}</span>
               </div>
 
               <div className="flex justify-between text-gray-600">
@@ -912,6 +1031,11 @@ export default function AdminOrderDetailPage() {
                 <p>
                   <span className="font-medium text-black">Entrega:</span>{" "}
                   {getDeliveryMethodLabel(order.deliveryMethod)}
+                </p>
+
+                <p>
+                  <span className="font-medium text-black">Envío:</span>{" "}
+                  {getShippingDisplay(order)}
                 </p>
 
                 <p>

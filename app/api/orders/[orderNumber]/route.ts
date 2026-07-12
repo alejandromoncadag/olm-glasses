@@ -20,6 +20,7 @@ type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
 type UpdateOrderInput = {
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
+  shipping?: number;
   adminNotes?: string;
   shippingCarrier?: string;
   trackingNumber?: string;
@@ -53,6 +54,20 @@ function cleanNullableText(value: string | undefined) {
   const trimmed = value.trim();
 
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function getShippingCents(value: unknown) {
+  const shipping = Number(value);
+
+  if (!Number.isFinite(shipping) || shipping < 0) {
+    return null;
+  }
+
+  if (shipping > 10000) {
+    return null;
+  }
+
+  return Math.round(shipping * 100);
 }
 
 export async function GET(_request: Request, context: RouteContext) {
@@ -214,6 +229,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const hasAdminNotes = hasField(body, "adminNotes");
+    const hasShipping = hasField(body, "shipping");
     const hasShippingCarrier = hasField(body, "shippingCarrier");
     const hasTrackingNumber = hasField(body, "trackingNumber");
     const hasCustomerVisibleNotes = hasField(body, "customerVisibleNotes");
@@ -222,6 +238,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     const shippingCarrier = cleanNullableText(body.shippingCarrier);
     const trackingNumber = cleanNullableText(body.trackingNumber);
     const customerVisibleNotes = cleanNullableText(body.customerVisibleNotes);
+
+    const shippingCents = hasShipping ? getShippingCents(body.shipping) : null;
+
+    if (hasShipping && shippingCents === null) {
+      return NextResponse.json(
+        { error: "Shipping must be a valid amount" },
+        { status: 400 }
+      );
+    }
 
     const result = await pool.query(
       `
@@ -233,8 +258,25 @@ export async function PATCH(request: Request, context: RouteContext) {
         shipping_carrier = CASE WHEN $5::boolean THEN $6::text ELSE shipping_carrier END,
         tracking_number = CASE WHEN $7::boolean THEN $8::text ELSE tracking_number END,
         customer_visible_notes = CASE WHEN $9::boolean THEN $10::text ELSE customer_visible_notes END,
+        shipping_cents = CASE
+          WHEN $11::boolean THEN
+            CASE
+              WHEN delivery_method = 'pickup' THEN 0
+              ELSE $12::integer
+            END
+          ELSE shipping_cents
+        END,
+        total_cents = CASE
+          WHEN $11::boolean THEN
+            subtotal_cents +
+            CASE
+              WHEN delivery_method = 'pickup' THEN 0
+              ELSE $12::integer
+            END
+          ELSE total_cents
+        END,
         updated_at = now()
-      WHERE order_number = $11
+      WHERE order_number = $13
       RETURNING
         id,
         order_number,
@@ -265,6 +307,8 @@ export async function PATCH(request: Request, context: RouteContext) {
         trackingNumber,
         hasCustomerVisibleNotes,
         customerVisibleNotes,
+        hasShipping,
+        shippingCents,
         orderNumber,
       ]
     );
@@ -305,5 +349,6 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 }
+
 
 

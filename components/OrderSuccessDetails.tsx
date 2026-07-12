@@ -104,9 +104,31 @@ function getDeliveryMethodLabel(method?: DeliveryMethod) {
   return "Por confirmar";
 }
 
-function getDeliveryInstructions(method?: DeliveryMethod) {
-  if (method === "shipping") {
-    return "Confirmaremos la dirección y los detalles de envío antes de preparar el pedido.";
+function isShippingPending(method?: DeliveryMethod, shipping = 0) {
+  return method === "shipping" && shipping <= 0;
+}
+
+function getShippingLabel(method?: DeliveryMethod, shipping = 0) {
+  if (method === "pickup") return "Sin costo · recoger en tienda";
+
+  return shipping > 0 ? formatMoney(shipping) : "Por confirmar";
+}
+
+function getTotalLabel(method?: DeliveryMethod, shipping = 0) {
+  if (isShippingPending(method, shipping)) {
+    return "Total estimado";
+  }
+
+  return "Total";
+}
+
+function getDeliveryInstructions(method?: DeliveryMethod, shipping = 0) {
+  if (method === "shipping" && shipping <= 0) {
+    return "Óptica OLM revisará tu dirección y confirmará el costo final de envío antes de que pagues.";
+  }
+
+  if (method === "shipping" && shipping > 0) {
+    return "El costo de envío ya fue confirmado por Óptica OLM.";
   }
 
   if (method === "pickup") {
@@ -116,13 +138,15 @@ function getDeliveryInstructions(method?: DeliveryMethod) {
   return "Te contactaremos para confirmar la forma de entrega.";
 }
 
-function getShippingLabel(method?: DeliveryMethod, shipping = 0) {
-  if (method === "pickup") return "Sin costo · recoger en tienda";
+function getPaymentMethodInstructions(
+  method?: PaymentMethod,
+  deliveryMethod?: DeliveryMethod,
+  shipping = 0
+) {
+  if (isShippingPending(deliveryMethod, shipping)) {
+    return "Espera a que Óptica OLM confirme el costo de envío y el total final antes de pagar.";
+  }
 
-  return shipping ? formatMoney(shipping) : "Por confirmar";
-}
-
-function getPaymentMethodInstructions(method?: PaymentMethod) {
   if (method === "bank_transfer") {
     return "Te enviaremos los datos bancarios para realizar la transferencia.";
   }
@@ -245,6 +269,7 @@ export default function OrderSuccessDetails() {
   const paymentMethod = getOrderPaymentMethod(order);
   const deliveryMethod = getOrderDeliveryMethod(order);
   const customerNotes = getOrderCustomerNotes(order);
+  const shippingPending = isShippingPending(deliveryMethod, shipping);
 
   return (
     <div>
@@ -280,6 +305,24 @@ export default function OrderSuccessDetails() {
           </p>
         </div>
       </div>
+
+      {shippingPending && (
+        <section className="mt-8 rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
+          <h2 className="text-2xl font-semibold text-yellow-900">
+            Envío por confirmar
+          </h2>
+
+          <p className="mt-3 text-sm text-yellow-800">
+            Tu pedido fue recibido, pero el costo de envío todavía está
+            pendiente. Te contactaremos para confirmar el envío y el total final.
+          </p>
+
+          <p className="mt-3 text-sm font-medium text-yellow-900">
+            No realices el pago todavía si elegiste transferencia bancaria.
+            Espera la confirmación final de Óptica OLM.
+          </p>
+        </section>
+      )}
 
       <div className="mt-8 grid gap-6 md:grid-cols-6">
         <div className="rounded-2xl border p-5">
@@ -320,7 +363,9 @@ export default function OrderSuccessDetails() {
         </div>
 
         <div className="rounded-2xl border p-5">
-          <p className="text-sm text-gray-500">Total</p>
+          <p className="text-sm text-gray-500">
+            {getTotalLabel(deliveryMethod, shipping)}
+          </p>
           <p className="mt-1 text-xl font-bold">{formatMoney(order.total)}</p>
         </div>
       </div>
@@ -333,7 +378,14 @@ export default function OrderSuccessDetails() {
         </p>
 
         <p className="mt-2 text-sm text-blue-900">
-          {getDeliveryInstructions(deliveryMethod)}
+          {getDeliveryInstructions(deliveryMethod, shipping)}
+        </p>
+
+        <p className="mt-3 text-sm text-blue-900">
+          Envío:{" "}
+          <span className="font-semibold">
+            {getShippingLabel(deliveryMethod, shipping)}
+          </span>
         </p>
       </section>
 
@@ -377,7 +429,9 @@ export default function OrderSuccessDetails() {
               <div>
                 <p className="text-gray-500">Ciudad</p>
                 <p className="mt-1 font-medium">
-                  {order.customer.city || "Por confirmar"}
+                  {deliveryMethod === "pickup"
+                    ? "Recoger en tienda"
+                    : order.customer.city || "Por confirmar"}
                 </p>
               </div>
 
@@ -480,9 +534,16 @@ export default function OrderSuccessDetails() {
 
           <div className="mt-6 border-t pt-6">
             <div className="flex justify-between text-lg font-semibold">
-              <span>Total</span>
+              <span>{getTotalLabel(deliveryMethod, shipping)}</span>
               <span>{formatMoney(order.total)}</span>
             </div>
+
+            {shippingPending && (
+              <p className="mt-3 text-sm text-yellow-700">
+                El total final puede cambiar cuando confirmemos el costo de
+                envío.
+              </p>
+            )}
           </div>
 
           <div className="mt-6 rounded-2xl bg-gray-50 p-5">
@@ -490,7 +551,12 @@ export default function OrderSuccessDetails() {
 
             <ol className="mt-4 space-y-3 text-sm text-gray-600">
               <li>1. Revisaremos tu pedido.</li>
-              <li>2. Confirmaremos tu información de entrega y graduación.</li>
+              <li>
+                2.{" "}
+                {shippingPending
+                  ? "Confirmaremos el costo de envío y total final."
+                  : "Confirmaremos tu información de entrega y graduación."}
+              </li>
               <li>3. Confirmaremos tu pago.</li>
             </ol>
 
@@ -502,7 +568,7 @@ export default function OrderSuccessDetails() {
               </p>
 
               <p className="mt-2 text-sm text-gray-600">
-                {getDeliveryInstructions(deliveryMethod)}
+                {getDeliveryInstructions(deliveryMethod, shipping)}
               </p>
             </div>
 
@@ -514,7 +580,11 @@ export default function OrderSuccessDetails() {
               </p>
 
               <p className="mt-2 text-sm text-gray-600">
-                {getPaymentMethodInstructions(paymentMethod)}
+                {getPaymentMethodInstructions(
+                  paymentMethod,
+                  deliveryMethod,
+                  shipping
+                )}
               </p>
             </div>
 
@@ -544,6 +614,7 @@ export default function OrderSuccessDetails() {
     </div>
   );
 }
+
 
 
 
