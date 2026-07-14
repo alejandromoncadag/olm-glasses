@@ -51,7 +51,7 @@ export default async function LocationDetailPage({
               Agendar examen de la vista
             </a>
             <a
-              href={`tel:+52${location.phone.replace(/\s/g, "")}`}
+              href={`tel:${location.phone.startsWith("+") ? "" : "+52"}${location.phone.replace(/\s/g, "")}`}
               className="rounded-full border border-black px-6 py-3"
             >
               Llamar al {location.phone}
