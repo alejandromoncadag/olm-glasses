@@ -1,5 +1,5 @@
 -- OLM Glasses PostgreSQL Schema
--- First database version for products, customers, orders, prescriptions, and inventory.
+-- First database version for products, customers, orders, prescriptions, inventory, and eye exam bookings.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- =========================
 -- ENUM TYPES
@@ -165,6 +165,32 @@ CREATE TABLE admin_users (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 -- =========================
+-- EYE EXAM BOOKINGS
+-- =========================
+CREATE TABLE eye_exam_bookings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_number TEXT NOT NULL,
+    location_slug TEXT NOT NULL,
+    location_name TEXT NOT NULL,
+    service_name TEXT NOT NULL,
+    appointment_date DATE NOT NULL,
+    appointment_time TEXT NOT NULL CHECK (
+        appointment_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+    ),
+    duration_minutes INTEGER NOT NULL CHECK (duration_minutes > 0),
+    customer_name TEXT NOT NULL,
+    customer_email TEXT NOT NULL,
+    customer_phone TEXT NOT NULL,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (
+        status IN ('pending', 'confirmed', 'cancelled', 'completed')
+    ),
+    google_calendar_event_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT eye_exam_bookings_booking_number_key UNIQUE (booking_number)
+);
+-- =========================
 -- INDEXES
 -- =========================
 CREATE INDEX idx_products_type ON products(type);
@@ -183,6 +209,14 @@ CREATE INDEX idx_order_items_product_id ON order_items(product_id);
 CREATE INDEX idx_prescriptions_order_item_id ON prescriptions(order_item_id);
 CREATE INDEX idx_inventory_movements_product_id ON inventory_movements(product_id);
 CREATE INDEX idx_inventory_movements_order_id ON inventory_movements(order_id);
+CREATE INDEX idx_eye_exam_bookings_customer_email ON eye_exam_bookings(customer_email);
+CREATE INDEX idx_eye_exam_bookings_location_date ON eye_exam_bookings(location_slug, appointment_date);
+CREATE INDEX idx_eye_exam_bookings_status ON eye_exam_bookings(status);
+CREATE UNIQUE INDEX idx_eye_exam_bookings_active_slot ON eye_exam_bookings(
+    location_slug,
+    appointment_date,
+    appointment_time
+) WHERE status IN ('pending', 'confirmed');
 -- =========================
 -- UPDATED_AT TRIGGER
 -- =========================
@@ -200,3 +234,5 @@ CREATE TRIGGER update_prescriptions_updated_at BEFORE
 UPDATE ON prescriptions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_admin_users_updated_at BEFORE
 UPDATE ON admin_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_eye_exam_bookings_updated_at BEFORE
+UPDATE ON eye_exam_bookings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

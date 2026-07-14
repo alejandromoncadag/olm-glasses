@@ -2,15 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import {
+  eyeExamServices as services,
+  eyeExamTimeSlots as timeSlots,
+  type EyeExamService,
+} from "@/data/eyeExamServices";
 import { locations, type Location } from "@/data/locations";
 import { getCurrentUser } from "@/lib/auth";
-
-type Service = {
-  id: string;
-  label: string;
-  duration: string;
-  price: string;
-};
 
 type ContactInfo = {
   fullName: string;
@@ -18,44 +16,15 @@ type ContactInfo = {
   phone: string;
 };
 
-const services: Service[] = [
-  {
-    id: "full",
-    label: "Examen completo de la vista",
-    duration: "30 min",
-    price: "$400 MXN",
-  },
-  {
-    id: "full-styling",
-    label: "Examen + asesoría de armazón",
-    duration: "45 min",
-    price: "$400 MXN",
-  },
-  {
-    id: "kids",
-    label: "Examen para niños",
-    duration: "30 min",
-    price: "$350 MXN",
-  },
-];
-
-const timeSlots = [
-  "10:00",
-  "10:30",
-  "11:00",
-  "11:30",
-  "12:00",
-  "12:30",
-  "14:00",
-  "14:30",
-  "15:00",
-  "15:30",
-  "16:00",
-  "16:30",
-  "17:00",
-  "17:30",
-  "18:00",
-];
+type CreateBookingResponse = {
+  booking?: {
+    id: string;
+    bookingNumber: string;
+    status: string;
+    createdAt: string;
+  };
+  error?: string;
+};
 
 function nextSevenDays() {
   const days = [];
@@ -85,6 +54,14 @@ function formatDateLong(date: Date) {
   }).format(date);
 }
 
+function formatDateForApi(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 type Step = 1 | 2 | 3 | 4 | 5;
 
 export default function EyeExamBooking() {
@@ -97,7 +74,7 @@ export default function EyeExamBooking() {
 
   const [step, setStep] = useState<Step>(1);
   const [location, setLocation] = useState<Location>(initialLocation);
-  const [service, setService] = useState<Service>(services[0]);
+  const [service, setService] = useState<EyeExamService>(services[0]);
   const [date, setDate] = useState<Date | null>(null);
   const [time, setTime] = useState<string | null>(null);
   const [contact, setContact] = useState<ContactInfo>({
@@ -109,6 +86,8 @@ export default function EyeExamBooking() {
     id: string;
     dateLabel: string;
   } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     const user = getCurrentUser();
@@ -130,35 +109,82 @@ export default function EyeExamBooking() {
     }
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!date || !time) return;
 
-    const id = `EX-${Date.now()}`;
     const dateLabel = formatDateLong(date);
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-    const booking = {
-      id,
-      locationSlug: location.slug,
-      locationName: location.name,
-      date: dateLabel,
-      time,
-      service: service.label,
-      fullName: contact.fullName,
-      email: contact.email,
-      phone: contact.phone,
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const response = await fetch("/api/eye-exam/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          locationSlug: location.slug,
+          serviceId: service.id,
+          appointmentDate: formatDateForApi(date),
+          appointmentTime: time,
+          customerName: contact.fullName,
+          customerEmail: contact.email,
+          customerPhone: contact.phone,
+        }),
+      });
 
-    const existing = JSON.parse(
-      localStorage.getItem("olm-eye-exam-bookings") || "[]"
-    );
-    localStorage.setItem(
-      "olm-eye-exam-bookings",
-      JSON.stringify([booking, ...existing])
-    );
+      const result = (await response
+        .json()
+        .catch(() => ({}))) as CreateBookingResponse;
 
-    setConfirmed({ id, dateLabel });
-    goTo(5);
+      if (!response.ok || !result.booking) {
+        throw new Error(
+          result.error || "No se pudo guardar la cita. Intenta de nuevo."
+        );
+      }
+
+      const cachedBooking = {
+        id: result.booking.id,
+        bookingNumber: result.booking.bookingNumber,
+        locationSlug: location.slug,
+        locationName: location.name,
+        date: dateLabel,
+        time,
+        service: service.label,
+        fullName: contact.fullName,
+        email: contact.email,
+        phone: contact.phone,
+        status: result.booking.status,
+        createdAt: result.booking.createdAt,
+      };
+
+      try {
+        const storedBookings = JSON.parse(
+          localStorage.getItem("olm-eye-exam-bookings") || "[]"
+        );
+        const existingBookings = Array.isArray(storedBookings)
+          ? storedBookings
+          : [];
+
+        localStorage.setItem(
+          "olm-eye-exam-bookings",
+          JSON.stringify([cachedBooking, ...existingBookings])
+        );
+      } catch (storageError) {
+        console.warn("Could not cache eye exam booking:", storageError);
+      }
+
+      setConfirmed({ id: result.booking.bookingNumber, dateLabel });
+      goTo(5);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar la cita. Intenta de nuevo."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (confirmed) {
@@ -184,7 +210,7 @@ export default function EyeExamBooking() {
         <h2 className="mt-6 text-3xl font-bold">¡Cita agendada!</h2>
 
         <p className="mt-3 text-gray-600">
-          Te enviamos los detalles a {contact.email}.
+          Tu cita quedó registrada. Conserva tu folio para cualquier cambio.
         </p>
 
         <div className="mt-8 grid gap-3 rounded-2xl bg-[#f7f3ee] p-6 text-left text-gray-700">
@@ -468,6 +494,15 @@ export default function EyeExamBooking() {
             </p>
           </div>
 
+          {submitError && (
+            <p
+              role="alert"
+              className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+              {submitError}
+            </p>
+          )}
+
           <div className="mt-8 flex justify-between">
             <button
               onClick={() => goTo(3)}
@@ -478,13 +513,14 @@ export default function EyeExamBooking() {
             <button
               onClick={handleConfirm}
               disabled={
+                isSubmitting ||
                 !contact.fullName.trim() ||
                 !contact.email.includes("@") ||
                 !contact.phone.trim()
               }
               className="rounded-full bg-black px-6 py-3 text-white disabled:cursor-not-allowed disabled:bg-gray-300"
             >
-              Confirmar cita
+              {isSubmitting ? "Agendando…" : "Confirmar cita"}
             </button>
           </div>
         </div>
