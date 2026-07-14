@@ -1,144 +1,155 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { login, signup } from "@/lib/auth";
 
-type Mode = "login" | "signup";
-
 type AuthFormProps = {
-  mode: Mode;
+  mode: "login" | "signup";
 };
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Something went wrong. Please try again.";
+}
+
 export default function AuthForm({ mode }: AuthFormProps) {
+  const router = useRouter();
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const [redirectPath, setRedirectPath] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const isLogin = mode === "login";
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get("redirect");
+
+    if (redirect) {
+      setRedirectPath(redirect);
+    }
+  }, []);
+
+  const baseSwitchHref = isLogin ? "/signup" : "/login";
+
+  const switchHref = redirectPath
+    ? `${baseSwitchHref}?redirect=${encodeURIComponent(redirectPath)}`
+    : baseSwitchHref;
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
 
-    if (mode === "signup" && !fullName.trim()) {
-      setError("Tu nombre es obligatorio.");
-      return;
+    try {
+      setIsSubmitting(true);
+      setError("");
+
+      if (isLogin) {
+        await login(email, password);
+      } else {
+        await signup(fullName, email, password);
+      }
+
+      router.push(redirectPath || "/");
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setError(getErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (!email.includes("@")) {
-      setError("Escribe un correo electrónico válido.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    const result =
-      mode === "login"
-        ? login(email, password)
-        : signup(fullName, email, password);
-
-    if ("error" in result) {
-      setError(result.error);
-      setSubmitting(false);
-      return;
-    }
-
-    const redirect =
-      new URLSearchParams(window.location.search).get("redirect") || "/account";
-    window.location.href = redirect;
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="mx-auto w-full max-w-md rounded-2xl border bg-white p-8"
-    >
-      <h1 className="text-3xl font-bold">
-        {mode === "login" ? "Inicia sesión" : "Crea tu cuenta"}
+    <form onSubmit={handleSubmit} className="mx-auto w-full max-w-md">
+      <h1 className="text-4xl font-bold">
+        {isLogin ? "Iniciar sesión" : "Crear cuenta"}
       </h1>
 
-      <p className="mt-2 text-sm text-gray-600">
-        {mode === "login"
-          ? "Bienvenido de vuelta a Óptica OLM."
-          : "Guarda tus favoritos, agenda exámenes y revisa tus pedidos."}
+      <p className="mt-4 text-gray-600">
+        {isLogin
+          ? "Entra a tu cuenta para continuar."
+          : "Crea una cuenta para guardar tus pedidos y favoritos."}
       </p>
 
-      <div className="mt-6 grid gap-4">
-        {mode === "signup" && (
-          <div>
-            <label className="text-sm font-medium">Nombre completo</label>
+      <div className="mt-8 space-y-5">
+        {!isLogin && (
+          <label className="block">
+            <span className="text-sm font-medium">Nombre completo</span>
             <input
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
+              required
               className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
               placeholder="Alejandro Moncada"
-              autoComplete="name"
             />
-          </div>
+          </label>
         )}
 
-        <div>
-          <label className="text-sm font-medium">Correo electrónico</label>
+        <label className="block">
+          <span className="text-sm font-medium">Email</span>
           <input
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            required
             className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-            placeholder="correo@email.com"
-            autoComplete="email"
+            placeholder="tu@email.com"
           />
-        </div>
+        </label>
 
-        <div>
-          <label className="text-sm font-medium">Contraseña</label>
+        <label className="block">
+          <span className="text-sm font-medium">Contraseña</span>
           <input
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
+            required
             className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-            placeholder="Mínimo 6 caracteres"
-            autoComplete={
-              mode === "login" ? "current-password" : "new-password"
-            }
+            placeholder="Tu contraseña"
           />
-        </div>
-
-        {error && (
-          <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="mt-2 rounded-full bg-black px-6 py-3 text-white disabled:cursor-not-allowed disabled:bg-gray-400"
-        >
-          {submitting
-            ? "Procesando…"
-            : mode === "login"
-            ? "Iniciar sesión"
-            : "Crear cuenta"}
-        </button>
+        </label>
       </div>
 
+      {error && (
+        <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="mt-8 w-full rounded-full bg-black px-6 py-3 font-medium text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+      >
+        {isSubmitting
+          ? isLogin
+            ? "Entrando..."
+            : "Creando cuenta..."
+          : isLogin
+            ? "Iniciar sesión"
+            : "Crear cuenta"}
+      </button>
+
       <p className="mt-6 text-center text-sm text-gray-600">
-        {mode === "login" ? (
+        {isLogin ? (
           <>
             ¿Aún no tienes cuenta?{" "}
-            <a href="/signup" className="font-medium text-black underline">
+            <a href={switchHref} className="font-medium text-black underline">
               Regístrate
             </a>
           </>
         ) : (
           <>
             ¿Ya tienes cuenta?{" "}
-            <a href="/login" className="font-medium text-black underline">
+            <a href={switchHref} className="font-medium text-black underline">
               Inicia sesión
             </a>
           </>
@@ -147,3 +158,4 @@ export default function AuthForm({ mode }: AuthFormProps) {
     </form>
   );
 }
+

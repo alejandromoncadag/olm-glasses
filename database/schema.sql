@@ -1,0 +1,202 @@
+-- OLM Glasses PostgreSQL Schema
+-- First database version for products, customers, orders, prescriptions, and inventory.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- =========================
+-- ENUM TYPES
+-- =========================
+CREATE TYPE product_type AS ENUM ('eyeglasses', 'sunglasses');
+CREATE TYPE product_gender AS ENUM ('hombre', 'mujer', 'unisex');
+CREATE TYPE product_shape AS ENUM (
+    'redondo',
+    'cuadrado',
+    'rectangular',
+    'aviador'
+);
+CREATE TYPE order_status AS ENUM (
+    'pending',
+    'processing',
+    'completed',
+    'cancelled'
+);
+CREATE TYPE payment_status AS ENUM (
+    'unpaid',
+    'pending',
+    'paid',
+    'failed',
+    'refunded'
+);
+CREATE TYPE inventory_movement_type AS ENUM (
+    'purchase',
+    'sale',
+    'return',
+    'adjustment'
+);
+CREATE TYPE admin_role AS ENUM ('owner', 'admin', 'staff');
+-- =========================
+-- PRODUCTS
+-- =========================
+CREATE TABLE products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    price_cents INTEGER NOT NULL CHECK (price_cents >= 0),
+    currency TEXT NOT NULL DEFAULT 'MXN',
+    category TEXT NOT NULL,
+    type product_type NOT NULL,
+    gender product_gender NOT NULL,
+    shape product_shape NOT NULL,
+    frame_color TEXT NOT NULL,
+    stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+
+-- =========================
+-- PRODUCT IMAGES
+-- =========================
+CREATE TABLE product_images (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    image_url TEXT NOT NULL,
+    alt_text TEXT,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    is_main BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (product_id, image_url)
+);
+
+-- =========================
+-- CUSTOMERS
+-- =========================
+CREATE TABLE customers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    address TEXT NOT NULL,
+    city TEXT NOT NULL,
+    state TEXT NOT NULL,
+    zip_code TEXT NOT NULL,
+    country TEXT NOT NULL DEFAULT 'México',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- =========================
+-- ORDERS
+-- =========================
+CREATE TABLE orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_number TEXT NOT NULL UNIQUE,
+    customer_id UUID NOT NULL REFERENCES customers(id),
+    status order_status NOT NULL DEFAULT 'pending',
+    payment_status payment_status NOT NULL DEFAULT 'unpaid',
+    subtotal_cents INTEGER NOT NULL CHECK (subtotal_cents >= 0),
+    shipping_cents INTEGER NOT NULL DEFAULT 0 CHECK (shipping_cents >= 0),
+    total_cents INTEGER NOT NULL CHECK (total_cents >= 0),
+    currency TEXT NOT NULL DEFAULT 'MXN',
+    customer_notes TEXT,
+    admin_notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- =========================
+-- ORDER ITEMS
+-- =========================
+CREATE TABLE order_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES products(id) ON DELETE
+    SET NULL,
+        product_name TEXT NOT NULL,
+        product_slug TEXT NOT NULL,
+        unit_price_cents INTEGER NOT NULL CHECK (unit_price_cents >= 0),
+        quantity INTEGER NOT NULL CHECK (quantity > 0),
+        lens_option TEXT NOT NULL,
+        prescription_method TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- =========================
+-- PRESCRIPTIONS
+-- =========================
+CREATE TABLE prescriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_item_id UUID NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
+    prescription_method TEXT NOT NULL,
+    file_url TEXT,
+    notes TEXT,
+    right_sphere TEXT,
+    right_cylinder TEXT,
+    right_axis TEXT,
+    left_sphere TEXT,
+    left_cylinder TEXT,
+    left_axis TEXT,
+    pd TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- =========================
+-- INVENTORY MOVEMENTS
+-- =========================
+CREATE TABLE inventory_movements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    movement_type inventory_movement_type NOT NULL,
+    quantity INTEGER NOT NULL,
+    previous_stock INTEGER NOT NULL CHECK (previous_stock >= 0),
+    new_stock INTEGER NOT NULL CHECK (new_stock >= 0),
+    reason TEXT,
+    order_id UUID REFERENCES orders(id) ON DELETE
+    SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- =========================
+-- ADMIN USERS
+-- =========================
+CREATE TABLE admin_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    role admin_role NOT NULL DEFAULT 'staff',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- =========================
+-- INDEXES
+-- =========================
+CREATE INDEX idx_products_type ON products(type);
+CREATE INDEX idx_products_is_active ON products(is_active);
+CREATE INDEX idx_products_stock ON products(stock);
+CREATE INDEX idx_products_category ON products(category);
+CREATE INDEX idx_product_images_product_id ON product_images(product_id);
+CREATE INDEX idx_customers_email ON customers(email);
+CREATE INDEX idx_customers_phone ON customers(phone);
+CREATE INDEX idx_orders_customer_id ON orders(customer_id);
+CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_payment_status ON orders(payment_status);
+CREATE INDEX idx_orders_created_at ON orders(created_at);
+CREATE INDEX idx_order_items_order_id ON order_items(order_id);
+CREATE INDEX idx_order_items_product_id ON order_items(product_id);
+CREATE INDEX idx_prescriptions_order_item_id ON prescriptions(order_item_id);
+CREATE INDEX idx_inventory_movements_product_id ON inventory_movements(product_id);
+CREATE INDEX idx_inventory_movements_order_id ON inventory_movements(order_id);
+-- =========================
+-- UPDATED_AT TRIGGER
+-- =========================
+CREATE OR REPLACE FUNCTION update_updated_at_column() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = NOW();
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER update_products_updated_at BEFORE
+UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_customers_updated_at BEFORE
+UPDATE ON customers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_orders_updated_at BEFORE
+UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_prescriptions_updated_at BEFORE
+UPDATE ON prescriptions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_admin_users_updated_at BEFORE
+UPDATE ON admin_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -10,11 +10,15 @@ export default function Navbar() {
   const { likes } = useLikes();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  function handleLogout() {
-    logout();
+  const isAdmin = user?.role === "admin";
+
+  async function handleLogout() {
+    await logout();
     setMenuOpen(false);
     window.location.href = "/";
   }
+
+
 
   return (
     <header className="border-b bg-white text-black">
@@ -27,14 +31,21 @@ export default function Navbar() {
           <a href="/eyeglasses" className="hover:underline">
             Lentes ópticos
           </a>
+
           <a href="/sunglasses" className="hover:underline">
             Lentes de sol
           </a>
+
           <a href="/eye-exam" className="hover:underline">
             Examen de vista
           </a>
+
           <a href="/locations" className="hover:underline">
             Tiendas
+          </a>
+
+          <a href="/order-status" className="hover:underline">
+            Consultar pedido
           </a>
         </div>
 
@@ -46,6 +57,7 @@ export default function Navbar() {
           >
             <HeartIcon filled={likes.length > 0} />
             <span className="hidden sm:inline">Favoritos</span>
+
             {likes.length > 0 && (
               <span className="ml-1 rounded-full bg-black px-2 py-0.5 text-xs text-white">
                 {likes.length}
@@ -66,37 +78,51 @@ export default function Navbar() {
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black text-xs text-white">
                   {user.fullName.charAt(0).toUpperCase()}
                 </span>
+
                 <span className="hidden sm:inline">
                   {user.fullName.split(" ")[0]}
                 </span>
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl border bg-white p-2 shadow-lg">
+                <div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-2xl border bg-white p-2 shadow-lg">
                   <a
                     href="/account"
                     className="block rounded-xl px-4 py-2 hover:bg-gray-100"
                   >
                     Mi cuenta
                   </a>
+
                   <a
                     href="/likes"
                     className="block rounded-xl px-4 py-2 hover:bg-gray-100"
                   >
                     Mis favoritos
                   </a>
+
+                  <a
+                    href="/order-status"
+                    className="block rounded-xl px-4 py-2 hover:bg-gray-100"
+                  >
+                    Consultar pedido
+                  </a>
+
                   <a
                     href="/eye-exam"
                     className="block rounded-xl px-4 py-2 hover:bg-gray-100"
                   >
                     Examen de vista
                   </a>
-                  <a
-                    href="/admin/orders"
-                    className="block rounded-xl px-4 py-2 hover:bg-gray-100"
-                  >
-                    Admin
-                  </a>
+
+                  {isAdmin && (
+                    <a
+                      href="/admin"
+                      className="block rounded-xl px-4 py-2 hover:bg-gray-100"
+                    >
+                      Admin
+                    </a>
+                  )}
+
                   <button
                     onClick={handleLogout}
                     className="block w-full rounded-xl px-4 py-2 text-left hover:bg-gray-100"
@@ -138,3 +164,4 @@ function HeartIcon({ filled }: { filled: boolean }) {
     </svg>
   );
 }
+

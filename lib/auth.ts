@@ -1,8 +1,12 @@
 "use client";
 
+export type UserRole = "admin" | "customer";
+
 export type User = {
   email: string;
   fullName: string;
+  role: UserRole;
+  adminRole?: string;
 };
 
 type StoredUser = User & { password: string };
@@ -12,6 +16,7 @@ const USERS_KEY = "olm-users";
 
 function safeParse<T>(value: string | null, fallback: T): T {
   if (!value) return fallback;
+
   try {
     return JSON.parse(value) as T;
   } catch {
@@ -19,30 +24,121 @@ function safeParse<T>(value: string | null, fallback: T): T {
   }
 }
 
+function notify() {
+  window.dispatchEvent(new Event("olm-auth-change"));
+}
+
+function normalizeStoredUser(user: Partial<StoredUser>): StoredUser {
+  return {
+    email: String(user.email || "").trim().toLowerCase(),
+    fullName: String(user.fullName || "Cliente OLM"),
+    password: String(user.password || ""),
+    role: "customer",
+  };
+}
+
 export function getCurrentUser(): User | null {
   if (typeof window === "undefined") return null;
-  return safeParse<User | null>(localStorage.getItem(SESSION_KEY), null);
+
+  const savedUser = safeParse<Partial<User> | null>(
+    localStorage.getItem(SESSION_KEY),
+    null
+  );
+
+  if (!savedUser?.email) {
+    return null;
+  }
+
+  return {
+    email: savedUser.email.trim().toLowerCase(),
+    fullName: savedUser.fullName || "Cliente OLM",
+    role: savedUser.role === "admin" ? "admin" : "customer",
+    adminRole: savedUser.adminRole,
+  };
 }
 
 function getUsers(): StoredUser[] {
   if (typeof window === "undefined") return [];
-  return safeParse<StoredUser[]>(localStorage.getItem(USERS_KEY), []);
+
+  return safeParse<Partial<StoredUser>[]>(
+    localStorage.getItem(USERS_KEY),
+    []
+  ).map(normalizeStoredUser);
 }
 
 function saveUsers(users: StoredUser[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-function notify() {
-  window.dispatchEvent(new Event("olm-auth-change"));
+export async function getBackendAdminUser(): Promise<User | null> {
+  try {
+    const response = await fetch("/api/auth/me", {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (!data.user) {
+      return null;
+    }
+
+    return {
+      email: data.user.email,
+      fullName: data.user.fullName,
+      role: "admin",
+      adminRole: data.user.adminRole,
+    };
+  } catch {
+    return null;
+  }
 }
 
-export function login(
+export async function login(
   email: string,
   password: string
-): { user: User } | { error: string } {
+): Promise<{ user: User } | { error: string }> {
   const normalizedEmail = email.trim().toLowerCase();
+
+  try {
+    const adminResponse = await fetch("/api/auth/admin-login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        email: normalizedEmail,
+        password,
+      }),
+    });
+
+    if (adminResponse.ok) {
+      const data = await adminResponse.json();
+
+      const session: User = {
+        email: data.user.email,
+        fullName: data.user.fullName,
+        role: "admin",
+        adminRole: data.user.adminRole,
+      };
+
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      notify();
+
+      return { user: session };
+    }
+  } catch {
+    // If backend admin login fails because the server is unavailable,
+    // continue and try customer local login below.
+  }
+
   const users = getUsers();
+
   const match = users.find(
     (user) => user.email === normalizedEmail && user.password === password
   );
@@ -51,18 +147,23 @@ export function login(
     return { error: "Correo o contraseña incorrectos." };
   }
 
-  const session: User = { email: match.email, fullName: match.fullName };
+  const session: User = {
+    email: match.email,
+    fullName: match.fullName,
+    role: "customer",
+  };
+
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   notify();
 
   return { user: session };
 }
 
-export function signup(
+export async function signup(
   fullName: string,
   email: string,
   password: string
-): { user: User } | { error: string } {
+): Promise<{ user: User } | { error: string }> {
   const normalizedEmail = email.trim().toLowerCase();
   const users = getUsers();
 
@@ -74,19 +175,37 @@ export function signup(
     fullName: fullName.trim(),
     email: normalizedEmail,
     password,
+    role: "customer",
   };
 
   saveUsers([...users, newUser]);
 
-  const session: User = { email: newUser.email, fullName: newUser.fullName };
+  const session: User = {
+    email: newUser.email,
+    fullName: newUser.fullName,
+    role: "customer",
+  };
+
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   notify();
 
   return { user: session };
 }
 
-export function logout() {
+export async function logout() {
   if (typeof window === "undefined") return;
+
+  try {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    // Keep local logout working even if the backend request fails.
+  }
+
   localStorage.removeItem(SESSION_KEY);
   notify();
 }
+
+

@@ -1,0 +1,473 @@
+import { NextResponse } from "next/server";
+import { pool } from "@/lib/db";
+import {
+  getAuthenticatedAdmin,
+  unauthorizedAdminResponse,
+} from "@/lib/requireAdmin";
+
+export const runtime = "nodejs";
+
+type RouteContext = {
+  params: Promise<{
+    orderNumber: string;
+  }>;
+};
+
+type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
+
+type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
+
+type UpdateOrderInput = {
+  status?: OrderStatus;
+  paymentStatus?: PaymentStatus;
+  shipping?: number;
+  adminNotes?: string;
+  shippingCarrier?: string;
+  trackingNumber?: string;
+  customerVisibleNotes?: string;
+};
+
+const allowedOrderStatuses: OrderStatus[] = [
+  "pending",
+  "processing",
+  "completed",
+  "cancelled",
+];
+
+const allowedPaymentStatuses: PaymentStatus[] = [
+  "unpaid",
+  "pending",
+  "paid",
+  "failed",
+  "refunded",
+];
+
+function hasField(object: object, field: string) {
+  return Object.prototype.hasOwnProperty.call(object, field);
+}
+
+function cleanNullableText(value: string | undefined) {
+  if (value === undefined) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function getShippingCents(value: unknown) {
+  const shipping = Number(value);
+
+  if (!Number.isFinite(shipping) || shipping < 0) {
+    return null;
+  }
+
+  if (shipping > 10000) {
+    return null;
+  }
+
+  return Math.round(shipping * 100);
+}
+
+export async function GET(_request: Request, context: RouteContext) {
+  const admin = await getAuthenticatedAdmin();
+
+  if (!admin) {
+    return unauthorizedAdminResponse();
+  }
+
+  try {
+    const { orderNumber } = await context.params;
+
+    const orderResult = await pool.query(
+      `
+      SELECT
+        orders.id,
+        orders.order_number,
+        orders.status,
+        orders.customer_id,
+        orders.payment_status,
+        orders.payment_method,
+        orders.delivery_method,
+        orders.subtotal_cents,
+        orders.shipping_cents,
+        orders.total_cents,
+        orders.currency,
+        orders.customer_notes,
+        orders.admin_notes,
+        orders.shipping_carrier,
+        orders.tracking_number,
+        orders.customer_visible_notes,
+        orders.created_at,
+        orders.updated_at,
+        customers.full_name,
+        customers.email,
+        customers.phone,
+        customers.address,
+        customers.city,
+        customers.state,
+        customers.zip_code,
+        customers.country
+      FROM orders
+      JOIN customers ON customers.id = orders.customer_id
+      WHERE orders.order_number = $1
+      LIMIT 1;
+      `,
+      [orderNumber]
+    );
+
+    if (orderResult.rows.length === 0) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    const order = orderResult.rows[0];
+
+    const itemsResult = await pool.query(
+      `
+      SELECT
+        id,
+        product_id,
+        product_name,
+        product_slug,
+        unit_price_cents,
+        quantity,
+        lens_option,
+        prescription_method,
+        created_at
+      FROM order_items
+      WHERE order_id = $1
+      ORDER BY created_at ASC;
+      `,
+      [order.id]
+    );
+
+    return NextResponse.json({
+      order: {
+        id: order.id,
+        orderNumber: order.order_number,
+        status: order.status,
+        paymentStatus: order.payment_status,
+        paymentMethod: order.payment_method,
+        deliveryMethod: order.delivery_method,
+        subtotal: order.subtotal_cents / 100,
+        subtotalCents: order.subtotal_cents,
+        shipping: order.shipping_cents / 100,
+        shippingCents: order.shipping_cents,
+        total: order.total_cents / 100,
+        totalCents: order.total_cents,
+        currency: order.currency,
+        customerNotes: order.customer_notes,
+        adminNotes: order.admin_notes,
+        shippingCarrier: order.shipping_carrier,
+        trackingNumber: order.tracking_number,
+        customerVisibleNotes: order.customer_visible_notes,
+        createdAt: order.created_at,
+        updatedAt: order.updated_at,
+        customer: {
+          id: order.customer_id,
+          fullName: order.full_name,
+          email: order.email,
+          phone: order.phone,
+          address: order.address,
+          city: order.city,
+          state: order.state,
+          zipCode: order.zip_code,
+          country: order.country,
+        },
+        items: itemsResult.rows.map((item) => ({
+          id: item.id,
+          productId: item.product_id,
+          productName: item.product_name,
+          productSlug: item.product_slug,
+          unitPrice: item.unit_price_cents / 100,
+          unitPriceCents: item.unit_price_cents,
+          quantity: item.quantity,
+          lineTotal: (item.unit_price_cents * item.quantity) / 100,
+          lensOption: item.lens_option,
+          prescriptionMethod: item.prescription_method,
+          createdAt: item.created_at,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching order:", error);
+
+    return NextResponse.json(
+      { error: "Failed to fetch order" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: Request, context: RouteContext) {
+  const admin = await getAuthenticatedAdmin();
+
+  if (!admin) {
+    return unauthorizedAdminResponse();
+  }
+
+  const client = await pool.connect();
+  let transactionStarted = false;
+
+  try {
+    const { orderNumber } = await context.params;
+    const body = (await request.json()) as UpdateOrderInput;
+
+    if (body.status && !allowedOrderStatuses.includes(body.status)) {
+      return NextResponse.json(
+        { error: "Invalid order status" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      body.paymentStatus &&
+      !allowedPaymentStatuses.includes(body.paymentStatus)
+    ) {
+      return NextResponse.json(
+        { error: "Invalid payment status" },
+        { status: 400 }
+      );
+    }
+
+    const hasAdminNotes = hasField(body, "adminNotes");
+    const hasShipping = hasField(body, "shipping");
+    const hasShippingCarrier = hasField(body, "shippingCarrier");
+    const hasTrackingNumber = hasField(body, "trackingNumber");
+    const hasCustomerVisibleNotes = hasField(body, "customerVisibleNotes");
+
+    const adminNotes = cleanNullableText(body.adminNotes);
+    const shippingCarrier = cleanNullableText(body.shippingCarrier);
+    const trackingNumber = cleanNullableText(body.trackingNumber);
+    const customerVisibleNotes = cleanNullableText(body.customerVisibleNotes);
+
+    const shippingCents = hasShipping ? getShippingCents(body.shipping) : null;
+
+    if (hasShipping && shippingCents === null) {
+      return NextResponse.json(
+        { error: "Shipping must be a valid amount" },
+        { status: 400 }
+      );
+    }
+
+    await client.query("BEGIN");
+    transactionStarted = true;
+
+    const currentOrderResult = await client.query(
+      `
+      SELECT
+        id,
+        order_number,
+        status
+      FROM orders
+      WHERE order_number = $1
+      FOR UPDATE;
+      `,
+      [orderNumber]
+    );
+
+    if (currentOrderResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      transactionStarted = false;
+
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    const currentOrder = currentOrderResult.rows[0];
+
+    if (currentOrder.status === "cancelled" && body.status !== "cancelled") {
+      await client.query("ROLLBACK");
+      transactionStarted = false;
+
+      return NextResponse.json(
+        {
+          error:
+            "Cancelled orders cannot be reopened because stock was already restored.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const shouldRestoreStock =
+      body.status === "cancelled" && currentOrder.status !== "cancelled";
+
+    if (shouldRestoreStock) {
+      const orderItemsResult = await client.query(
+        `
+        SELECT
+          order_items.product_id,
+          order_items.product_name,
+          order_items.product_slug,
+          order_items.quantity
+        FROM order_items
+        WHERE order_items.order_id = $1;
+        `,
+        [currentOrder.id]
+      );
+
+      for (const item of orderItemsResult.rows) {
+        const productResult = await client.query(
+          `
+          SELECT
+            id,
+            stock
+          FROM products
+          WHERE id = $1
+          FOR UPDATE;
+          `,
+          [item.product_id]
+        );
+
+        if (productResult.rows.length === 0) {
+          throw new Error(`Product not found for cancelled order item.`);
+        }
+
+        const product = productResult.rows[0];
+        const previousStock = Number(product.stock);
+        const restoredQuantity = Number(item.quantity);
+        const newStock = previousStock + restoredQuantity;
+
+        await client.query(
+          `
+          UPDATE products
+          SET stock = $1
+          WHERE id = $2;
+          `,
+          [newStock, item.product_id]
+        );
+
+        await client.query(
+          `
+          INSERT INTO inventory_movements (
+            product_id,
+            movement_type,
+            quantity,
+            previous_stock,
+            new_stock,
+            reason,
+            order_id
+          ) VALUES ($1, 'return', $2, $3, $4, $5, $6);
+          `,
+          [
+            item.product_id,
+            restoredQuantity,
+            previousStock,
+            newStock,
+            `Order cancelled: ${orderNumber}`,
+            currentOrder.id,
+          ]
+        );
+      }
+    }
+
+    const result = await client.query(
+      `
+      UPDATE orders
+      SET
+        status = COALESCE($1::order_status, status),
+        payment_status = COALESCE($2::payment_status, payment_status),
+        admin_notes = CASE WHEN $3::boolean THEN $4::text ELSE admin_notes END,
+        shipping_carrier = CASE WHEN $5::boolean THEN $6::text ELSE shipping_carrier END,
+        tracking_number = CASE WHEN $7::boolean THEN $8::text ELSE tracking_number END,
+        customer_visible_notes = CASE WHEN $9::boolean THEN $10::text ELSE customer_visible_notes END,
+        shipping_cents = CASE
+          WHEN $11::boolean THEN
+            CASE
+              WHEN delivery_method = 'pickup' THEN 0
+              ELSE $12::integer
+            END
+          ELSE shipping_cents
+        END,
+        total_cents = CASE
+          WHEN $11::boolean THEN
+            subtotal_cents +
+            CASE
+              WHEN delivery_method = 'pickup' THEN 0
+              ELSE $12::integer
+            END
+          ELSE total_cents
+        END,
+        updated_at = now()
+      WHERE order_number = $13
+      RETURNING
+        id,
+        order_number,
+        status,
+        payment_status,
+        payment_method,
+        delivery_method,
+        subtotal_cents,
+        shipping_cents,
+        total_cents,
+        currency,
+        customer_notes,
+        admin_notes,
+        shipping_carrier,
+        tracking_number,
+        customer_visible_notes,
+        created_at,
+        updated_at;
+      `,
+      [
+        body.status || null,
+        body.paymentStatus || null,
+        hasAdminNotes,
+        adminNotes,
+        hasShippingCarrier,
+        shippingCarrier,
+        hasTrackingNumber,
+        trackingNumber,
+        hasCustomerVisibleNotes,
+        customerVisibleNotes,
+        hasShipping,
+        shippingCents,
+        orderNumber,
+      ]
+    );
+
+    const order = result.rows[0];
+
+    await client.query("COMMIT");
+    transactionStarted = false;
+
+    return NextResponse.json({
+      order: {
+        id: order.id,
+        orderNumber: order.order_number,
+        status: order.status,
+        paymentStatus: order.payment_status,
+        paymentMethod: order.payment_method,
+        deliveryMethod: order.delivery_method,
+        subtotal: order.subtotal_cents / 100,
+        shipping: order.shipping_cents / 100,
+        total: order.total_cents / 100,
+        currency: order.currency,
+        customerNotes: order.customer_notes,
+        adminNotes: order.admin_notes,
+        shippingCarrier: order.shipping_carrier,
+        trackingNumber: order.tracking_number,
+        customerVisibleNotes: order.customer_visible_notes,
+        createdAt: order.created_at,
+        updatedAt: order.updated_at,
+        restoredStock: shouldRestoreStock,
+      },
+    });
+  } catch (error) {
+    if (transactionStarted) {
+      await client.query("ROLLBACK");
+    }
+
+    console.error("Error updating order:", error);
+
+    return NextResponse.json(
+      { error: "Failed to update order" },
+      { status: 500 }
+    );
+  } finally {
+    client.release();
+  }
+}
+
+
+

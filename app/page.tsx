@@ -1,10 +1,5 @@
-import ProductGrid from "@/components/ProductGrid";
-import { products } from "@/data/products";
+import FeaturedProductsFromDb from "@/components/FeaturedProductsFromDb";
 import { locations } from "@/data/locations";
-
-const featuredProducts = products
-  .filter((product) => product.isActive)
-  .slice(0, 3);
 
 const valueProps = [
   {
@@ -89,7 +84,7 @@ export default function Home() {
           </a>
         </div>
 
-        <ProductGrid products={featuredProducts} />
+        <FeaturedProductsFromDb />
       </section>
 
       <section className="bg-[#f7f3ee] px-6 py-20">
@@ -154,3 +149,4 @@ export default function Home() {
     </main>
   );
 }
+
