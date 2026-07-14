@@ -207,6 +207,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     return unauthorizedAdminResponse();
   }
 
+  const client = await pool.connect();
+  let transactionStarted = false;
+
   try {
     const { orderNumber } = await context.params;
     const body = (await request.json()) as UpdateOrderInput;
@@ -248,7 +251,117 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
-    const result = await pool.query(
+    await client.query("BEGIN");
+    transactionStarted = true;
+
+    const currentOrderResult = await client.query(
+      `
+      SELECT
+        id,
+        order_number,
+        status
+      FROM orders
+      WHERE order_number = $1
+      FOR UPDATE;
+      `,
+      [orderNumber]
+    );
+
+    if (currentOrderResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      transactionStarted = false;
+
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    const currentOrder = currentOrderResult.rows[0];
+
+    if (currentOrder.status === "cancelled" && body.status !== "cancelled") {
+      await client.query("ROLLBACK");
+      transactionStarted = false;
+
+      return NextResponse.json(
+        {
+          error:
+            "Cancelled orders cannot be reopened because stock was already restored.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const shouldRestoreStock =
+      body.status === "cancelled" && currentOrder.status !== "cancelled";
+
+    if (shouldRestoreStock) {
+      const orderItemsResult = await client.query(
+        `
+        SELECT
+          order_items.product_id,
+          order_items.product_name,
+          order_items.product_slug,
+          order_items.quantity
+        FROM order_items
+        WHERE order_items.order_id = $1;
+        `,
+        [currentOrder.id]
+      );
+
+      for (const item of orderItemsResult.rows) {
+        const productResult = await client.query(
+          `
+          SELECT
+            id,
+            stock
+          FROM products
+          WHERE id = $1
+          FOR UPDATE;
+          `,
+          [item.product_id]
+        );
+
+        if (productResult.rows.length === 0) {
+          throw new Error(`Product not found for cancelled order item.`);
+        }
+
+        const product = productResult.rows[0];
+        const previousStock = Number(product.stock);
+        const restoredQuantity = Number(item.quantity);
+        const newStock = previousStock + restoredQuantity;
+
+        await client.query(
+          `
+          UPDATE products
+          SET stock = $1
+          WHERE id = $2;
+          `,
+          [newStock, item.product_id]
+        );
+
+        await client.query(
+          `
+          INSERT INTO inventory_movements (
+            product_id,
+            movement_type,
+            quantity,
+            previous_stock,
+            new_stock,
+            reason,
+            order_id
+          ) VALUES ($1, 'return', $2, $3, $4, $5, $6);
+          `,
+          [
+            item.product_id,
+            restoredQuantity,
+            previousStock,
+            newStock,
+            `Order cancelled: ${orderNumber}`,
+            currentOrder.id,
+          ]
+        );
+      }
+    }
+
+    const result = await client.query(
       `
       UPDATE orders
       SET
@@ -313,11 +426,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       ]
     );
 
-    if (result.rows.length === 0) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
-
     const order = result.rows[0];
+
+    await client.query("COMMIT");
+    transactionStarted = false;
 
     return NextResponse.json({
       order: {
@@ -338,15 +450,22 @@ export async function PATCH(request: Request, context: RouteContext) {
         customerVisibleNotes: order.customer_visible_notes,
         createdAt: order.created_at,
         updatedAt: order.updated_at,
+        restoredStock: shouldRestoreStock,
       },
     });
   } catch (error) {
+    if (transactionStarted) {
+      await client.query("ROLLBACK");
+    }
+
     console.error("Error updating order:", error);
 
     return NextResponse.json(
       { error: "Failed to update order" },
       { status: 500 }
     );
+  } finally {
+    client.release();
   }
 }
 
