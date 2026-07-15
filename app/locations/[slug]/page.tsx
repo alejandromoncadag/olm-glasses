@@ -1,4 +1,5 @@
 import { getLocationBySlug, locations } from "@/data/locations";
+import { createWhatsAppLink } from "@/lib/whatsapp";
 import { notFound } from "next/navigation";
 
 type LocationPageProps = {
@@ -56,6 +57,19 @@ export default async function LocationDetailPage({
             >
               Llamar al {location.phone}
             </a>
+            {location.whatsapp && (
+              <a
+                href={createWhatsAppLink(
+                  `Hola, quiero información de ${location.name}.`,
+                  location.whatsapp
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border border-black px-6 py-3 transition hover:bg-black hover:text-white"
+              >
+                Escribir por WhatsApp
+              </a>
+            )}
           </div>
         </div>
       </section>

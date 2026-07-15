@@ -9,6 +9,7 @@ import {
 } from "@/data/eyeExamServices";
 import { locations, type Location } from "@/data/locations";
 import { getCurrentUser } from "@/lib/auth";
+import { createWhatsAppLink } from "@/lib/whatsapp";
 
 type ContactInfo = {
   fullName: string;
@@ -231,13 +232,26 @@ export default function EyeExamBooking() {
           </p>
         </div>
 
-        <div className="mt-8 flex justify-center gap-3">
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
           <a
             href="/account"
             className="rounded-full bg-black px-6 py-3 text-white"
           >
             Ver mis citas
           </a>
+          {location.whatsapp && (
+            <a
+              href={createWhatsAppLink(
+                `Hola, tengo una pregunta sobre mi cita ${confirmed.id}.`,
+                location.whatsapp
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-black px-6 py-3 transition hover:bg-black hover:text-white"
+            >
+              Preguntar por WhatsApp
+            </a>
+          )}
           <a
             href="/eyeglasses"
             className="rounded-full border border-black px-6 py-3"

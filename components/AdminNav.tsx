@@ -16,6 +16,10 @@ const navItems = [
     href: "/admin/orders",
   },
   {
+    label: "Exámenes",
+    href: "/admin/eye-exams",
+  },
+  {
     label: "Clientes",
     href: "/admin/customers",
   },
@@ -70,6 +74,5 @@ export default function AdminNav() {
     </nav>
   );
 }
-
 
 

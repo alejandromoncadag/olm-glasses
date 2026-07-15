@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import LikeButton from "@/components/LikeButton";
 import ProductPurchasePanel from "@/components/ProductPurchasePanel";
+import { createWhatsAppLink } from "@/lib/whatsapp";
 
 type ProductImage = {
   id: string;
@@ -292,6 +293,17 @@ export default function ProductPage() {
             />
           )}
 
+          <a
+            href={createWhatsAppLink(
+              `Hola, quiero más información sobre el armazón ${product.name}.`
+            )}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 block rounded-full border border-black px-6 py-3 text-center font-medium transition hover:bg-black hover:text-white"
+          >
+            Preguntar por WhatsApp
+          </a>
+
           <p className="mt-4 text-center text-sm text-gray-500">
             Pago seguro en pesos mexicanos.
           </p>
@@ -346,4 +358,3 @@ export default function ProductPage() {
     </main>
   );
 }
-

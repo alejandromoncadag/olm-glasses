@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createWhatsAppLink } from "@/lib/whatsapp";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
@@ -603,6 +604,17 @@ export default function OrderSuccessDetails() {
             </a>
 
             <a
+              href={createWhatsAppLink(
+                `Hola, tengo una pregunta sobre mi pedido ${order.orderNumber}.`
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-black px-6 py-3 text-center transition hover:bg-black hover:text-white"
+            >
+              Preguntar por WhatsApp
+            </a>
+
+            <a
               href="/eyeglasses"
               className="rounded-full border px-6 py-3 text-center"
             >
@@ -614,7 +626,6 @@ export default function OrderSuccessDetails() {
     </div>
   );
 }
-
 
 
 

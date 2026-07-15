@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { createWhatsAppLink } from "@/lib/whatsapp";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
@@ -709,6 +710,17 @@ export default function OrderStatusPage() {
                     Seguir comprando
                   </a>
 
+                  <a
+                    href={createWhatsAppLink(
+                      `Hola, tengo una pregunta sobre mi pedido ${order.orderNumber}.`
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-black px-6 py-3 text-center transition hover:bg-black hover:text-white"
+                  >
+                    Preguntar por WhatsApp
+                  </a>
+
                   <a href="/" className="rounded-full border px-6 py-3 text-center">
                     Ir al inicio
                   </a>
@@ -721,6 +733,5 @@ export default function OrderStatusPage() {
     </main>
   );
 }
-
 
 

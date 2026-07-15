@@ -6,6 +6,10 @@ import {
 } from "@/data/eyeExamServices";
 import { getLocationBySlug } from "@/data/locations";
 import { pool } from "@/lib/db";
+import {
+  getAuthenticatedAdmin,
+  unauthorizedAdminResponse,
+} from "@/lib/requireAdmin";
 
 export const runtime = "nodejs";
 
@@ -27,6 +31,21 @@ type BookingRow = {
   booking_number: string;
   status: "pending" | "confirmed" | "cancelled" | "completed";
   created_at: Date;
+};
+
+type AdminBookingRow = BookingRow & {
+  location_slug: string;
+  location_name: string;
+  service_name: string;
+  appointment_date: string;
+  appointment_time: string;
+  duration_minutes: number;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  notes: string | null;
+  google_calendar_event_id: string | null;
+  updated_at: Date;
 };
 
 type PostgresError = {
@@ -218,6 +237,70 @@ async function insertBooking(input: ValidatedBookingInput) {
   }
 
   throw new Error("Could not generate a unique eye exam booking number");
+}
+
+function serializeAdminBooking(booking: AdminBookingRow) {
+  return {
+    id: booking.id,
+    bookingNumber: booking.booking_number,
+    locationSlug: booking.location_slug,
+    locationName: booking.location_name,
+    serviceName: booking.service_name,
+    appointmentDate: booking.appointment_date,
+    appointmentTime: booking.appointment_time,
+    durationMinutes: booking.duration_minutes,
+    customerName: booking.customer_name,
+    customerEmail: booking.customer_email,
+    customerPhone: booking.customer_phone,
+    notes: booking.notes,
+    status: booking.status,
+    googleCalendarEventId: booking.google_calendar_event_id,
+    createdAt: booking.created_at,
+    updatedAt: booking.updated_at,
+  };
+}
+
+export async function GET() {
+  const admin = await getAuthenticatedAdmin();
+
+  if (!admin) {
+    return unauthorizedAdminResponse();
+  }
+
+  try {
+    const result = await pool.query<AdminBookingRow>(`
+      SELECT
+        id,
+        booking_number,
+        location_slug,
+        location_name,
+        service_name,
+        appointment_date,
+        appointment_time,
+        duration_minutes,
+        customer_name,
+        customer_email,
+        customer_phone,
+        notes,
+        status,
+        google_calendar_event_id,
+        created_at,
+        updated_at
+      FROM eye_exam_bookings
+      ORDER BY appointment_date ASC, appointment_time ASC, created_at ASC;
+    `);
+
+    return NextResponse.json({
+      bookings: result.rows.map(serializeAdminBooking),
+    });
+  } catch (error) {
+    console.error("Error fetching eye exam bookings:", error);
+
+    return NextResponse.json(
+      { error: "No se pudieron cargar las citas." },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: Request) {
