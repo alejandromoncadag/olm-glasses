@@ -49,12 +49,35 @@ export function getCurrentUser(): User | null {
     return null;
   }
 
+  const email = savedUser.email.trim().toLowerCase();
+  const role = savedUser.role === "admin" ? "admin" : "customer";
+
+  if (
+    role === "customer" &&
+    !getUsers().some((registeredUser) => registeredUser.email === email)
+  ) {
+    clearCurrentUser();
+    return null;
+  }
+
   return {
-    email: savedUser.email.trim().toLowerCase(),
+    email,
     fullName: savedUser.fullName || "Cliente OLM",
-    role: savedUser.role === "admin" ? "admin" : "customer",
+    role,
     adminRole: savedUser.adminRole,
   };
+}
+
+export function storeCurrentUser(user: User) {
+  if (typeof window === "undefined") return;
+
+  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+}
+
+export function clearCurrentUser() {
+  if (typeof window === "undefined") return;
+
+  localStorage.removeItem(SESSION_KEY);
 }
 
 function getUsers(): StoredUser[] {
@@ -127,7 +150,7 @@ export async function login(
         adminRole: data.user.adminRole,
       };
 
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      storeCurrentUser(session);
       notify();
 
       return { user: session };
@@ -153,7 +176,7 @@ export async function login(
     role: "customer",
   };
 
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  storeCurrentUser(session);
   notify();
 
   return { user: session };
@@ -186,7 +209,7 @@ export async function signup(
     role: "customer",
   };
 
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  storeCurrentUser(session);
   notify();
 
   return { user: session };
@@ -204,8 +227,7 @@ export async function logout() {
     // Keep local logout working even if the backend request fails.
   }
 
-  localStorage.removeItem(SESSION_KEY);
+  clearCurrentUser();
   notify();
 }
-
 

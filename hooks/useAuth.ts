@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import {
+  clearCurrentUser,
   getBackendAdminUser,
   getCurrentUser,
+  storeCurrentUser,
   type User,
 } from "@/lib/auth";
 
@@ -20,10 +22,10 @@ export function useAuth() {
       const backendAdminUser = await getBackendAdminUser();
 
       if (backendAdminUser) {
-        localStorage.setItem("olm-user", JSON.stringify(backendAdminUser));
+        storeCurrentUser(backendAdminUser);
         setUser(backendAdminUser);
       } else {
-        localStorage.removeItem("olm-user");
+        clearCurrentUser();
         setUser(null);
       }
 
@@ -36,7 +38,7 @@ export function useAuth() {
     const backendAdminUser = await getBackendAdminUser();
 
     if (backendAdminUser) {
-      localStorage.setItem("olm-user", JSON.stringify(backendAdminUser));
+      storeCurrentUser(backendAdminUser);
       setUser(backendAdminUser);
     }
 
@@ -61,4 +63,3 @@ export function useAuth() {
 
   return { user, loading };
 }
-

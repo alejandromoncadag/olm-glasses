@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 import { login, signup } from "@/lib/auth";
 
 type AuthFormProps = {
@@ -13,11 +14,12 @@ function getErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return "Something went wrong. Please try again.";
+  return "Ocurrió un error. Inténtalo de nuevo.";
 }
 
 export default function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -38,6 +40,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
     }
   }, []);
 
+  useEffect(() => {
+    if (isLogin && !authLoading && user) {
+      router.replace("/account");
+    }
+  }, [authLoading, isLogin, router, user]);
+
   const baseSwitchHref = isLogin ? "/signup" : "/login";
 
   const switchHref = redirectPath
@@ -51,10 +59,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
       setIsSubmitting(true);
       setError("");
 
-      if (isLogin) {
-        await login(email, password);
-      } else {
-        await signup(fullName, email, password);
+      const result = isLogin
+        ? await login(email, password)
+        : await signup(fullName, email, password);
+
+      if ("error" in result) {
+        setError(result.error);
+        return;
       }
 
       router.push(redirectPath || "/");
@@ -65,6 +76,32 @@ export default function AuthForm({ mode }: AuthFormProps) {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (isLogin && authLoading) {
+    return (
+      <div className="mx-auto w-full max-w-md">
+        <h1 className="text-4xl font-bold">Comprobando tu sesión</h1>
+        <p className="mt-4 text-gray-600">Espera un momento…</p>
+      </div>
+    );
+  }
+
+  if (isLogin && user) {
+    return (
+      <div className="mx-auto w-full max-w-md">
+        <h1 className="text-4xl font-bold">Ya tienes una sesión activa</h1>
+        <p className="mt-4 text-gray-600">
+          Te estamos llevando a tu cuenta.
+        </p>
+        <a
+          href="/account"
+          className="mt-8 inline-block rounded-full bg-black px-6 py-3 font-medium text-white"
+        >
+          Ir a mi cuenta
+        </a>
+      </div>
+    );
   }
 
   return (
@@ -158,4 +195,3 @@ export default function AuthForm({ mode }: AuthFormProps) {
     </form>
   );
 }
-
