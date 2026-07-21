@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import LikeButton from "@/components/LikeButton";
+import ProductCard from "@/components/ProductCard";
 
 type ProductType = "eyeglasses" | "sunglasses";
 
@@ -20,7 +20,7 @@ type Product = {
   isActive: boolean;
   mainImage: {
     imageUrl: string;
-    altText: string;
+    altText: string | null;
   } | null;
 };
 
@@ -29,6 +29,16 @@ type PublicProductCatalogProps = {
   title: string;
   description: string;
 };
+
+function getCardColor(frameColor: string) {
+  const color = frameColor.toLowerCase();
+
+  if (color.includes("cafe") || color.includes("café")) return "#f1e9e2";
+  if (color.includes("dorado")) return "#f2ead7";
+  if (color.includes("transparente")) return "#f5f5f3";
+
+  return "#efefed";
+}
 
 export default function PublicProductCatalog({
   type,
@@ -98,156 +108,132 @@ export default function PublicProductCatalog({
     return matchesSearch && matchesGender && matchesShape;
   });
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-white px-6 py-12 text-black">
-        <section className="mx-auto max-w-6xl">
-          <h1 className="text-5xl font-bold">{title}</h1>
-
-          <p className="mt-4 text-gray-600">
-            Cargando productos desde PostgreSQL...
-          </p>
-        </section>
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main className="min-h-screen bg-white px-6 py-12 text-black">
-        <section className="mx-auto max-w-6xl">
-          <h1 className="text-5xl font-bold">{title}</h1>
-
-          <p className="mt-4 text-red-600">{error}</p>
-        </section>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-white px-6 py-12 text-black">
-      <section className="mx-auto max-w-6xl">
-        <h1 className="text-5xl font-bold">{title}</h1>
+    <main className="min-h-screen bg-white text-black">
+      <section className="bg-[#f7f3ee] px-6 py-14 text-center md:py-20">
+        <div className="mx-auto max-w-4xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-500">
+            Colección OLM
+          </p>
+          <h1 className="mt-3 text-5xl font-bold tracking-[-0.04em] md:text-6xl">
+            {title}
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-gray-600">
+            {description}
+          </p>
+        </div>
+      </section>
 
-        <p className="mt-4 max-w-2xl text-gray-600">{description}</p>
+      <section className="mx-auto max-w-7xl px-6 py-12 md:py-16">
+        <div className="rounded-3xl border border-black/10 bg-[#fafafa] p-4 md:p-5">
+          <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr]">
+            <label>
+              <span className="sr-only">Buscar productos</span>
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Buscar por modelo, color o forma..."
+                className="h-12 w-full rounded-full border border-black/15 bg-white px-5 text-sm outline-none transition placeholder:text-gray-400 focus:border-black"
+              />
+            </label>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          <input
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Buscar por modelo, color o forma..."
-            className="rounded-full border px-5 py-3 text-sm outline-none focus:border-black"
-          />
+            <label>
+              <span className="sr-only">Filtrar por género</span>
+              <select
+                value={genderFilter}
+                onChange={(event) => setGenderFilter(event.target.value)}
+                className="h-12 w-full rounded-full border border-black/15 bg-white px-5 text-sm outline-none transition focus:border-black"
+              >
+                <option value="all">Todos los géneros</option>
+                <option value="unisex">Unisex</option>
+                <option value="hombre">Hombre</option>
+                <option value="mujer">Mujer</option>
+              </select>
+            </label>
 
-          <select
-            value={genderFilter}
-            onChange={(event) => setGenderFilter(event.target.value)}
-            className="rounded-full border px-5 py-3 text-sm outline-none focus:border-black"
-          >
-            <option value="all">Todos los géneros</option>
-            <option value="unisex">Unisex</option>
-            <option value="hombre">Hombre</option>
-            <option value="mujer">Mujer</option>
-          </select>
-
-          <select
-            value={shapeFilter}
-            onChange={(event) => setShapeFilter(event.target.value)}
-            className="rounded-full border px-5 py-3 text-sm outline-none focus:border-black"
-          >
-            <option value="all">Todas las formas</option>
-            <option value="rectangular">Rectangular</option>
-            <option value="cuadrado">Cuadrado</option>
-            <option value="redondo">Redondo</option>
-            <option value="aviador">Aviador</option>
-          </select>
+            <label>
+              <span className="sr-only">Filtrar por forma</span>
+              <select
+                value={shapeFilter}
+                onChange={(event) => setShapeFilter(event.target.value)}
+                className="h-12 w-full rounded-full border border-black/15 bg-white px-5 text-sm outline-none transition focus:border-black"
+              >
+                <option value="all">Todas las formas</option>
+                <option value="rectangular">Rectangular</option>
+                <option value="cuadrado">Cuadrado</option>
+                <option value="redondo">Redondo</option>
+                <option value="aviador">Aviador</option>
+              </select>
+            </label>
+          </div>
         </div>
 
-        <p className="mt-5 text-sm text-gray-600">
-          Mostrando {filteredProducts.length} de {products.length} productos
-        </p>
-
-        {filteredProducts.length === 0 ? (
-          <div className="mt-10 rounded-2xl border p-8 text-center">
-            <h2 className="text-2xl font-semibold">
-              No encontramos productos
-            </h2>
-
-            <p className="mt-3 text-gray-600">
-              Intenta cambiar los filtros o buscar con otro texto.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredProducts.map((product) => (
-              <article
-                key={product.slug}
-                className="group rounded-3xl border p-5 transition hover:shadow-lg"
+        {loading ? (
+          <div className="mt-12 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((item) => (
+              <div
+                key={item}
+                className="animate-pulse rounded-[28px] border border-black/10 p-3"
               >
-                <a href={`/product/${product.slug}`}>
-                  <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl bg-gray-100">
-                    {product.mainImage ? (
-                      <img
-                        src={product.mainImage.imageUrl}
-                        alt={product.mainImage.altText || product.name}
-                        className="h-full w-full object-cover transition group-hover:scale-105"
-                      />
-                    ) : (
-                      <span className="text-gray-500">Imagen</span>
-                    )}
-                  </div>
-                </a>
-
-                <div className="mt-5 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">{product.category}</p>
-
-                    <a href={`/product/${product.slug}`}>
-                      <h2 className="mt-1 text-xl font-semibold">
-                        {product.name}
-                      </h2>
-                    </a>
-                  </div>
-
-                  <LikeButton slug={product.slug} />
+                <div className="aspect-[4/3] rounded-[22px] bg-gray-100" />
+                <div className="space-y-3 px-2 py-5">
+                  <div className="h-3 w-24 rounded bg-gray-100" />
+                  <div className="h-6 w-2/3 rounded bg-gray-100" />
+                  <div className="h-4 w-full rounded bg-gray-100" />
                 </div>
-
-                <p className="mt-3 line-clamp-2 text-sm text-gray-600">
-                  {product.description}
-                </p>
-
-                <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                  <span className="rounded-full bg-gray-100 px-3 py-1">
-                    {product.gender}
-                  </span>
-
-                  <span className="rounded-full bg-gray-100 px-3 py-1">
-                    {product.shape}
-                  </span>
-
-                  <span className="rounded-full bg-gray-100 px-3 py-1">
-                    {product.frameColor}
-                  </span>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between">
-                  <p className="text-lg font-semibold">
-                    ${product.price.toLocaleString("es-MX")} MXN
-                  </p>
-
-                  <a
-                    href={`/product/${product.slug}`}
-                    className="rounded-full bg-black px-5 py-2 text-sm text-white"
-                  >
-                    Ver producto
-                  </a>
-                </div>
-              </article>
+              </div>
             ))}
           </div>
+        ) : error ? (
+          <div className="mt-12 rounded-3xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
+            {error}
+          </div>
+        ) : (
+          <>
+            <div className="mt-8 flex items-center justify-between gap-4">
+              <p className="text-sm text-gray-600">
+                {filteredProducts.length}{" "}
+                {filteredProducts.length === 1 ? "modelo" : "modelos"}
+              </p>
+              <p className="text-sm text-gray-500">
+                Mostrando {filteredProducts.length} de {products.length}
+              </p>
+            </div>
+
+            {filteredProducts.length === 0 ? (
+              <div className="mt-10 rounded-3xl border border-black/10 bg-[#fafafa] p-10 text-center">
+                <h2 className="text-2xl font-semibold">
+                  No encontramos productos
+                </h2>
+                <p className="mt-3 text-gray-600">
+                  Intenta cambiar los filtros o buscar con otro texto.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-8 grid items-stretch gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.slug}
+                    slug={product.slug}
+                    name={product.name}
+                    price={product.price}
+                    category={product.category}
+                    color={getCardColor(product.frameColor)}
+                    href={`/product/${product.slug}`}
+                    stock={product.stock}
+                    description={product.description}
+                    gender={product.gender}
+                    shape={product.shape}
+                    frameColor={product.frameColor}
+                    imageUrl={product.mainImage?.imageUrl}
+                    imageAltText={product.mainImage?.altText}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
     </main>
   );
 }
-

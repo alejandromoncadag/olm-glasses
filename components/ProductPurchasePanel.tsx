@@ -141,87 +141,160 @@ export default function ProductPurchasePanel({
   }
 
   return (
-    <div>
-      <div className="mt-8 border-t pt-8">
-        <h2 className="text-lg font-semibold">Selecciona tu tipo de lente</h2>
-
-        <div className="mt-4 grid gap-3">
-          {lensOptions.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => setSelectedLens(option)}
-              disabled={isOutOfStock}
-              className={`rounded-2xl border px-5 py-4 text-left disabled:cursor-not-allowed disabled:opacity-50 ${selectedLens.id === option.id
-                  ? "border-black bg-gray-50"
-                  : "hover:border-black"
-                }`}
-            >
-              <span className="block font-semibold">{option.label}</span>
-              <span className="text-sm text-gray-600">
-                {option.description}
-              </span>
-
-              {option.extraPrice > 0 && (
-                <span className="mt-1 block text-sm font-medium">
-                  +${option.extraPrice.toLocaleString("es-MX")} MXN
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-8 border-t pt-8">
-        <h2 className="text-lg font-semibold">¿Cómo enviarás tu receta?</h2>
-
-        <div className="mt-4 grid gap-3">
-          {prescriptionOptions.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => setSelectedPrescription(option)}
-              disabled={isOutOfStock}
-              className={`rounded-2xl border px-5 py-4 text-left disabled:cursor-not-allowed disabled:opacity-50 ${selectedPrescription.id === option.id
-                  ? "border-black bg-gray-50"
-                  : "hover:border-black"
-                }`}
-            >
-              <span className="block font-semibold">{option.label}</span>
-              <span className="text-sm text-gray-600">
-                {option.description}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-2xl bg-gray-50 p-4">
-        <div className="flex justify-between">
-          <span>Precio final</span>
-          <span className="font-semibold">
-            ${finalPrice.toLocaleString("es-MX")} MXN
+    <div className="mt-8 space-y-8">
+      <section aria-labelledby="lens-options-heading">
+        <div className="flex items-start gap-4">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black text-xs font-semibold text-white">
+            1
           </span>
+          <div>
+            <h2 id="lens-options-heading" className="text-lg font-semibold">
+              Selecciona tu tipo de lente
+            </h2>
+            <p className="mt-1 text-sm leading-5 text-gray-500">
+              Elige la opción que mejor se adapte a lo que necesitas.
+            </p>
+          </div>
         </div>
 
-        <div className="mt-2 flex justify-between text-sm text-gray-600">
-          <span>Disponibilidad</span>
-          <span>{isOutOfStock ? "Agotado" : `${product.stock} disponibles`}</span>
-        </div>
-      </div>
+        <div className="mt-4 grid gap-3">
+          {lensOptions.map((option) => {
+            const isSelected = selectedLens.id === option.id;
 
-      <button
-        onClick={handleAddToCart}
-        disabled={isOutOfStock}
-        className="mt-6 w-full rounded-full bg-black px-8 py-4 text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setSelectedLens(option)}
+                disabled={isOutOfStock}
+                aria-pressed={isSelected}
+                className={`flex min-h-24 w-full items-start gap-4 rounded-2xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:p-5 ${
+                  isSelected
+                    ? "border-black bg-[#faf9f7] shadow-[inset_0_0_0_1px_#000]"
+                    : "border-gray-200 hover:border-gray-500"
+                }`}
+              >
+                <span
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                    isSelected ? "border-black" : "border-gray-300"
+                  }`}
+                  aria-hidden="true"
+                >
+                  {isSelected && <span className="h-2.5 w-2.5 rounded-full bg-black" />}
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{option.label}</span>
+                  <span className="mt-1 block text-sm leading-5 text-gray-600">
+                    {option.description}
+                  </span>
+                </span>
+
+                <span className="shrink-0 pt-0.5 text-xs font-semibold text-gray-700 sm:text-sm">
+                  {option.extraPrice > 0
+                    ? `+$${option.extraPrice.toLocaleString("es-MX")}`
+                    : "Incluido"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section
+        aria-labelledby="prescription-options-heading"
+        className="border-t border-gray-200 pt-8"
       >
-        {isOutOfStock
-          ? "Producto agotado"
-          : added
-            ? "Agregado al carrito"
-            : "Agregar al carrito"}
-      </button>
+        <div className="flex items-start gap-4">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black text-xs font-semibold text-white">
+            2
+          </span>
+          <div>
+            <h2
+              id="prescription-options-heading"
+              className="text-lg font-semibold"
+            >
+              ¿Cómo enviarás tu receta?
+            </h2>
+            <p className="mt-1 text-sm leading-5 text-gray-500">
+              Puedes continuar ahora y completar este paso después.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3">
+          {prescriptionOptions.map((option) => {
+            const isSelected = selectedPrescription.id === option.id;
+
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setSelectedPrescription(option)}
+                disabled={isOutOfStock}
+                aria-pressed={isSelected}
+                className={`flex min-h-24 w-full items-start gap-4 rounded-2xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:p-5 ${
+                  isSelected
+                    ? "border-black bg-[#faf9f7] shadow-[inset_0_0_0_1px_#000]"
+                    : "border-gray-200 hover:border-gray-500"
+                }`}
+              >
+                <span
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                    isSelected ? "border-black" : "border-gray-300"
+                  }`}
+                  aria-hidden="true"
+                >
+                  {isSelected && <span className="h-2.5 w-2.5 rounded-full bg-black" />}
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{option.label}</span>
+                  <span className="mt-1 block text-sm leading-5 text-gray-600">
+                    {option.description}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <div className="rounded-3xl bg-[#f4f3f0] p-5 sm:p-6">
+        <div className="flex items-end justify-between gap-4 border-b border-black/10 pb-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+              Total
+            </p>
+            <p className="mt-1 text-2xl font-semibold tracking-tight">
+              ${finalPrice.toLocaleString("es-MX")} MXN
+            </p>
+          </div>
+          <p className="pb-1 text-right text-xs text-gray-600">
+            {isOutOfStock ? "Agotado" : `${product.stock} disponibles`}
+          </p>
+        </div>
+
+        <div className="mt-4 space-y-1 text-xs leading-5 text-gray-600">
+          <p>Lente: {selectedLens.label}</p>
+          <p>Receta: {selectedPrescription.label}</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleAddToCart}
+          disabled={isOutOfStock}
+          className="mt-5 w-full rounded-full bg-black px-8 py-4 font-semibold text-white transition hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 focus-visible:ring-offset-[#f4f3f0] disabled:cursor-not-allowed disabled:bg-gray-300"
+        >
+          {isOutOfStock
+            ? "Producto agotado"
+            : added
+              ? "Agregado al carrito"
+              : "Agregar al carrito"}
+        </button>
+      </div>
     </div>
   );
 }
-
 
 
