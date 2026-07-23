@@ -5,7 +5,11 @@ import { downloadCsv } from "@/lib/csv";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
-type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type PaymentMethod =
+  | "stripe"
+  | "bank_transfer"
+  | "store_payment"
+  | "cash_on_delivery";
 type DeliveryMethod = "shipping" | "pickup";
 
 type Order = {
@@ -77,6 +81,7 @@ function getPaymentStatusClassName(status: PaymentStatus) {
 }
 
 function getPaymentMethodLabel(method?: PaymentMethod) {
+  if (method === "stripe") return "Stripe";
   if (method === "bank_transfer") return "Transferencia bancaria";
   if (method === "store_payment") return "Pago en tienda";
   if (method === "cash_on_delivery") return "Pago contra entrega";
@@ -85,6 +90,7 @@ function getPaymentMethodLabel(method?: PaymentMethod) {
 }
 
 function getPaymentMethodClassName(method?: PaymentMethod) {
+  if (method === "stripe") return "bg-[#efe5de] text-[#3b241c]";
   if (method === "bank_transfer") return "bg-blue-100 text-blue-700";
   if (method === "store_payment") return "bg-purple-100 text-purple-700";
   if (method === "cash_on_delivery") return "bg-orange-100 text-orange-700";
@@ -214,7 +220,11 @@ export default function AdminOrders() {
   }
 
   useEffect(() => {
-    fetchOrders();
+    const timeoutId = window.setTimeout(() => {
+      void fetchOrders();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   async function updateOrder(orderNumber: string, updates: OrderUpdate) {
@@ -561,6 +571,18 @@ export default function AdminOrders() {
           }`}
         >
           Todos los pagos
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPaymentMethodFilter("stripe")}
+          className={`rounded-full border px-4 py-2 text-sm ${
+            paymentMethodFilter === "stripe"
+              ? "border-black bg-black text-white"
+              : ""
+          }`}
+        >
+          Stripe
         </button>
 
         <button

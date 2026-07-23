@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import AdminNav from "@/components/AdminNav";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
-type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type PaymentMethod =
+  | "stripe"
+  | "bank_transfer"
+  | "store_payment"
+  | "cash_on_delivery";
 type DeliveryMethod = "shipping" | "pickup";
 
 type CustomerOrder = {
@@ -96,6 +101,7 @@ function getPaymentStatusClassName(status: PaymentStatus) {
 }
 
 function getPaymentMethodLabel(method?: PaymentMethod) {
+  if (method === "stripe") return "Stripe";
   if (method === "bank_transfer") return "Transferencia bancaria";
   if (method === "store_payment") return "Pago en tienda";
   if (method === "cash_on_delivery") return "Pago contra entrega";
@@ -104,6 +110,7 @@ function getPaymentMethodLabel(method?: PaymentMethod) {
 }
 
 function getPaymentMethodClassName(method?: PaymentMethod) {
+  if (method === "stripe") return "bg-[#efe5de] text-[#3b241c]";
   if (method === "bank_transfer") return "bg-blue-100 text-blue-700";
   if (method === "store_payment") return "bg-purple-100 text-purple-700";
   if (method === "cash_on_delivery") return "bg-orange-100 text-orange-700";
@@ -199,9 +206,14 @@ export default function AdminCustomerDetailPage() {
   }
 
   useEffect(() => {
-    if (customerId) {
-      fetchCustomer();
-    }
+    if (!customerId) return;
+
+    const timeoutId = window.setTimeout(() => {
+      void fetchCustomer();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId]);
 
   if (loading) {
@@ -226,12 +238,12 @@ export default function AdminCustomerDetailPage() {
 
           <p className="mt-4 text-red-600">{error}</p>
 
-          <a
+          <Link
             href="/admin/customers"
             className="mt-6 inline-block rounded-full bg-black px-6 py-3 text-white"
           >
             Regresar a clientes
-          </a>
+          </Link>
         </section>
       </main>
     );
@@ -261,16 +273,14 @@ export default function AdminCustomerDetailPage() {
     getOrderCustomerNotes(order)
   ).length;
 
-  const lastOrder = customer.orders[0];
-
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
       <section className="mx-auto max-w-6xl">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
           <div>
-            <a href="/admin/customers" className="text-sm text-gray-500 underline">
+            <Link href="/admin/customers" className="text-sm text-gray-500 underline">
               ← Regresar a clientes
-            </a>
+            </Link>
 
             <h1 className="mt-4 text-4xl font-bold">
               {getCustomerName(customer)}
@@ -289,12 +299,12 @@ export default function AdminCustomerDetailPage() {
               Enviar email
             </a>
 
-            <a
+            <Link
               href="/admin/customers"
               className="rounded-full bg-black px-6 py-3 text-center text-white"
             >
               Clientes
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -551,12 +561,12 @@ export default function AdminCustomerDetailPage() {
                   Enviar email
                 </a>
 
-                <a
+                <Link
                   href="/admin/orders"
                   className="rounded-full border px-5 py-3 text-center"
                 >
                   Ver pedidos
-                </a>
+                </Link>
               </div>
             </section>
 

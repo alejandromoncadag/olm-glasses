@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type PaymentMethod = "stripe" | "store_payment";
 type DeliveryMethod = "shipping" | "pickup";
 
 type CheckoutCustomer = {
@@ -30,7 +30,7 @@ const emptyCustomer: CheckoutCustomer = {
   zipCode: "",
   customerNotes: "",
   deliveryMethod: "shipping",
-  paymentMethod: "bank_transfer",
+  paymentMethod: "stripe",
 };
 
 const deliveryOptions: {
@@ -56,28 +56,20 @@ const paymentOptions: {
   description: string;
 }[] = [
   {
-    value: "bank_transfer",
-    label: "Transferencia bancaria",
-    description: "Te enviaremos los datos para realizar la transferencia.",
+    value: "stripe",
+    label: "Pago en línea seguro",
+    description:
+      "Elige tarjeta, OXXO o transferencia SPEI en el portal seguro de Stripe.",
   },
   {
     value: "store_payment",
     label: "Pago en tienda",
-    description: "Paga directamente en la óptica al recoger tu pedido.",
-  },
-  {
-    value: "cash_on_delivery",
-    label: "Pago contra entrega",
-    description: "Paga cuando recibas tu pedido, si está disponible en tu zona.",
+    description: "Disponible únicamente cuando recoges tu pedido en la óptica.",
   },
 ];
 
 function isPaymentMethod(value: unknown): value is PaymentMethod {
-  return (
-    value === "bank_transfer" ||
-    value === "store_payment" ||
-    value === "cash_on_delivery"
-  );
+  return value === "stripe" || value === "store_payment";
 }
 
 function isDeliveryMethod(value: unknown): value is DeliveryMethod {
@@ -151,17 +143,21 @@ export default function CheckoutForm() {
         savedCustomer
       ) as Partial<CheckoutCustomer>;
 
-      setCustomer({
-        ...emptyCustomer,
-        ...parsedCustomer,
-        customerNotes: parsedCustomer.customerNotes || "",
-        deliveryMethod: isDeliveryMethod(parsedCustomer.deliveryMethod)
-          ? parsedCustomer.deliveryMethod
-          : "shipping",
-        paymentMethod: isPaymentMethod(parsedCustomer.paymentMethod)
-          ? parsedCustomer.paymentMethod
-          : "bank_transfer",
-      });
+      const timeoutId = window.setTimeout(() => {
+        setCustomer({
+          ...emptyCustomer,
+          ...parsedCustomer,
+          customerNotes: parsedCustomer.customerNotes || "",
+          deliveryMethod: isDeliveryMethod(parsedCustomer.deliveryMethod)
+            ? parsedCustomer.deliveryMethod
+            : "shipping",
+          paymentMethod: isPaymentMethod(parsedCustomer.paymentMethod)
+            ? parsedCustomer.paymentMethod
+            : "stripe",
+        });
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
     } catch (error) {
       console.error("Could not read checkout customer:", error);
       localStorage.removeItem("olm-checkout-customer");
@@ -181,6 +177,9 @@ export default function CheckoutForm() {
     const updatedCustomer = {
       ...customer,
       [field]: value,
+      ...(field === "deliveryMethod" && value === "shipping"
+        ? { paymentMethod: "stripe" as PaymentMethod }
+        : {}),
     } as CheckoutCustomer;
 
     setCustomer(updatedCustomer);
@@ -439,12 +438,18 @@ export default function CheckoutForm() {
         <h3 className="text-xl font-semibold">Forma de pago</h3>
 
         <p className="mt-2 text-sm text-gray-600">
-          Por ahora el pedido se crea como “sin pagar”. Después podrás marcarlo
-          como pagado desde admin.
+          Stripe protege tus datos de pago. Óptica OLM nunca recibe ni guarda el
+          número completo de tu tarjeta.
         </p>
 
         <div className="mt-5 grid gap-3">
-          {paymentOptions.map((option) => (
+          {paymentOptions
+            .filter(
+              (option) =>
+                option.value === "stripe" ||
+                customer.deliveryMethod === "pickup"
+            )
+            .map((option) => (
             <label
               key={option.value}
               className={`block cursor-pointer rounded-2xl border bg-white p-4 ${
@@ -468,15 +473,16 @@ export default function CheckoutForm() {
                 </div>
               </div>
             </label>
-          ))}
-
-          <div className="rounded-2xl border border-dashed bg-white p-4 opacity-60">
-            <p className="font-medium">Mercado Pago</p>
-            <p className="mt-1 text-sm text-gray-600">
-              Próximamente conectaremos Mercado Pago para pagar en línea.
-            </p>
-          </div>
+            ))}
         </div>
+
+        {customer.paymentMethod === "stripe" && (
+          <div className="mt-4 rounded-2xl border border-[#d9cfc8] bg-white p-4 text-sm text-gray-600">
+            Visa, Mastercard, American Express, OXXO y SPEI. Apple Pay o Google
+            Pay pueden aparecer cuando estén disponibles en tu dispositivo y en
+            tu cuenta de Stripe.
+          </div>
+        )}
 
         {errors.paymentMethod && (
           <p className="mt-3 text-sm text-red-600">{errors.paymentMethod}</p>
@@ -485,13 +491,13 @@ export default function CheckoutForm() {
 
       <button
         type="submit"
-        className="mt-6 rounded-full bg-black px-6 py-3 text-white"
+        className="mt-6 rounded-full bg-[var(--brand-espresso)] px-6 py-3 text-white transition hover:bg-[#2a1710]"
       >
-        Guardar datos de pedido y pago
+        Guardar datos del pedido
       </button>
 
       <p className="mt-3 text-xs text-gray-500">
-        Después de guardar, revisa el resumen y haz clic en “Finalizar pedido”.
+        Después de guardar, revisa el resumen y continúa al pago seguro.
       </p>
     </form>
   );

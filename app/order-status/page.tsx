@@ -1,11 +1,16 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { createWhatsAppLink } from "@/lib/whatsapp";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
-type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type PaymentMethod =
+  | "stripe"
+  | "bank_transfer"
+  | "store_payment"
+  | "cash_on_delivery";
 type DeliveryMethod = "shipping" | "pickup";
 
 type OrderItem = {
@@ -92,6 +97,7 @@ function getPaymentStatusClassName(status: PaymentStatus) {
 }
 
 function getPaymentMethodLabel(method?: PaymentMethod) {
+  if (method === "stripe") return "Stripe · pago en línea";
   if (method === "bank_transfer") return "Transferencia bancaria";
   if (method === "store_payment") return "Pago en tienda";
   if (method === "cash_on_delivery") return "Pago contra entrega";
@@ -191,13 +197,17 @@ export default function OrderStatusPage() {
     try {
       const parsedOrder = JSON.parse(savedOrder);
 
-      if (parsedOrder.orderNumber) {
-        setOrderNumber(parsedOrder.orderNumber);
-      }
+      const timeoutId = window.setTimeout(() => {
+        if (parsedOrder.orderNumber) {
+          setOrderNumber(parsedOrder.orderNumber);
+        }
 
-      if (parsedOrder.customer?.email) {
-        setEmail(parsedOrder.customer.email);
-      }
+        if (parsedOrder.customer?.email) {
+          setEmail(parsedOrder.customer.email);
+        }
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
     } catch (error) {
       console.error("Could not read latest order from localStorage:", error);
     }
@@ -262,9 +272,9 @@ export default function OrderStatusPage() {
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
       <section className="mx-auto max-w-5xl">
-        <a href="/" className="text-sm text-gray-500 underline">
+        <Link href="/" className="text-sm text-gray-500 underline">
           ← Regresar a la tienda
-        </a>
+        </Link>
 
         <div className="mt-6 rounded-3xl border bg-gradient-to-b from-gray-50 to-white p-8">
           <h1 className="text-4xl font-bold">Consultar pedido</h1>
@@ -721,9 +731,9 @@ export default function OrderStatusPage() {
                     Preguntar por WhatsApp
                   </a>
 
-                  <a href="/" className="rounded-full border px-6 py-3 text-center">
+                  <Link href="/" className="rounded-full border px-6 py-3 text-center">
                     Ir al inicio
-                  </a>
+                  </Link>
                 </div>
               </aside>
             </div>

@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import AdminNav from "@/components/AdminNav";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
-type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type PaymentMethod =
+  | "stripe"
+  | "bank_transfer"
+  | "store_payment"
+  | "cash_on_delivery";
 type DeliveryMethod = "shipping" | "pickup";
 
 type OrderItem = {
@@ -125,6 +130,7 @@ function getPaymentStatusClassName(status: PaymentStatus) {
 }
 
 function getPaymentMethodLabel(method?: PaymentMethod) {
+  if (method === "stripe") return "Stripe";
   if (method === "bank_transfer") return "Transferencia bancaria";
   if (method === "store_payment") return "Pago en tienda";
   if (method === "cash_on_delivery") return "Pago contra entrega";
@@ -133,6 +139,7 @@ function getPaymentMethodLabel(method?: PaymentMethod) {
 }
 
 function getPaymentMethodClassName(method?: PaymentMethod) {
+  if (method === "stripe") return "bg-[#efe5de] text-[#3b241c]";
   if (method === "bank_transfer") return "bg-blue-100 text-blue-700";
   if (method === "store_payment") return "bg-purple-100 text-purple-700";
   if (method === "cash_on_delivery") return "bg-orange-100 text-orange-700";
@@ -167,6 +174,10 @@ function getDeliveryInstructions(method?: DeliveryMethod) {
 }
 
 function getPaymentInstructions(method?: PaymentMethod) {
+  if (method === "stripe") {
+    return "Stripe confirma el pago automáticamente por webhook. Verifica el Dashboard de Stripe antes de cambiar el estado manualmente.";
+  }
+
   if (method === "bank_transfer") {
     return "Enviar datos bancarios al cliente y marcar como pagado cuando se confirme la transferencia.";
   }
@@ -401,12 +412,12 @@ export default function AdminOrderDetailPage() {
 
           <p className="mt-4 text-red-600">{error}</p>
 
-          <a
+          <Link
             href="/admin/orders"
             className="mt-6 inline-block rounded-full bg-black px-6 py-3 text-white"
           >
             Regresar a pedidos
-          </a>
+          </Link>
         </section>
       </main>
     );
@@ -423,9 +434,9 @@ export default function AdminOrderDetailPage() {
       <section className="mx-auto max-w-6xl">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
           <div>
-            <a href="/admin/orders" className="text-sm text-gray-500 underline">
+            <Link href="/admin/orders" className="text-sm text-gray-500 underline">
               ← Regresar a pedidos
-            </a>
+            </Link>
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <h1 className="text-4xl font-bold">Pedido {order.orderNumber}</h1>

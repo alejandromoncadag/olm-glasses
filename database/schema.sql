@@ -28,6 +28,8 @@ CREATE TYPE payment_status AS ENUM (
 CREATE TYPE inventory_movement_type AS ENUM (
     'purchase',
     'sale',
+    'reservation',
+    'release',
     'return',
     'adjustment'
 );
@@ -81,6 +83,7 @@ CREATE TABLE customers (
     state TEXT NOT NULL,
     zip_code TEXT NOT NULL,
     country TEXT NOT NULL DEFAULT 'México',
+    stripe_customer_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -97,8 +100,24 @@ CREATE TABLE orders (
     shipping_cents INTEGER NOT NULL DEFAULT 0 CHECK (shipping_cents >= 0),
     total_cents INTEGER NOT NULL CHECK (total_cents >= 0),
     currency TEXT NOT NULL DEFAULT 'MXN',
+    payment_method TEXT NOT NULL DEFAULT 'bank_transfer',
+    delivery_method TEXT NOT NULL DEFAULT 'shipping',
     customer_notes TEXT,
     admin_notes TEXT,
+    shipping_carrier TEXT,
+    tracking_number TEXT,
+    customer_visible_notes TEXT,
+    stripe_checkout_session_id TEXT,
+    stripe_payment_intent_id TEXT,
+    stripe_payment_method_type TEXT,
+    stripe_checkout_expires_at TIMESTAMPTZ,
+    inventory_reservation_status TEXT NOT NULL DEFAULT 'none' CHECK (
+        inventory_reservation_status IN ('none', 'active', 'committed', 'released')
+    ),
+    inventory_reserved_at TIMESTAMPTZ,
+    inventory_committed_at TIMESTAMPTZ,
+    inventory_released_at TIMESTAMPTZ,
+    paid_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -200,10 +219,17 @@ CREATE INDEX idx_products_category ON products(category);
 CREATE INDEX idx_product_images_product_id ON product_images(product_id);
 CREATE INDEX idx_customers_email ON customers(email);
 CREATE INDEX idx_customers_phone ON customers(phone);
+CREATE UNIQUE INDEX idx_customers_stripe_customer_id ON customers(stripe_customer_id)
+WHERE stripe_customer_id IS NOT NULL;
 CREATE INDEX idx_orders_customer_id ON orders(customer_id);
 CREATE INDEX idx_orders_status ON orders(status);
 CREATE INDEX idx_orders_payment_status ON orders(payment_status);
 CREATE INDEX idx_orders_created_at ON orders(created_at);
+CREATE UNIQUE INDEX idx_orders_stripe_checkout_session_id ON orders(stripe_checkout_session_id)
+WHERE stripe_checkout_session_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_orders_stripe_payment_intent_id ON orders(stripe_payment_intent_id)
+WHERE stripe_payment_intent_id IS NOT NULL;
+CREATE INDEX idx_orders_inventory_reservation_status ON orders(inventory_reservation_status);
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX idx_order_items_product_id ON order_items(product_id);
 CREATE INDEX idx_prescriptions_order_item_id ON prescriptions(order_item_id);

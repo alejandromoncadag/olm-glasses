@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 
-type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type PaymentMethod = "stripe" | "store_payment";
 type DeliveryMethod = "shipping" | "pickup";
 
 type CartItem = {
@@ -69,11 +69,7 @@ function formatMoney(amount: number) {
 }
 
 function isPaymentMethod(value: unknown): value is PaymentMethod {
-  return (
-    value === "bank_transfer" ||
-    value === "store_payment" ||
-    value === "cash_on_delivery"
-  );
+  return value === "stripe" || value === "store_payment";
 }
 
 function isDeliveryMethod(value: unknown): value is DeliveryMethod {
@@ -81,9 +77,8 @@ function isDeliveryMethod(value: unknown): value is DeliveryMethod {
 }
 
 function getPaymentMethodLabel(method?: PaymentMethod) {
-  if (method === "bank_transfer") return "Transferencia bancaria";
+  if (method === "stripe") return "Stripe · tarjeta, OXXO o SPEI";
   if (method === "store_payment") return "Pago en tienda";
-  if (method === "cash_on_delivery") return "Pago contra entrega";
 
   return "Sin seleccionar";
 }
@@ -135,8 +130,6 @@ function cartHasInvalidItems(cartItems: CartItem[], products: ProductFromApi[]) 
     if (!product) return true;
     if (!product.isActive) return true;
     if (product.stock <= 0) return true;
-    if (item.quantity > product.stock) return true;
-
     return false;
   });
 }
@@ -167,15 +160,28 @@ export default function CheckoutSummary() {
 
     if (savedCart) {
       try {
-        setCartItems(JSON.parse(savedCart));
+        const parsedCart = JSON.parse(savedCart) as CartItem[];
+        window.setTimeout(() => setCartItems(parsedCart), 0);
       } catch (error) {
         console.error("Could not read cart:", error);
         localStorage.removeItem("olm-cart");
       }
     }
 
-    setCheckoutCustomer(readSavedCustomer());
+    window.setTimeout(() => setCheckoutCustomer(readSavedCustomer()), 0);
     fetchProducts();
+
+    const searchParams = new URLSearchParams(window.location.search);
+
+    if (searchParams.get("payment") === "cancelled") {
+      window.setTimeout(
+        () =>
+          setErrorMessage(
+            "El pago no se completó. Tu pedido quedó reservado temporalmente; puedes intentarlo de nuevo."
+          ),
+        0
+      );
+    }
 
     function handleCustomerUpdate() {
       setCheckoutCustomer(readSavedCustomer());
@@ -310,7 +316,9 @@ export default function CheckoutSummary() {
         };
       });
 
-      const orderResponse = await fetch("/api/orders", {
+      const orderEndpoint =
+        paymentMethod === "stripe" ? "/api/checkout/stripe" : "/api/orders";
+      const orderResponse = await fetch(orderEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -339,6 +347,20 @@ export default function CheckoutSummary() {
       }
 
       const orderData = await orderResponse.json();
+
+      if (paymentMethod === "stripe") {
+        if (
+          typeof orderData.checkoutUrl !== "string" ||
+          !orderData.checkoutUrl.startsWith("https://")
+        ) {
+          setErrorMessage("Stripe no devolvió una liga de pago válida.");
+          return;
+        }
+
+        window.location.assign(orderData.checkoutUrl);
+        return;
+      }
+
       const createdOrder = orderData.order;
 
       const orderNumber =
@@ -508,14 +530,21 @@ export default function CheckoutSummary() {
         type="button"
         onClick={handlePlaceOrder}
         disabled={isPlacingOrder}
-        className="mt-6 w-full rounded-full bg-black px-6 py-3 text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+        className="mt-6 w-full rounded-full bg-[var(--brand-espresso)] px-6 py-3 text-white transition hover:bg-[#2a1710] disabled:cursor-not-allowed disabled:bg-gray-300"
       >
-        {isPlacingOrder ? "Creando pedido..." : "Finalizar pedido"}
+        {isPlacingOrder
+          ? selectedPaymentMethod === "stripe"
+            ? "Abriendo pago seguro..."
+            : "Creando pedido..."
+          : selectedPaymentMethod === "stripe"
+            ? "Continuar al pago seguro"
+            : "Finalizar pedido"}
       </button>
 
       <p className="mt-3 text-center text-xs text-gray-500">
-        El pedido se guardará como sin pagar. Próximamente conectaremos Mercado
-        Pago.
+        {selectedPaymentMethod === "stripe"
+          ? "Serás dirigido al portal seguro de Stripe para elegir tarjeta, OXXO o SPEI."
+          : "Tu pedido se guardará como pendiente de pago en tienda."}
       </p>
     </aside>
   );

@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { createWhatsAppLink } from "@/lib/whatsapp";
 
 type OrderStatus = "pending" | "processing" | "completed" | "cancelled";
-type PaymentMethod = "bank_transfer" | "store_payment" | "cash_on_delivery";
+type PaymentMethod =
+  | "stripe"
+  | "bank_transfer"
+  | "store_payment"
+  | "cash_on_delivery";
 type DeliveryMethod = "shipping" | "pickup";
 
 type OrderItem = {
@@ -91,6 +95,7 @@ function getPaymentStatusLabel(status?: string) {
 }
 
 function getPaymentMethodLabel(method?: PaymentMethod) {
+  if (method === "stripe") return "Stripe · pago en línea";
   if (method === "bank_transfer") return "Transferencia bancaria";
   if (method === "store_payment") return "Pago en tienda";
   if (method === "cash_on_delivery") return "Pago contra entrega";
@@ -193,22 +198,26 @@ export default function OrderSuccessDetails() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    try {
-      const savedOrder = localStorage.getItem("olm-latest-order");
+    const timeoutId = window.setTimeout(() => {
+      try {
+        const savedOrder = localStorage.getItem("olm-latest-order");
 
-      if (!savedOrder) {
+        if (!savedOrder) {
+          setOrder(null);
+          return;
+        }
+
+        const parsedOrder = JSON.parse(savedOrder) as Order;
+        setOrder(parsedOrder);
+      } catch (error) {
+        console.error("Could not load latest order:", error);
         setOrder(null);
-        return;
+      } finally {
+        setLoading(false);
       }
+    }, 0);
 
-      const parsedOrder = JSON.parse(savedOrder) as Order;
-      setOrder(parsedOrder);
-    } catch (error) {
-      console.error("Could not load latest order:", error);
-      setOrder(null);
-    } finally {
-      setLoading(false);
-    }
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   async function copyOrderNumber() {
