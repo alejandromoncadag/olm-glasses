@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { isLiked, toggleLike } from "@/lib/likes";
+import { useLikes } from "@/hooks/useLikes";
 
 type LikeButtonProps = {
   slug: string;
@@ -14,25 +13,13 @@ export default function LikeButton({
   size = "md",
   variant = "icon",
 }: LikeButtonProps) {
-  const [liked, setLiked] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setLiked(isLiked(slug));
-    setMounted(true);
-
-    function sync() {
-      setLiked(isLiked(slug));
-    }
-
-    window.addEventListener("olm-likes-change", sync);
-    return () => window.removeEventListener("olm-likes-change", sync);
-  }, [slug]);
+  const { likes, loaded, toggleLike } = useLikes();
+  const liked = likes.some((like) => like.slug === slug);
 
   function handleClick(event: React.MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
-    toggleLike(slug);
+    void toggleLike(slug);
   }
 
   const dimensions = size === "sm" ? 16 : size === "lg" ? 22 : 18;
@@ -49,7 +36,7 @@ export default function LikeButton({
         aria-pressed={liked}
         aria-label={liked ? "Quitar de favoritos" : "Agregar a favoritos"}
       >
-        <Heart filled={mounted && liked} size={dimensions} />
+        <Heart filled={loaded && liked} size={dimensions} />
         {liked ? "Guardado en favoritos" : "Agregar a favoritos"}
       </button>
     );
@@ -66,7 +53,7 @@ export default function LikeButton({
       aria-pressed={liked}
       aria-label={liked ? "Quitar de favoritos" : "Agregar a favoritos"}
     >
-      <Heart filled={mounted && liked} size={dimensions} />
+      <Heart filled={loaded && liked} size={dimensions} />
     </button>
   );
 }

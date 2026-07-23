@@ -21,6 +21,13 @@ export function getLikes(): LikedItem[] {
   return safeParse<LikedItem[]>(localStorage.getItem(STORAGE_KEY), []);
 }
 
+export function replaceLikes(likes: LikedItem[]) {
+  if (typeof window === "undefined") return;
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(likes));
+  window.dispatchEvent(new Event("olm-likes-change"));
+}
+
 export function isLiked(slug: string): boolean {
   return getLikes().some((item) => item.slug === slug);
 }
@@ -33,17 +40,14 @@ export function toggleLike(slug: string) {
     ? likes.filter((item) => item.slug !== slug)
     : [...likes, { slug, likedAt: new Date().toISOString() }];
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  window.dispatchEvent(new Event("olm-likes-change"));
+  replaceLikes(updated);
 }
 
 export function removeLike(slug: string) {
   const updated = getLikes().filter((item) => item.slug !== slug);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  window.dispatchEvent(new Event("olm-likes-change"));
+  replaceLikes(updated);
 }
 
 export function clearLikes() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-  window.dispatchEvent(new Event("olm-likes-change"));
+  replaceLikes([]);
 }

@@ -9,6 +9,7 @@ import {
   StripeOrderError,
 } from "@/lib/stripeOrders";
 import { getStripeClient } from "@/lib/stripe";
+import { getOptionalAuthenticatedCustomer } from "@/lib/customerAccounts";
 
 export const runtime = "nodejs";
 
@@ -36,7 +37,17 @@ export async function POST(request: Request) {
   try {
     const stripe = getStripeClient();
     const input = (await request.json()) as StripeCheckoutInput;
-    const order = await createReservedStripeOrder(input);
+    const authenticatedCustomer = await getOptionalAuthenticatedCustomer();
+
+    if (authenticatedCustomer && input.customer) {
+      input.customer.email = authenticatedCustomer.email;
+      input.customer.fullName =
+        input.customer.fullName || authenticatedCustomer.fullName;
+    }
+
+    const order = await createReservedStripeOrder(input, {
+      authenticatedCustomerId: authenticatedCustomer?.customerId,
+    });
     orderId = order.id;
 
     let stripeCustomerId = order.stripeCustomerId;

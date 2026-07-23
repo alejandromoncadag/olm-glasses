@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useLikes } from "@/hooks/useLikes";
-import { clearLikes, removeLike } from "@/lib/likes";
 
 type ApiProduct = {
   slug: string;
@@ -47,7 +47,7 @@ function getCardColor(frameColor: string) {
 }
 
 export default function LikesGrid() {
-  const { likes, loaded } = useLikes();
+  const { likes, loaded, clearLikes, removeLike } = useLikes();
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [error, setError] = useState("");
@@ -197,7 +197,7 @@ export default function LikesGrid() {
 
           <button
             onClick={() => {
-              if (confirm("¿Quitar todos los favoritos?")) clearLikes();
+              if (confirm("¿Quitar todos los favoritos?")) void clearLikes();
             }}
             className="rounded-full border border-black px-5 py-2 text-sm"
           >
@@ -221,9 +221,12 @@ export default function LikesGrid() {
                   style={{ backgroundColor: getCardColor(product.frameColor) }}
                 >
                   {product.mainImage ? (
-                    <img
+                    <Image
                       src={product.mainImage.imageUrl}
                       alt={product.mainImage.altText || product.name}
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      unoptimized
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -264,7 +267,7 @@ export default function LikesGrid() {
                   </a>
 
                   <button
-                    onClick={() => removeLike(product.slug)}
+                    onClick={() => void removeLike(product.slug)}
                     className="rounded-full border px-4 py-2 text-sm hover:border-black"
                   >
                     Quitar

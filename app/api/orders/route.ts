@@ -4,6 +4,7 @@ import {
   getAuthenticatedAdmin,
   unauthorizedAdminResponse,
 } from "@/lib/requireAdmin";
+import { getOptionalAuthenticatedCustomer } from "@/lib/customerAccounts";
 
 export const runtime = "nodejs";
 
@@ -248,6 +249,13 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json()) as CreateOrderInput;
+    const authenticatedCustomer = await getOptionalAuthenticatedCustomer();
+
+    if (authenticatedCustomer && body.customer) {
+      body.customer.email = authenticatedCustomer.email;
+      body.customer.fullName =
+        body.customer.fullName || authenticatedCustomer.fullName;
+    }
 
     const validationError = validateOrderInput(body);
 
@@ -287,8 +295,34 @@ export async function POST(request: Request) {
     await client.query("BEGIN");
     transactionStarted = true;
 
-    const customerResult = await client.query(
-      `
+    const customerResult = authenticatedCustomer
+      ? await client.query(
+          `
+      UPDATE customers
+      SET
+        full_name = $2,
+        email = LOWER($3),
+        phone = $4,
+        address = $5,
+        city = $6,
+        state = $7,
+        zip_code = $8
+      WHERE id = $1
+      RETURNING id;
+      `,
+          [
+            authenticatedCustomer.customerId,
+            customer.fullName,
+            customer.email,
+            customer.phone,
+            customer.address,
+            customer.city,
+            customer.state,
+            customer.zipCode,
+          ]
+        )
+      : await client.query(
+          `
       INSERT INTO customers (
         full_name,
         email,
@@ -307,20 +341,96 @@ export async function POST(request: Request) {
         city = EXCLUDED.city,
         state = EXCLUDED.state,
         zip_code = EXCLUDED.zip_code
+      WHERE customers.auth_user_id IS NULL
       RETURNING id;
       `,
-      [
-        customer.fullName,
-        customer.email,
-        customer.phone,
-        customer.address,
-        customer.city,
-        customer.state,
-        customer.zipCode,
-      ]
-    );
+          [
+            customer.fullName,
+            customer.email,
+            customer.phone,
+            customer.address,
+            customer.city,
+            customer.state,
+            customer.zipCode,
+          ]
+        );
+
+    if (customerResult.rows.length === 0) {
+      throw new CheckoutError(
+        "Este correo pertenece a una cuenta. Inicia sesión para continuar.",
+        409
+      );
+    }
 
     const customerId = customerResult.rows[0].id;
+
+    if (
+      authenticatedCustomer &&
+      deliveryMethod === "shipping" &&
+      customer.address
+    ) {
+      const hasAddressResult = await client.query(
+        `
+          SELECT EXISTS(
+            SELECT 1
+            FROM customer_addresses
+            WHERE customer_id = $1
+              AND LOWER(address_line_1) = LOWER($2)
+              AND LOWER(city) = LOWER($3)
+              AND LOWER(state) = LOWER($4)
+              AND postal_code = $5
+          ) AS exists
+        `,
+        [
+          customerId,
+          customer.address,
+          customer.city,
+          customer.state,
+          customer.zipCode,
+        ]
+      );
+
+      if (!hasAddressResult.rows[0].exists) {
+        const hasDefaultResult = await client.query(
+          `
+            SELECT EXISTS(
+              SELECT 1
+              FROM customer_addresses
+              WHERE customer_id = $1 AND is_default = TRUE
+            ) AS exists
+          `,
+          [customerId]
+        );
+
+        await client.query(
+          `
+            INSERT INTO customer_addresses (
+              customer_id,
+              label,
+              recipient_name,
+              phone,
+              address_line_1,
+              city,
+              state,
+              postal_code,
+              country,
+              is_default
+            )
+            VALUES ($1, 'Casa', $2, $3, $4, $5, $6, $7, 'México', $8)
+          `,
+          [
+            customerId,
+            customer.fullName,
+            customer.phone,
+            customer.address,
+            customer.city,
+            customer.state,
+            customer.zipCode,
+            !hasDefaultResult.rows[0].exists,
+          ]
+        );
+      }
+    }
 
     let subtotalCents = 0;
     const preparedItems: PreparedOrderItem[] = [];

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 type PaymentMethod = "stripe" | "store_payment";
 type DeliveryMethod = "shipping" | "pickup";
@@ -127,42 +128,83 @@ function validateCustomer(customer: CheckoutCustomer) {
 }
 
 export default function CheckoutForm() {
+  const { user } = useAuth();
   const [customer, setCustomer] = useState<CheckoutCustomer>(emptyCustomer);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saved, setSaved] = useState(false);
+  const customerUserId = user?.role === "customer" ? user.id : null;
 
   useEffect(() => {
-    const savedCustomer = localStorage.getItem("olm-checkout-customer");
+    let cancelled = false;
 
-    if (!savedCustomer) {
-      return;
-    }
+    const timeoutId = window.setTimeout(async () => {
+      let nextCustomer = { ...emptyCustomer };
+      const savedCustomer = localStorage.getItem("olm-checkout-customer");
 
-    try {
-      const parsedCustomer = JSON.parse(
-        savedCustomer
-      ) as Partial<CheckoutCustomer>;
+      if (savedCustomer) {
+        try {
+          const parsedCustomer = JSON.parse(
+            savedCustomer
+          ) as Partial<CheckoutCustomer>;
 
-      const timeoutId = window.setTimeout(() => {
-        setCustomer({
-          ...emptyCustomer,
-          ...parsedCustomer,
-          customerNotes: parsedCustomer.customerNotes || "",
-          deliveryMethod: isDeliveryMethod(parsedCustomer.deliveryMethod)
-            ? parsedCustomer.deliveryMethod
-            : "shipping",
-          paymentMethod: isPaymentMethod(parsedCustomer.paymentMethod)
-            ? parsedCustomer.paymentMethod
-            : "stripe",
-        });
-      }, 0);
+          nextCustomer = {
+            ...emptyCustomer,
+            ...parsedCustomer,
+            customerNotes: parsedCustomer.customerNotes || "",
+            deliveryMethod: isDeliveryMethod(parsedCustomer.deliveryMethod)
+              ? parsedCustomer.deliveryMethod
+              : "shipping",
+            paymentMethod: isPaymentMethod(parsedCustomer.paymentMethod)
+              ? parsedCustomer.paymentMethod
+              : "stripe",
+          };
+        } catch (error) {
+          console.error("Could not read checkout customer:", error);
+          localStorage.removeItem("olm-checkout-customer");
+        }
+      }
 
-      return () => window.clearTimeout(timeoutId);
-    } catch (error) {
-      console.error("Could not read checkout customer:", error);
-      localStorage.removeItem("olm-checkout-customer");
-    }
-  }, []);
+      if (customerUserId) {
+        const response = await fetch("/api/account");
+
+        if (response.ok) {
+          const account = await response.json();
+          const defaultAddress = Array.isArray(account.addresses)
+            ? account.addresses.find(
+                (address: { isDefault?: boolean }) => address.isDefault
+              ) || account.addresses[0]
+            : null;
+
+          nextCustomer = {
+            ...nextCustomer,
+            fullName:
+              nextCustomer.fullName || String(account.profile?.fullName || ""),
+            email: String(account.profile?.email || nextCustomer.email),
+            phone:
+              nextCustomer.phone ||
+              String(defaultAddress?.phone || account.profile?.phone || ""),
+            address:
+              nextCustomer.address ||
+              String(defaultAddress?.addressLine1 || ""),
+            city: nextCustomer.city || String(defaultAddress?.city || ""),
+            state: nextCustomer.state || String(defaultAddress?.state || ""),
+            zipCode:
+              nextCustomer.zipCode || String(defaultAddress?.postalCode || ""),
+          };
+        }
+      }
+
+      if (!cancelled) {
+        setCustomer(nextCustomer);
+        saveCustomerToStorage(nextCustomer);
+      }
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [customerUserId]);
 
   function saveCustomerToStorage(updatedCustomer: CheckoutCustomer) {
     localStorage.setItem(
@@ -256,10 +298,16 @@ export default function CheckoutForm() {
               type="email"
               value={customer.email}
               onChange={(event) => updateCustomer("email", event.target.value)}
+              readOnly={Boolean(customerUserId)}
               required
-              className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+              className="mt-2 w-full rounded-xl border px-4 py-3 outline-none read-only:bg-gray-50 read-only:text-gray-600 focus:border-black"
               placeholder="correo@email.com"
             />
+            {customerUserId && (
+              <p className="mt-1 text-xs text-gray-500">
+                Correo verificado de tu cuenta OLM.
+              </p>
+            )}
             {errors.email && (
               <p className="mt-1 text-sm text-red-600">{errors.email}</p>
             )}

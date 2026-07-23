@@ -3,6 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import AuthProvider from "@/components/AuthProvider";
+import { isClerkConfigured } from "@/lib/clerkConfig";
+import { LikesProvider } from "@/hooks/useLikes";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,15 +27,26 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const clerkPublishableKey =
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() || null;
+  const clerkConfigured = isClerkConfigured();
+
   return (
     <html
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Navbar />
-        <div className="flex-1">{children}</div>
-        <Footer />
+        <AuthProvider
+          clerkPublishableKey={clerkPublishableKey}
+          clerkConfigured={clerkConfigured}
+        >
+          <LikesProvider>
+            <Navbar />
+            <div className="flex-1">{children}</div>
+            <Footer />
+          </LikesProvider>
+        </AuthProvider>
       </body>
     </html>
   );

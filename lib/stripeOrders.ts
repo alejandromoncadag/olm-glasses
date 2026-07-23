@@ -147,7 +147,8 @@ function validateInput(input: StripeCheckoutInput) {
 }
 
 export async function createReservedStripeOrder(
-  input: StripeCheckoutInput
+  input: StripeCheckoutInput,
+  options: { authenticatedCustomerId?: string } = {}
 ): Promise<ReservedStripeOrder> {
   const validated = validateInput(input);
   const client = await pool.connect();
@@ -155,8 +156,34 @@ export async function createReservedStripeOrder(
   try {
     await client.query("BEGIN");
 
-    const customerResult = await client.query(
-      `
+    const customerResult = options.authenticatedCustomerId
+      ? await client.query(
+          `
+        UPDATE customers
+        SET
+          full_name = $2,
+          email = LOWER($3),
+          phone = $4,
+          address = $5,
+          city = $6,
+          state = $7,
+          zip_code = $8
+        WHERE id = $1
+        RETURNING id, stripe_customer_id;
+      `,
+          [
+            options.authenticatedCustomerId,
+            validated.customer.fullName,
+            validated.customer.email,
+            validated.customer.phone,
+            validated.customer.address,
+            validated.customer.city,
+            validated.customer.state,
+            validated.customer.zipCode,
+          ]
+        )
+      : await client.query(
+          `
         INSERT INTO customers (
           full_name,
           email,
@@ -175,18 +202,26 @@ export async function createReservedStripeOrder(
           city = EXCLUDED.city,
           state = EXCLUDED.state,
           zip_code = EXCLUDED.zip_code
+        WHERE customers.auth_user_id IS NULL
         RETURNING id, stripe_customer_id;
       `,
-      [
-        validated.customer.fullName,
-        validated.customer.email,
-        validated.customer.phone,
-        validated.customer.address,
-        validated.customer.city,
-        validated.customer.state,
-        validated.customer.zipCode,
-      ]
-    );
+          [
+            validated.customer.fullName,
+            validated.customer.email,
+            validated.customer.phone,
+            validated.customer.address,
+            validated.customer.city,
+            validated.customer.state,
+            validated.customer.zipCode,
+          ]
+        );
+
+    if (customerResult.rows.length === 0) {
+      throw new StripeOrderError(
+        "Este correo pertenece a una cuenta. Inicia sesión para continuar.",
+        409
+      );
+    }
 
     const customerId = String(customerResult.rows[0].id);
     const stripeCustomerId = customerResult.rows[0].stripe_customer_id
@@ -194,6 +229,73 @@ export async function createReservedStripeOrder(
       : null;
     const preparedItems: ReservedStripeOrder["items"] = [];
     let subtotalCents = 0;
+
+    if (
+      options.authenticatedCustomerId &&
+      validated.deliveryMethod === "shipping"
+    ) {
+      const addressExistsResult = await client.query(
+        `
+          SELECT EXISTS(
+            SELECT 1
+            FROM customer_addresses
+            WHERE customer_id = $1
+              AND LOWER(address_line_1) = LOWER($2)
+              AND LOWER(city) = LOWER($3)
+              AND LOWER(state) = LOWER($4)
+              AND postal_code = $5
+          ) AS exists
+        `,
+        [
+          customerId,
+          validated.customer.address,
+          validated.customer.city,
+          validated.customer.state,
+          validated.customer.zipCode,
+        ]
+      );
+
+      if (!addressExistsResult.rows[0].exists) {
+        const hasDefaultResult = await client.query(
+          `
+            SELECT EXISTS(
+              SELECT 1
+              FROM customer_addresses
+              WHERE customer_id = $1 AND is_default = TRUE
+            ) AS exists
+          `,
+          [customerId]
+        );
+
+        await client.query(
+          `
+            INSERT INTO customer_addresses (
+              customer_id,
+              label,
+              recipient_name,
+              phone,
+              address_line_1,
+              city,
+              state,
+              postal_code,
+              country,
+              is_default
+            )
+            VALUES ($1, 'Casa', $2, $3, $4, $5, $6, $7, 'México', $8)
+          `,
+          [
+            customerId,
+            validated.customer.fullName,
+            validated.customer.phone,
+            validated.customer.address,
+            validated.customer.city,
+            validated.customer.state,
+            validated.customer.zipCode,
+            !hasDefaultResult.rows[0].exists,
+          ]
+        );
+      }
+    }
 
     for (const item of validated.items) {
       const productResult = await client.query(

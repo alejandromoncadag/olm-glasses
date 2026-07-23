@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
 type AdminGuardProps = {
@@ -8,20 +9,26 @@ type AdminGuardProps = {
 };
 
 export default function AdminGuard({ children }: AdminGuardProps) {
+  const pathname = usePathname();
   const { user, loading } = useAuth();
+  const isPublicAdminRoute = pathname === "/admin/login";
 
   useEffect(() => {
-    if (loading) {
+    if (isPublicAdminRoute || loading) {
       return;
     }
 
     if (!user) {
       const currentPath = window.location.pathname + window.location.search;
-      const redirectUrl = `/login?redirect=${encodeURIComponent(currentPath)}`;
+      const redirectUrl = `/admin/login?redirect=${encodeURIComponent(currentPath)}`;
 
       window.location.href = redirectUrl;
     }
-  }, [user, loading]);
+  }, [isPublicAdminRoute, user, loading]);
+
+  if (isPublicAdminRoute) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (

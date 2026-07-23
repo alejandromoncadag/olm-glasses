@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useLikes } from "@/hooks/useLikes";
-import { logout } from "@/lib/auth";
 
 const storeNavItems = [
   { href: "/eyeglasses", label: "Ópticos" },
@@ -69,7 +68,7 @@ function QuizHeader() {
 }
 
 function StoreNavbar() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout, openProfile } = useAuth();
   const { likes } = useLikes();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -194,6 +193,19 @@ function StoreNavbar() {
                     Consultar pedido
                   </a>
 
+                  {user.role === "customer" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        openProfile();
+                      }}
+                      className="block w-full rounded-xl px-4 py-2 text-left hover:bg-gray-100"
+                    >
+                      Seguridad y perfil
+                    </button>
+                  )}
+
                   <a
                     href="/eye-exam"
                     className="block rounded-xl px-4 py-2 hover:bg-gray-100"
@@ -220,14 +232,14 @@ function StoreNavbar() {
               )}
             </div>
           ) : (
-            <a
+            <Link
               href="/login"
-              className="flex h-10 items-center gap-2 whitespace-nowrap rounded-full bg-black px-3 text-sm text-white transition hover:bg-black/80"
+              className="flex h-10 items-center gap-2 whitespace-nowrap rounded-full bg-[var(--brand-espresso)] px-3 text-sm text-white transition hover:bg-[#2a1710]"
               aria-label="Iniciar sesión"
             >
               <AccountIcon />
               <span className="hidden xl:inline">Cuenta</span>
-            </a>
+            </Link>
           )}
 
           <button

@@ -10,6 +10,7 @@ import {
   getAuthenticatedAdmin,
   unauthorizedAdminResponse,
 } from "@/lib/requireAdmin";
+import { getOptionalAuthenticatedCustomer } from "@/lib/customerAccounts";
 
 export const runtime = "nodejs";
 
@@ -173,7 +174,10 @@ function getPostgresError(error: unknown) {
   return error && typeof error === "object" ? (error as PostgresError) : null;
 }
 
-async function insertBooking(input: ValidatedBookingInput) {
+async function insertBooking(
+  input: ValidatedBookingInput,
+  customerId: string | null
+) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const bookingNumber = generateBookingNumber();
 
@@ -181,6 +185,7 @@ async function insertBooking(input: ValidatedBookingInput) {
       const result = await pool.query<BookingRow>(
         `
         INSERT INTO eye_exam_bookings (
+          customer_id,
           booking_number,
           location_slug,
           location_name,
@@ -192,10 +197,11 @@ async function insertBooking(input: ValidatedBookingInput) {
           customer_email,
           customer_phone,
           notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id, booking_number, status, created_at;
         `,
         [
+          customerId,
           bookingNumber,
           input.locationSlug,
           input.locationName,
@@ -316,8 +322,19 @@ export async function POST(request: Request) {
   }
 
   try {
-    const input = validateBookingInput(body);
-    const booking = await insertBooking(input);
+    const validatedInput = validateBookingInput(body);
+    const authenticatedCustomer = await getOptionalAuthenticatedCustomer();
+    const input = authenticatedCustomer
+      ? {
+          ...validatedInput,
+          customerName: authenticatedCustomer.fullName,
+          customerEmail: authenticatedCustomer.email,
+        }
+      : validatedInput;
+    const booking = await insertBooking(
+      input,
+      authenticatedCustomer?.customerId || null
+    );
 
     return NextResponse.json(
       {

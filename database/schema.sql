@@ -84,8 +84,40 @@ CREATE TABLE customers (
     zip_code TEXT NOT NULL,
     country TEXT NOT NULL DEFAULT 'México',
     stripe_customer_id TEXT,
+    auth_user_id TEXT,
+    avatar_url TEXT,
+    auth_synced_at TIMESTAMPTZ,
+    auth_deleted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- =========================
+-- CUSTOMER ADDRESSES
+-- =========================
+CREATE TABLE customer_addresses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    label TEXT NOT NULL DEFAULT 'Casa',
+    recipient_name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    address_line_1 TEXT NOT NULL,
+    address_line_2 TEXT,
+    city TEXT NOT NULL,
+    state TEXT NOT NULL,
+    postal_code TEXT NOT NULL,
+    country TEXT NOT NULL DEFAULT 'México',
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- =========================
+-- CUSTOMER FAVORITES
+-- =========================
+CREATE TABLE customer_favorites (
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (customer_id, product_id)
 );
 -- =========================
 -- ORDERS
@@ -188,6 +220,7 @@ CREATE TABLE admin_users (
 -- =========================
 CREATE TABLE eye_exam_bookings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
     booking_number TEXT NOT NULL,
     location_slug TEXT NOT NULL,
     location_name TEXT NOT NULL,
@@ -221,6 +254,12 @@ CREATE INDEX idx_customers_email ON customers(email);
 CREATE INDEX idx_customers_phone ON customers(phone);
 CREATE UNIQUE INDEX idx_customers_stripe_customer_id ON customers(stripe_customer_id)
 WHERE stripe_customer_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_customers_auth_user_id ON customers(auth_user_id)
+WHERE auth_user_id IS NOT NULL;
+CREATE INDEX idx_customer_addresses_customer_id ON customer_addresses(customer_id);
+CREATE UNIQUE INDEX idx_customer_addresses_one_default ON customer_addresses(customer_id)
+WHERE is_default;
+CREATE INDEX idx_customer_favorites_product_id ON customer_favorites(product_id);
 CREATE INDEX idx_orders_customer_id ON orders(customer_id);
 CREATE INDEX idx_orders_status ON orders(status);
 CREATE INDEX idx_orders_payment_status ON orders(payment_status);
@@ -236,6 +275,7 @@ CREATE INDEX idx_prescriptions_order_item_id ON prescriptions(order_item_id);
 CREATE INDEX idx_inventory_movements_product_id ON inventory_movements(product_id);
 CREATE INDEX idx_inventory_movements_order_id ON inventory_movements(order_id);
 CREATE INDEX idx_eye_exam_bookings_customer_email ON eye_exam_bookings(customer_email);
+CREATE INDEX idx_eye_exam_bookings_customer_id ON eye_exam_bookings(customer_id);
 CREATE INDEX idx_eye_exam_bookings_location_date ON eye_exam_bookings(location_slug, appointment_date);
 CREATE INDEX idx_eye_exam_bookings_status ON eye_exam_bookings(status);
 CREATE UNIQUE INDEX idx_eye_exam_bookings_active_slot ON eye_exam_bookings(
@@ -254,6 +294,8 @@ CREATE TRIGGER update_products_updated_at BEFORE
 UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_customers_updated_at BEFORE
 UPDATE ON customers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_customer_addresses_updated_at BEFORE
+UPDATE ON customer_addresses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_orders_updated_at BEFORE
 UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_prescriptions_updated_at BEFORE

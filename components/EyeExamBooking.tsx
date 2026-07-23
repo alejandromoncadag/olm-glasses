@@ -8,7 +8,7 @@ import {
   type EyeExamService,
 } from "@/data/eyeExamServices";
 import { locations, type Location } from "@/data/locations";
-import { getCurrentUser } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { createWhatsAppLink } from "@/lib/whatsapp";
 
 type ContactInfo = {
@@ -66,6 +66,7 @@ function formatDateForApi(date: Date) {
 type Step = 1 | 2 | 3 | 4 | 5;
 
 export default function EyeExamBooking() {
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const presetLocation = searchParams.get("location");
 
@@ -91,15 +92,18 @@ export default function EyeExamBooking() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    const user = getCurrentUser();
-    if (user) {
-      setContact((prev) => ({
-        ...prev,
-        fullName: prev.fullName || user.fullName,
-        email: prev.email || user.email,
+    if (!user) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setContact((previous) => ({
+        ...previous,
+        fullName: previous.fullName || user.fullName,
+        email: previous.email || user.email,
       }));
-    }
-  }, []);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [user]);
 
   const days = useMemo(() => nextSevenDays(), []);
 
