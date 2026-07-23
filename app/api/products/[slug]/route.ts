@@ -45,7 +45,7 @@ function mapProduct(product: {
   is_active: boolean;
   created_at: string;
   updated_at: string;
-}) {
+}, includePrivateInventory = true) {
   return {
     id: product.id,
     slug: product.slug,
@@ -59,14 +59,15 @@ function mapProduct(product: {
     gender: product.gender,
     shape: product.shape,
     frameColor: product.frame_color,
-    stock: product.stock,
+    stock: includePrivateInventory ? product.stock : product.stock > 0 ? 1 : 0,
+    isAvailable: product.stock > 0,
     isActive: product.is_active,
     createdAt: product.created_at,
     updatedAt: product.updated_at,
   };
 }
 
-async function getProductDetails(slug: string) {
+async function getProductDetails(slug: string, includePrivateInventory: boolean) {
   const productResult = await pool.query(
     `
       SELECT
@@ -114,7 +115,7 @@ async function getProductDetails(slug: string) {
   );
 
   return {
-    ...mapProduct(product),
+    ...mapProduct(product, includePrivateInventory),
     images: imagesResult.rows.map((image) => ({
       id: image.id,
       imageUrl: image.image_url,
@@ -131,7 +132,7 @@ export async function GET(_request: Request, context: RouteContext) {
   try {
     const { slug } = await context.params;
 
-    const product = await getProductDetails(slug);
+    const product = await getProductDetails(slug, Boolean(admin));
 
     if (!product || (!admin && !product.isActive)) {
 
@@ -332,7 +333,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     await client.query("COMMIT");
 
-    const updatedProduct = await getProductDetails(slug);
+    const updatedProduct = await getProductDetails(slug, true);
 
     return NextResponse.json({
       message: "Product updated successfully",

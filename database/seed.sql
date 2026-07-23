@@ -101,8 +101,7 @@ INSERT INTO products (
 )
 ON CONFLICT (slug) DO NOTHING;
 
--- Test product images.
--- These are placeholder image paths. Later we can replace them with real hosted image URLs.
+-- Original Óptica OLM product images.
 
 INSERT INTO product_images (
   product_id,
@@ -113,7 +112,7 @@ INSERT INTO product_images (
 )
 SELECT
   id,
-  '/products/modelo-clasico.jpg',
+  '/products/olm/modelo-clasico.webp',
   'Modelo Clásico',
   1,
   TRUE
@@ -130,7 +129,7 @@ INSERT INTO product_images (
 )
 SELECT
   id,
-  '/products/modelo-moderno.jpg',
+  '/products/olm/modelo-moderno.webp',
   'Modelo Moderno',
   1,
   TRUE
@@ -147,7 +146,7 @@ INSERT INTO product_images (
 )
 SELECT
   id,
-  '/products/modelo-premium.jpg',
+  '/products/olm/modelo-premium.webp',
   'Modelo Premium',
   1,
   TRUE
@@ -164,7 +163,7 @@ INSERT INTO product_images (
 )
 SELECT
   id,
-  '/products/sol-clasico.jpg',
+  '/products/olm/sol-clasico.webp',
   'Sol Clásico',
   1,
   TRUE
@@ -181,7 +180,7 @@ INSERT INTO product_images (
 )
 SELECT
   id,
-  '/products/sol-urbano.jpg',
+  '/products/olm/sol-urbano.webp',
   'Sol Urbano',
   1,
   TRUE
@@ -198,7 +197,7 @@ INSERT INTO product_images (
 )
 SELECT
   id,
-  '/products/sol-premium.jpg',
+  '/products/olm/sol-premium.webp',
   'Sol Premium',
   1,
   TRUE

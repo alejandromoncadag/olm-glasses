@@ -41,7 +41,7 @@ function mapProduct(product: {
   updated_at: string;
   main_image_url: string | null;
   main_image_alt: string | null;
-}) {
+}, includePrivateInventory = true) {
   return {
     id: product.id,
     slug: product.slug,
@@ -55,7 +55,8 @@ function mapProduct(product: {
     gender: product.gender,
     shape: product.shape,
     frameColor: product.frame_color,
-    stock: product.stock,
+    stock: includePrivateInventory ? product.stock : product.stock > 0 ? 1 : 0,
+    isAvailable: product.stock > 0,
     isActive: product.is_active,
     createdAt: product.created_at,
     updatedAt: product.updated_at,
@@ -147,7 +148,7 @@ export async function GET() {
     `);
 
     return NextResponse.json({
-      products: result.rows.map(mapProduct),
+      products: result.rows.map((product) => mapProduct(product, Boolean(admin))),
     });
   } catch (error) {
     console.error("Error fetching products:", error);

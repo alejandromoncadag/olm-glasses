@@ -270,9 +270,7 @@ export default function ProductPurchasePanel({
               ${finalPrice.toLocaleString("es-MX")} MXN
             </p>
           </div>
-          <p className="pb-1 text-right text-xs text-gray-600">
-            {isOutOfStock ? "Agotado" : `${product.stock} disponibles`}
-          </p>
+          {isOutOfStock && <p className="pb-1 text-right text-xs font-semibold text-red-700">Agotado</p>}
         </div>
 
         <div className="mt-4 space-y-1 text-xs leading-5 text-gray-600">

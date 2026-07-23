@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useLikes } from "@/hooks/useLikes";
@@ -48,20 +49,20 @@ function QuizHeader() {
           <span aria-hidden>←</span> Volver
         </button>
 
-        <a
+        <Link
           href="/"
           className="text-lg font-bold tracking-[-0.04em] sm:text-xl"
         >
           Óptica OLM
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/"
           className="flex h-10 w-10 items-center justify-center justify-self-end rounded-full text-2xl leading-none transition hover:bg-gray-100"
           aria-label="Cerrar quiz y volver al inicio"
         >
           <span aria-hidden>×</span>
-        </a>
+        </Link>
       </div>
     </header>
   );
@@ -84,13 +85,26 @@ function StoreNavbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-black/10 bg-white/95 text-black backdrop-blur">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-6">
-        <a
-          href="/"
-          className="shrink-0 whitespace-nowrap text-xl font-bold tracking-[-0.04em] sm:text-2xl"
-        >
-          Óptica OLM
-        </a>
+      <div className="bg-[#2d1f1a] text-white">
+        <div className="mx-auto grid h-9 max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 sm:px-6">
+          <p className="truncate text-[9px] font-medium uppercase tracking-[0.08em] sm:text-xs sm:tracking-[0.12em]">
+            Diseño premium, precios justos
+          </p>
+
+          <Link
+            href="/"
+            className="whitespace-nowrap text-xs font-bold uppercase tracking-[0.22em] sm:text-sm sm:tracking-[0.3em]"
+            aria-label="Óptica OLM, inicio"
+          >
+            Óptica OLM
+          </Link>
+
+          <p className="justify-self-end whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.08em] sm:text-xs sm:tracking-[0.12em]">
+            20% en tu primera compra
+          </p>
+        </div>
+      </div>
+      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:px-6">
 
         <div className="hidden items-center gap-1 whitespace-nowrap text-xs font-medium text-gray-700 lg:flex xl:gap-3 xl:text-sm">
           {storeNavItems.map((item) => (
@@ -104,7 +118,7 @@ function StoreNavbar() {
           ))}
         </div>
 
-        <div className="flex items-center gap-0.5 text-sm font-medium sm:gap-1">
+        <div className="ml-auto flex items-center gap-0.5 text-sm font-medium sm:gap-1">
           <a
             href="/likes"
             className="relative flex h-10 items-center gap-2 whitespace-nowrap rounded-full px-2 transition hover:bg-gray-100 sm:px-2.5"

@@ -221,10 +221,6 @@ export default function PublicProductCatalog({
                     color={getCardColor(product.frameColor)}
                     href={`/product/${product.slug}`}
                     stock={product.stock}
-                    description={product.description}
-                    gender={product.gender}
-                    shape={product.shape}
-                    frameColor={product.frameColor}
                     imageUrl={product.mainImage?.imageUrl}
                     imageAltText={product.mainImage?.altText}
                   />

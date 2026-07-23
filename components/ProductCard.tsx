@@ -8,10 +8,6 @@ type ProductCardProps = {
   color: string;
   href: string;
   stock: number;
-  description?: string;
-  gender?: string;
-  shape?: string;
-  frameColor?: string;
   imageUrl?: string | null;
   imageAltText?: string | null;
 };
@@ -24,15 +20,10 @@ export default function ProductCard({
   color,
   href,
   stock,
-  description,
-  gender,
-  shape,
-  frameColor,
   imageUrl,
   imageAltText,
 }: ProductCardProps) {
   const isOutOfStock = stock <= 0;
-  const details = [gender, shape, frameColor].filter(Boolean);
 
   return (
     <article className="group flex h-full flex-col rounded-[28px] border border-black/10 bg-white p-3 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
@@ -86,30 +77,7 @@ export default function ProductCard({
           </p>
         </div>
 
-        {description && (
-          <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-gray-600">
-            {description}
-          </p>
-        )}
-
-        {details.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {details.map((detail) => (
-              <span
-                key={detail}
-                className="rounded-full bg-[#f5f4f1] px-3 py-1 text-xs capitalize text-gray-600"
-              >
-                {detail}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-auto flex items-center justify-between gap-4 pt-6">
-          <p className="text-xs font-medium text-gray-500">
-            {isOutOfStock ? "Sin existencias" : `${stock} disponibles`}
-          </p>
-
+        <div className="mt-auto flex items-center justify-end gap-4 pt-6">
           <a
             href={href}
             className="rounded-full border border-black/20 px-4 py-2 text-sm font-medium transition hover:border-black hover:bg-black hover:text-white"

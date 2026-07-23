@@ -356,7 +356,7 @@ export async function POST(request: Request) {
 
       if (product.stock < item.quantity) {
         throw new CheckoutError(
-          `Solo quedan ${product.stock} unidades de ${product.name}.`,
+          `La cantidad solicitada de ${product.name} no está disponible.`,
           400
         );
       }

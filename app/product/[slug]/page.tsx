@@ -33,6 +33,25 @@ type Product = {
   images: ProductImage[];
 };
 
+function formatProductValue(value: string) {
+  if (!value) return "Por confirmar";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function getProductDescription(product: Product) {
+  const description = product.description?.trim();
+  const isPlaceholder =
+    !description || /\btest\b|creado desde api|para prueba/i.test(description);
+
+  if (!isPlaceholder) return description;
+
+  const shape = product.shape ? ` de forma ${product.shape}` : "";
+  const color = product.frameColor ? ` en tono ${product.frameColor}` : "";
+  const use = product.type === "sunglasses" ? "para días de sol" : "para uso diario";
+
+  return `Un armazón${shape}${color}, pensado ${use} y listo para personalizarse con la opción de lente que mejor se adapte a ti.`;
+}
+
 export default function ProductPage() {
   const params = useParams();
 
@@ -165,6 +184,9 @@ export default function ProductPage() {
 
   const collectionHref =
     product.type === "sunglasses" ? "/sunglasses" : "/eyeglasses";
+  const productDescription = getProductDescription(product);
+  const productTypeLabel =
+    product.type === "sunglasses" ? "Lentes de sol" : "Lentes ópticos";
 
   return (
     <main className="min-h-screen bg-white text-black">
@@ -275,7 +297,7 @@ export default function ProductPage() {
               </div>
 
               <p className="mt-5 max-w-xl leading-7 text-gray-600">
-                {product.description || "Armazón disponible en Óptica OLM."}
+                {productDescription}
               </p>
 
               <div className="mt-5 flex flex-wrap gap-2 text-xs font-medium text-gray-700">
@@ -294,9 +316,6 @@ export default function ProductPage() {
                     {product.frameColor}
                   </span>
                 )}
-                <span className="rounded-full bg-[#f4f3f0] px-3 py-2">
-                  {product.stock} disponibles
-                </span>
               </div>
 
               <div className="mt-5">
@@ -323,20 +342,26 @@ export default function ProductPage() {
               />
             )}
 
-            <div className="mt-6 divide-y divide-gray-200 rounded-3xl border border-gray-200 px-5">
-              <div className="flex items-center gap-4 py-4">
-                <span className="h-2 w-2 shrink-0 rounded-full bg-black" />
-                <p className="text-sm font-medium">Recoger en tienda disponible</p>
+            <section className="mt-8 rounded-[1.75rem] bg-[#f7f3ee] p-6 sm:p-7">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+                Servicio Óptica OLM
+              </p>
+              <h2 className="mt-2 text-xl font-semibold">Incluido con tu compra</h2>
+              <div className="mt-5 divide-y divide-black/10">
+                {[
+                  "Ajuste de armazón en tienda",
+                  "Examen incluido al comprar en tienda",
+                  "Acompañamiento para enviar tu receta",
+                ].map((benefit) => (
+                  <div key={benefit} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-black/20 text-xs" aria-hidden="true">
+                      ✓
+                    </span>
+                    <p className="text-sm font-medium">{benefit}</p>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-4 py-4">
-                <span className="h-2 w-2 shrink-0 rounded-full bg-black" />
-                <p className="text-sm font-medium">Envío a domicilio por confirmar</p>
-              </div>
-              <div className="flex items-center gap-4 py-4">
-                <span className="h-2 w-2 shrink-0 rounded-full bg-black" />
-                <p className="text-sm font-medium">Examen de la vista disponible</p>
-              </div>
-            </div>
+            </section>
 
             <a
               href={createWhatsAppLink(
@@ -352,6 +377,64 @@ export default function ProductPage() {
             <p className="mt-4 text-center text-xs leading-5 text-gray-500">
               Pago seguro en pesos mexicanos.
             </p>
+          </div>
+        </section>
+
+        <section className="mt-20 border-t border-black/15 pt-12 md:mt-28 md:pt-16">
+          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">
+                Conoce el modelo
+              </p>
+              <h2 className="mt-3 max-w-lg text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">
+                Diseñado para acompañarte todos los días.
+              </h2>
+              <p className="mt-5 max-w-xl leading-7 text-gray-600">
+                {productDescription} Puedes elegir tu tipo de lente y la forma de enviar tu receta antes de agregarlo al carrito.
+              </p>
+            </div>
+
+            <div className="grid gap-8 rounded-[2rem] bg-[#f7f3ee] p-6 sm:grid-cols-2 sm:p-8">
+              <div>
+                <h3 className="text-lg font-semibold">Detalles del armazón</h3>
+                <dl className="mt-5 divide-y divide-black/10 text-sm">
+                  <div className="flex justify-between gap-6 py-3 first:pt-0">
+                    <dt className="text-gray-500">Tipo</dt>
+                    <dd className="text-right font-medium">{productTypeLabel}</dd>
+                  </div>
+                  <div className="flex justify-between gap-6 py-3">
+                    <dt className="text-gray-500">Forma</dt>
+                    <dd className="text-right font-medium">{formatProductValue(product.shape)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-6 py-3">
+                    <dt className="text-gray-500">Color</dt>
+                    <dd className="text-right font-medium">{formatProductValue(product.frameColor)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-6 py-3 last:pb-0">
+                    <dt className="text-gray-500">Colección</dt>
+                    <dd className="text-right font-medium">{formatProductValue(product.category)}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold">Tu compra, a tu manera</h3>
+                <ul className="mt-5 space-y-4 text-sm leading-6 text-gray-600">
+                  <li className="flex gap-3">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-black" />
+                    Elige entre graduación sencilla, mica transparente o lentes de sol.
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-black" />
+                    Envía tu receta después o solicita apoyo por WhatsApp.
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-black" />
+                    Recoge en tienda y recibe ayuda con el ajuste de tu armazón.
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </section>
       </div>

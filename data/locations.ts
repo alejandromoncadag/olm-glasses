@@ -18,6 +18,7 @@ export type Location = {
   services: string[];
   description: string;
   color: string;
+  image: string;
 };
 
 export const locations: Location[] = [
@@ -52,6 +53,7 @@ export const locations: Location[] = [
     description:
       "Nuestra tienda insignia en el corazón de Polanco. Pasa a probarte cualquier modelo, agenda un examen de la vista o recoge tu pedido en persona.",
     color: "#f7f3ee",
+    image: "/images/locations/polanco-neighborhood.png",
   },
   {
     slug: "cuautitlan-edomex",
@@ -83,6 +85,7 @@ export const locations: Location[] = [
     description:
       "Visítanos en Cuautitlán para realizar tu examen de la vista, probarte armazones y recibir asesoría personalizada.",
     color: "#f7f3ee",
+    image: "/images/locations/cuautitlan-neighborhood.png",
   },
 ];
 
