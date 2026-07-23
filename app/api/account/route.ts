@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { isClerkConfigured } from "@/lib/clerkConfig";
+import { isCustomerAuthConfigured } from "@/lib/customerAuthConfig";
 import { getOptionalAuthenticatedCustomer } from "@/lib/customerAccounts";
 import { pool } from "@/lib/db";
 
 export const runtime = "nodejs";
 
 function unavailableResponse() {
-  if (!isClerkConfigured()) {
+  if (!isCustomerAuthConfigured()) {
     return NextResponse.json(
       { error: "El acceso de clientes todavía no está configurado." },
       { status: 503 }

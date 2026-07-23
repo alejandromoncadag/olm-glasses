@@ -5,6 +5,7 @@
   --foreground: #171717;
   --brand-dark: #2d1f1a;
   --brand-dark-hover: #3a2922;
+  --brand-espresso: var(--brand-dark);
 }
 
 @theme inline {

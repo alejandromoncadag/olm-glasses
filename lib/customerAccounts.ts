@@ -1,9 +1,10 @@
 import "server-only";
 
+import type { Session } from "next-auth";
 import type { PoolClient } from "pg";
-import { auth, currentUser } from "@clerk/nextjs/server";
 
-import { isClerkConfigured } from "@/lib/clerkConfig";
+import { auth } from "@/auth";
+import { isCustomerAuthConfigured } from "@/lib/customerAuthConfig";
 import { pool } from "@/lib/db";
 
 export type CustomerIdentity = {
@@ -27,24 +28,14 @@ function cleanText(value: unknown) {
   return String(value || "").trim();
 }
 
-function identityFromClerkUser(user: Awaited<ReturnType<typeof currentUser>>) {
-  if (!user) return null;
-
-  const primaryEmail =
-    user.emailAddresses.find(
-      (emailAddress) => emailAddress.id === user.primaryEmailAddressId
-    )?.emailAddress || user.emailAddresses[0]?.emailAddress;
-
-  if (!primaryEmail) return null;
+function identityFromAuthSession(session: Session | null) {
+  if (!session?.user?.id || !session.user.email) return null;
 
   return {
-    authUserId: user.id,
-    email: primaryEmail.trim().toLowerCase(),
-    fullName:
-      cleanText(user.fullName) ||
-      cleanText([user.firstName, user.lastName].filter(Boolean).join(" ")) ||
-      "Cliente OLM",
-    avatarUrl: cleanText(user.imageUrl) || null,
+    authUserId: session.user.id,
+    email: session.user.email.trim().toLowerCase(),
+    fullName: cleanText(session.user.name) || "Cliente OLM",
+    avatarUrl: cleanText(session.user.image) || null,
   } satisfies CustomerIdentity;
 }
 
@@ -175,7 +166,7 @@ export async function upsertCustomerIdentity(identity: CustomerIdentity) {
       `
         SELECT *
         FROM customers
-        WHERE auth_user_id = $1
+        WHERE authjs_user_id = $1
         LIMIT 1
         FOR UPDATE
       `,
@@ -207,12 +198,10 @@ export async function upsertCustomerIdentity(identity: CustomerIdentity) {
         `
           UPDATE customers
           SET
-            auth_user_id = $2,
+            authjs_user_id = $2,
             full_name = $3,
             email = LOWER($4),
-            avatar_url = $5,
-            auth_synced_at = NOW(),
-            auth_deleted_at = NULL
+            avatar_url = $5
           WHERE id = $1
           RETURNING *
         `,
@@ -238,11 +227,10 @@ export async function upsertCustomerIdentity(identity: CustomerIdentity) {
             state,
             zip_code,
             country,
-            auth_user_id,
-            avatar_url,
-            auth_synced_at
+            authjs_user_id,
+            avatar_url
           )
-          VALUES ($1, LOWER($2), '', '', '', '', '', 'México', $3, $4, NOW())
+          VALUES ($1, LOWER($2), '', '', '', '', '', 'México', $3, $4)
           RETURNING *
         `,
         [
@@ -290,55 +278,8 @@ export async function upsertCustomerIdentity(identity: CustomerIdentity) {
 }
 
 export async function getOptionalAuthenticatedCustomer() {
-  if (!isClerkConfigured()) return null;
+  if (!isCustomerAuthConfigured()) return null;
 
-  const { userId } = await auth();
-
-  if (!userId) return null;
-
-  const clerkUser = await currentUser();
-  const identity = identityFromClerkUser(clerkUser);
-
-  if (!identity || identity.authUserId !== userId) return null;
-
-  return upsertCustomerIdentity(identity);
-}
-
-export async function markCustomerIdentityDeleted(authUserId: string) {
-  await pool.query(
-    `
-      UPDATE customers
-      SET
-        auth_user_id = NULL,
-        auth_deleted_at = NOW(),
-        auth_synced_at = NOW()
-      WHERE auth_user_id = $1
-    `,
-    [authUserId]
-  );
-}
-
-export function customerIdentityFromWebhookUser(user: {
-  id: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  image_url?: string | null;
-  primary_email_address_id?: string | null;
-  email_addresses?: Array<{ id: string; email_address: string }>;
-}) {
-  const primaryEmail =
-    user.email_addresses?.find(
-      (emailAddress) => emailAddress.id === user.primary_email_address_id
-    )?.email_address || user.email_addresses?.[0]?.email_address;
-
-  if (!primaryEmail) return null;
-
-  return {
-    authUserId: user.id,
-    email: primaryEmail.trim().toLowerCase(),
-    fullName:
-      cleanText([user.first_name, user.last_name].filter(Boolean).join(" ")) ||
-      "Cliente OLM",
-    avatarUrl: cleanText(user.image_url) || null,
-  } satisfies CustomerIdentity;
+  const identity = identityFromAuthSession(await auth());
+  return identity ? upsertCustomerIdentity(identity) : null;
 }

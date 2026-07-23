@@ -132,7 +132,6 @@ export default function AccountDashboard() {
     user,
     loading: authLoading,
     logout,
-    openProfile,
     customerAuthConfigured,
   } = useAuth();
   const [overview, setOverview] = useState<AccountOverview | null>(null);
@@ -386,13 +385,6 @@ export default function AccountDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={openProfile}
-            className="rounded-full border border-[#4a2d23] px-5 py-2.5 text-sm text-[#4a2d23] transition hover:bg-[#4a2d23] hover:text-white"
-          >
-            Seguridad y perfil
-          </button>
           <button
             type="button"
             onClick={() => void handleLogout()}

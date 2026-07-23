@@ -85,12 +85,55 @@ CREATE TABLE customers (
     country TEXT NOT NULL DEFAULT 'México',
     stripe_customer_id TEXT,
     auth_user_id TEXT,
+    authjs_user_id TEXT,
     avatar_url TEXT,
     auth_synced_at TIMESTAMPTZ,
     auth_deleted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- =========================
+-- AUTH.JS
+-- =========================
+CREATE TABLE users (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    name TEXT,
+    email TEXT,
+    "emailVerified" TIMESTAMPTZ,
+    image TEXT
+);
+CREATE TABLE accounts (
+    id BIGSERIAL PRIMARY KEY,
+    "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    "providerAccountId" TEXT NOT NULL,
+    refresh_token TEXT,
+    access_token TEXT,
+    expires_at BIGINT,
+    token_type TEXT,
+    scope TEXT,
+    id_token TEXT,
+    session_state TEXT,
+    UNIQUE (provider, "providerAccountId")
+);
+CREATE TABLE sessions (
+    id BIGSERIAL PRIMARY KEY,
+    "sessionToken" TEXT NOT NULL UNIQUE,
+    "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires TIMESTAMPTZ NOT NULL
+);
+CREATE TABLE verification_token (
+    identifier TEXT NOT NULL,
+    expires TIMESTAMPTZ NOT NULL,
+    token TEXT NOT NULL,
+    PRIMARY KEY (identifier, token)
+);
+ALTER TABLE customers
+ADD CONSTRAINT customers_authjs_user_id_fkey
+FOREIGN KEY (authjs_user_id)
+REFERENCES users(id)
+ON DELETE SET NULL;
 -- =========================
 -- CUSTOMER ADDRESSES
 -- =========================
@@ -256,6 +299,12 @@ CREATE UNIQUE INDEX idx_customers_stripe_customer_id ON customers(stripe_custome
 WHERE stripe_customer_id IS NOT NULL;
 CREATE UNIQUE INDEX idx_customers_auth_user_id ON customers(auth_user_id)
 WHERE auth_user_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_customers_authjs_user_id ON customers(authjs_user_id)
+WHERE authjs_user_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_authjs_users_email_lower ON users(LOWER(email))
+WHERE email IS NOT NULL;
+CREATE INDEX idx_authjs_accounts_user_id ON accounts("userId");
+CREATE INDEX idx_authjs_sessions_user_id ON sessions("userId");
 CREATE INDEX idx_customer_addresses_customer_id ON customer_addresses(customer_id);
 CREATE UNIQUE INDEX idx_customer_addresses_one_default ON customer_addresses(customer_id)
 WHERE is_default;

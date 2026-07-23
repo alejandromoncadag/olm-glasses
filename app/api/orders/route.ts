@@ -341,7 +341,7 @@ export async function POST(request: Request) {
         city = EXCLUDED.city,
         state = EXCLUDED.state,
         zip_code = EXCLUDED.zip_code
-      WHERE customers.auth_user_id IS NULL
+      WHERE customers.authjs_user_id IS NULL
       RETURNING id;
       `,
           [

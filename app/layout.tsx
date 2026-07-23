@@ -4,7 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AuthProvider from "@/components/AuthProvider";
-import { isClerkConfigured } from "@/lib/clerkConfig";
+import { isCustomerAuthConfigured } from "@/lib/customerAuthConfig";
 import { LikesProvider } from "@/hooks/useLikes";
 
 const geistSans = Geist({
@@ -27,9 +27,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const clerkPublishableKey =
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() || null;
-  const clerkConfigured = isClerkConfigured();
+  const customerAuthConfigured = isCustomerAuthConfigured();
 
   return (
     <html
@@ -37,10 +35,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <AuthProvider
-          clerkPublishableKey={clerkPublishableKey}
-          clerkConfigured={clerkConfigured}
-        >
+        <AuthProvider customerAuthConfigured={customerAuthConfigured}>
           <LikesProvider>
             <Navbar />
             <div className="flex-1">{children}</div>

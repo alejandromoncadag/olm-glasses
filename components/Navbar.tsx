@@ -68,7 +68,7 @@ function QuizHeader() {
 }
 
 function StoreNavbar() {
-  const { user, loading, logout, openProfile } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { likes } = useLikes();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -192,19 +192,6 @@ function StoreNavbar() {
                   >
                     Consultar pedido
                   </a>
-
-                  {user.role === "customer" && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        openProfile();
-                      }}
-                      className="block w-full rounded-xl px-4 py-2 text-left hover:bg-gray-100"
-                    >
-                      Seguridad y perfil
-                    </button>
-                  )}
 
                   <a
                     href="/eye-exam"

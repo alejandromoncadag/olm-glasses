@@ -1,7 +1,10 @@
 "use client";
 
-import { ClerkProvider, useClerk, useUser } from "@clerk/nextjs";
-import { esMX } from "@clerk/localizations";
+import {
+  SessionProvider,
+  signOut as signOutCustomer,
+  useSession,
+} from "next-auth/react";
 import {
   createContext,
   ReactNode,
@@ -23,7 +26,6 @@ type AuthContextValue = {
   loading: boolean;
   customerAuthConfigured: boolean;
   logout: () => Promise<void>;
-  openProfile: () => void;
   refresh: () => Promise<void>;
 };
 
@@ -31,7 +33,6 @@ type CustomerSession = {
   loaded: boolean;
   user: User | null;
   signOut: () => Promise<void>;
-  openProfile: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -40,19 +41,16 @@ const emptyCustomerSession: CustomerSession = {
   loaded: true,
   user: null,
   signOut: async () => undefined,
-  openProfile: () => undefined,
 };
 
 export default function AuthProvider({
   children,
-  clerkPublishableKey,
-  clerkConfigured,
+  customerAuthConfigured,
 }: {
   children: ReactNode;
-  clerkPublishableKey: string | null;
-  clerkConfigured: boolean;
+  customerAuthConfigured: boolean;
 }) {
-  if (!clerkConfigured || !clerkPublishableKey) {
+  if (!customerAuthConfigured) {
     return (
       <UnifiedAuthState
         customerSession={emptyCustomerSession}
@@ -64,53 +62,36 @@ export default function AuthProvider({
   }
 
   return (
-    <ClerkProvider
-      publishableKey={clerkPublishableKey}
-      localization={esMX}
-      signInUrl="/login"
-      signUpUrl="/signup"
-    >
-      <ClerkAuthBridge>{children}</ClerkAuthBridge>
-    </ClerkProvider>
+    <SessionProvider>
+      <AuthJsBridge>{children}</AuthJsBridge>
+    </SessionProvider>
   );
 }
 
-function ClerkAuthBridge({ children }: { children: ReactNode }) {
-  const { isLoaded, isSignedIn, user } = useUser();
-  const clerk = useClerk();
+function AuthJsBridge({ children }: { children: ReactNode }) {
+  const { data: session, status } = useSession();
 
   const customerUser = useMemo<User | null>(() => {
-    if (!isLoaded || !isSignedIn || !user) return null;
-
-    const email =
-      user.primaryEmailAddress?.emailAddress ||
-      user.emailAddresses[0]?.emailAddress ||
-      "";
-
-    if (!email) return null;
+    if (status !== "authenticated" || !session.user?.email) return null;
 
     return {
-      id: user.id,
-      email: email.trim().toLowerCase(),
-      fullName:
-        user.fullName ||
-        [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-        "Cliente OLM",
+      id: session.user.id,
+      email: session.user.email.trim().toLowerCase(),
+      fullName: session.user.name?.trim() || "Cliente OLM",
       role: "customer",
-      avatarUrl: user.imageUrl || null,
+      avatarUrl: session.user.image || null,
     };
-  }, [isLoaded, isSignedIn, user]);
+  }, [session, status]);
 
   const customerSession = useMemo<CustomerSession>(
     () => ({
-      loaded: isLoaded,
+      loaded: status !== "loading",
       user: customerUser,
       signOut: async () => {
-        await clerk.signOut({ redirectUrl: "/" });
+        await signOutCustomer({ redirectTo: "/" });
       },
-      openProfile: () => clerk.openUserProfile(),
     }),
-    [clerk, customerUser, isLoaded]
+    [customerUser, status]
   );
 
   return (
@@ -148,7 +129,6 @@ function UnifiedAuthState({
   }, [customerSession.loaded, customerSession.user]);
 
   useEffect(() => {
-    // Remove credentials left by the retired browser-only customer login.
     window.localStorage.removeItem("olm-users");
     window.localStorage.removeItem("olm-user");
 
@@ -177,7 +157,6 @@ function UnifiedAuthState({
       loading,
       customerAuthConfigured,
       refresh: refreshAdmin,
-      openProfile: customerSession.openProfile,
       logout: async () => {
         if (customerSession.user) {
           await customerSession.signOut();
