@@ -7,6 +7,22 @@ import {
 
 export const runtime = "nodejs";
 
+type ProductFrameSize =
+  | "extra_small"
+  | "small"
+  | "medium"
+  | "large"
+  | "extra_large";
+type ProductFrameMaterial =
+  | "acetate_stainless_steel"
+  | "stainless_steel"
+  | "acetate"
+  | "acetate_slash_stainless_steel"
+  | "titanium"
+  | "nylon"
+  | "titanium_nylon"
+  | "reform";
+
 type CreateProductBody = {
   slug?: string;
   name?: string;
@@ -17,6 +33,9 @@ type CreateProductBody = {
   gender?: "hombre" | "mujer" | "unisex";
   shape?: "redondo" | "cuadrado" | "rectangular" | "aviador";
   frameColor?: string;
+  frameSize?: ProductFrameSize;
+  frameMaterial?: ProductFrameMaterial;
+  clipOnCompatible?: boolean;
   stock?: number;
   isActive?: boolean;
   imageUrl?: string;
@@ -35,6 +54,9 @@ function mapProduct(product: {
   gender: string;
   shape: string;
   frame_color: string;
+  frame_size: string;
+  frame_material: string;
+  clip_on_compatible: boolean;
   stock: number;
   is_active: boolean;
   created_at: string;
@@ -55,6 +77,9 @@ function mapProduct(product: {
     gender: product.gender,
     shape: product.shape,
     frameColor: product.frame_color,
+    frameSize: product.frame_size,
+    frameMaterial: product.frame_material,
+    clipOnCompatible: product.clip_on_compatible,
     stock: includePrivateInventory ? product.stock : product.stock > 0 ? 1 : 0,
     isAvailable: product.stock > 0,
     isActive: product.is_active,
@@ -84,6 +109,9 @@ async function getProductBySlug(slug: string) {
         products.gender,
         products.shape,
         products.frame_color,
+        products.frame_size,
+        products.frame_material,
+        products.clip_on_compatible,
         products.stock,
         products.is_active,
         products.created_at,
@@ -127,6 +155,9 @@ export async function GET() {
         products.gender,
         products.shape,
         products.frame_color,
+        products.frame_size,
+        products.frame_material,
+        products.clip_on_compatible,
         products.stock,
         products.is_active,
         products.created_at,
@@ -205,6 +236,36 @@ export async function POST(request: Request) {
 
     const priceCents = Math.round(body.price * 100);
     const isActive = body.isActive ?? true;
+    const frameSize = body.frameSize ?? "medium";
+    const frameMaterial = body.frameMaterial ?? "acetate";
+    const clipOnCompatible = body.clipOnCompatible ?? false;
+    const allowedFrameSizes: ProductFrameSize[] = [
+      "extra_small",
+      "small",
+      "medium",
+      "large",
+      "extra_large",
+    ];
+    const allowedFrameMaterials: ProductFrameMaterial[] = [
+      "acetate_stainless_steel",
+      "stainless_steel",
+      "acetate",
+      "acetate_slash_stainless_steel",
+      "titanium",
+      "nylon",
+      "titanium_nylon",
+      "reform",
+    ];
+
+    if (
+      !allowedFrameSizes.includes(frameSize) ||
+      !allowedFrameMaterials.includes(frameMaterial)
+    ) {
+      return NextResponse.json(
+        { error: "Invalid frame size or material" },
+        { status: 400 }
+      );
+    }
 
     await client.query("BEGIN");
 
@@ -220,6 +281,9 @@ export async function POST(request: Request) {
           gender,
           shape,
           frame_color,
+          frame_size,
+          frame_material,
+          clip_on_compatible,
           stock,
           is_active
         )
@@ -234,7 +298,10 @@ export async function POST(request: Request) {
           $8::product_shape,
           $9,
           $10,
-          $11
+          $11,
+          $12,
+          $13,
+          $14
         )
         RETURNING id, slug;
       `,
@@ -248,6 +315,9 @@ export async function POST(request: Request) {
         body.gender,
         body.shape,
         body.frameColor,
+        frameSize,
+        frameMaterial,
+        clipOnCompatible,
         stock,
         isActive,
       ]

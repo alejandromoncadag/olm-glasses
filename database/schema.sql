@@ -49,6 +49,30 @@ CREATE TABLE products (
     gender product_gender NOT NULL,
     shape product_shape NOT NULL,
     frame_color TEXT NOT NULL,
+    frame_size TEXT NOT NULL DEFAULT 'medium'
+        CHECK (
+            frame_size IN (
+                'extra_small',
+                'small',
+                'medium',
+                'large',
+                'extra_large'
+            )
+        ),
+    frame_material TEXT NOT NULL DEFAULT 'acetate'
+        CHECK (
+            frame_material IN (
+                'acetate_stainless_steel',
+                'stainless_steel',
+                'acetate',
+                'acetate_slash_stainless_steel',
+                'titanium',
+                'nylon',
+                'titanium_nylon',
+                'reform'
+            )
+        ),
+    clip_on_compatible BOOLEAN NOT NULL DEFAULT FALSE,
     stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -154,6 +178,22 @@ CREATE TABLE customer_addresses (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 -- =========================
+-- CUSTOMER TAX PROFILES
+-- =========================
+CREATE TABLE customer_tax_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
+    rfc TEXT NOT NULL,
+    tax_name TEXT NOT NULL,
+    fiscal_postal_code TEXT NOT NULL,
+    tax_regime TEXT NOT NULL,
+    cfdi_use TEXT NOT NULL,
+    invoice_email TEXT NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- =========================
 -- CUSTOMER FAVORITES
 -- =========================
 CREATE TABLE customer_favorites (
@@ -193,6 +233,34 @@ CREATE TABLE orders (
     inventory_committed_at TIMESTAMPTZ,
     inventory_released_at TIMESTAMPTZ,
     paid_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- =========================
+-- INVOICE REQUESTS
+-- =========================
+CREATE TABLE invoice_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    request_number TEXT NOT NULL UNIQUE,
+    order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+    order_number TEXT NOT NULL,
+    customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+    customer_tax_profile_id UUID REFERENCES customer_tax_profiles(id) ON DELETE SET NULL,
+    rfc TEXT NOT NULL,
+    tax_name TEXT NOT NULL,
+    fiscal_postal_code TEXT NOT NULL,
+    tax_regime TEXT NOT NULL,
+    cfdi_use TEXT NOT NULL,
+    invoice_email TEXT NOT NULL,
+    payment_method TEXT NOT NULL,
+    order_total_cents INTEGER NOT NULL CHECK (order_total_cents >= 0),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (
+        status IN ('pending', 'issued', 'rejected', 'cancelled')
+    ),
+    admin_notes TEXT,
+    rejection_reason TEXT,
+    xml_url TEXT,
+    pdf_url TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -308,6 +376,9 @@ CREATE INDEX idx_authjs_sessions_user_id ON sessions("userId");
 CREATE INDEX idx_customer_addresses_customer_id ON customer_addresses(customer_id);
 CREATE UNIQUE INDEX idx_customer_addresses_one_default ON customer_addresses(customer_id)
 WHERE is_default;
+CREATE INDEX idx_customer_tax_profiles_customer_id ON customer_tax_profiles(customer_id);
+CREATE UNIQUE INDEX idx_customer_tax_profiles_one_default ON customer_tax_profiles(customer_id)
+WHERE is_default;
 CREATE INDEX idx_customer_favorites_product_id ON customer_favorites(product_id);
 CREATE INDEX idx_orders_customer_id ON orders(customer_id);
 CREATE INDEX idx_orders_status ON orders(status);
@@ -318,6 +389,11 @@ WHERE stripe_checkout_session_id IS NOT NULL;
 CREATE UNIQUE INDEX idx_orders_stripe_payment_intent_id ON orders(stripe_payment_intent_id)
 WHERE stripe_payment_intent_id IS NOT NULL;
 CREATE INDEX idx_orders_inventory_reservation_status ON orders(inventory_reservation_status);
+CREATE INDEX idx_invoice_requests_status ON invoice_requests(status);
+CREATE INDEX idx_invoice_requests_order_number ON invoice_requests(order_number);
+CREATE INDEX idx_invoice_requests_customer_id ON invoice_requests(customer_id);
+CREATE INDEX idx_invoice_requests_rfc ON invoice_requests(rfc);
+CREATE INDEX idx_invoice_requests_created_at ON invoice_requests(created_at);
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX idx_order_items_product_id ON order_items(product_id);
 CREATE INDEX idx_prescriptions_order_item_id ON prescriptions(order_item_id);
@@ -345,8 +421,12 @@ CREATE TRIGGER update_customers_updated_at BEFORE
 UPDATE ON customers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_customer_addresses_updated_at BEFORE
 UPDATE ON customer_addresses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_customer_tax_profiles_updated_at BEFORE
+UPDATE ON customer_tax_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_orders_updated_at BEFORE
 UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_invoice_requests_updated_at BEFORE
+UPDATE ON invoice_requests FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_prescriptions_updated_at BEFORE
 UPDATE ON prescriptions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_admin_users_updated_at BEFORE

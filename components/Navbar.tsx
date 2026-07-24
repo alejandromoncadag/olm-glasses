@@ -121,16 +121,22 @@ function StoreNavbar() {
           <a
             href="/likes"
             className="relative flex h-10 items-center gap-2 whitespace-nowrap rounded-full px-2 transition hover:bg-gray-100 sm:px-2.5"
-            aria-label="Favoritos"
+            aria-label={
+              likes.length > 0
+                ? `Favoritos, ${likes.length} ${likes.length === 1 ? "producto" : "productos"}`
+                : "Favoritos"
+            }
           >
-            <HeartIcon filled={likes.length > 0} />
-            <span className="hidden xl:inline">Favoritos</span>
+            <span className="relative flex h-6 w-6 shrink-0 items-center justify-center">
+              <HeartIcon filled={false} />
 
-            {likes.length > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-black px-1.5 text-[11px] text-white">
-                {likes.length}
-              </span>
-            )}
+              {likes.length > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--brand-espresso)] px-1 text-[9px] font-semibold leading-none text-white ring-2 ring-white">
+                  {likes.length > 99 ? "99+" : likes.length}
+                </span>
+              )}
+            </span>
+            <span className="hidden xl:inline">Favoritos</span>
           </a>
 
           <a
@@ -221,7 +227,7 @@ function StoreNavbar() {
           ) : (
             <Link
               href="/login"
-              className="flex h-10 items-center gap-2 whitespace-nowrap rounded-full bg-[var(--brand-espresso)] px-3 text-sm text-white transition hover:bg-[#2a1710]"
+              className="flex h-10 items-center gap-2 whitespace-nowrap rounded-full px-2 text-sm text-black transition hover:bg-gray-100 sm:px-2.5"
               aria-label="Iniciar sesión"
             >
               <AccountIcon />

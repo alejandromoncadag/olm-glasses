@@ -6,6 +6,11 @@ export default function EyeglassesPage() {
       type="eyeglasses"
       title="Lentes ópticos"
       description="Explora nuestra colección de armazones modernos para todos los días."
+      filterLayout="sidebar"
+      actionLabel="Seleccionar modelo"
+      showNewBadge
+      heroImage="/images/home-hero-eyewear.png"
+      heroImagePosition="center"
     />
   );
 }

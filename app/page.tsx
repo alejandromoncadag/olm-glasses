@@ -92,13 +92,18 @@ export default function Home() {
           </div>
 
           <div className="relative min-h-80 overflow-hidden rounded-3xl bg-white shadow-sm md:min-h-96">
-            <Image
-              src="/images/optometrist-olm.png"
-              alt="Optometrista de Óptica OLM en una sala de examen"
-              fill
-              sizes="(min-width: 768px) 50vw, 100vw"
-              className="object-cover"
-            />
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              aria-label="Examen de la vista con equipo de optometría"
+              className="absolute inset-0 h-full w-full object-cover"
+            >
+              <source src="/videos/eye-exam.mp4" type="video/mp4" />
+              Tu navegador no puede reproducir este video.
+            </video>
           </div>
         </div>
       </section>

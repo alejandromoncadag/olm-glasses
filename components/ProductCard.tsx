@@ -10,6 +10,8 @@ type ProductCardProps = {
   stock: number;
   imageUrl?: string | null;
   imageAltText?: string | null;
+  actionLabel?: string;
+  isNew?: boolean;
 };
 
 export default function ProductCard({
@@ -22,6 +24,8 @@ export default function ProductCard({
   stock,
   imageUrl,
   imageAltText,
+  actionLabel = "Ver modelo",
+  isNew = false,
 }: ProductCardProps) {
   const isOutOfStock = stock <= 0;
 
@@ -31,6 +35,22 @@ export default function ProductCard({
         <div className="absolute right-4 top-4 z-10">
           <LikeButton slug={slug} size="md" />
         </div>
+
+        {(isNew || isOutOfStock) && (
+          <div className="absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
+            {isNew && (
+              <span className="rounded-full bg-[var(--brand-espresso)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-sm">
+                Nuevo
+              </span>
+            )}
+
+            {isOutOfStock && (
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm">
+                Agotado
+              </span>
+            )}
+          </div>
+        )}
 
         <a href={href} className="block" aria-label={`Ver ${name}`}>
           <div
@@ -50,11 +70,6 @@ export default function ProductCard({
               </span>
             )}
 
-            {isOutOfStock && (
-              <span className="absolute left-4 top-4 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm">
-                Agotado
-              </span>
-            )}
           </div>
         </a>
       </div>
@@ -80,9 +95,9 @@ export default function ProductCard({
         <div className="mt-auto flex items-center justify-end gap-4 pt-6">
           <a
             href={href}
-            className="rounded-full border border-black/20 px-4 py-2 text-sm font-medium transition hover:border-black hover:bg-black hover:text-white"
+            className="rounded-full border border-black/20 px-4 py-2 text-sm font-medium transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white"
           >
-            Ver modelo
+            {actionLabel}
           </a>
         </div>
       </div>

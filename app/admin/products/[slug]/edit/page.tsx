@@ -9,6 +9,21 @@ import ProductImageGalleryManager from "@/components/ProductImageGalleryManager"
 type ProductType = "eyeglasses" | "sunglasses";
 type ProductGender = "hombre" | "mujer" | "unisex";
 type ProductShape = "redondo" | "cuadrado" | "rectangular" | "aviador";
+type ProductFrameSize =
+  | "extra_small"
+  | "small"
+  | "medium"
+  | "large"
+  | "extra_large";
+type ProductFrameMaterial =
+  | "acetate_stainless_steel"
+  | "stainless_steel"
+  | "acetate"
+  | "acetate_slash_stainless_steel"
+  | "titanium"
+  | "nylon"
+  | "titanium_nylon"
+  | "reform";
 
 type ProductImage = {
   id: string;
@@ -29,6 +44,9 @@ type Product = {
   gender: ProductGender;
   shape: ProductShape;
   frameColor: string;
+  frameSize: ProductFrameSize;
+  frameMaterial: ProductFrameMaterial;
+  clipOnCompatible: boolean;
   stock: number;
   isActive: boolean;
   createdAt?: string;
@@ -55,6 +73,21 @@ function getProductTypeLabel(type: ProductType) {
   if (type === "sunglasses") return "Lentes de sol";
 
   return "Producto";
+}
+
+function getFrameMaterialLabel(material: ProductFrameMaterial) {
+  const labels: Record<ProductFrameMaterial, string> = {
+    acetate_stainless_steel: "Acetato + Acero Inoxidable",
+    stainless_steel: "Acero Inoxidable",
+    acetate: "Acetato",
+    acetate_slash_stainless_steel: "Acetato/Acero Inoxidable",
+    titanium: "Titanio",
+    nylon: "Nylon",
+    titanium_nylon: "Titanio + Nylon",
+    reform: "ReForm",
+  };
+
+  return labels[material];
 }
 
 function getStockLabel(stock: number, isActive: boolean) {
@@ -95,6 +128,10 @@ export default function EditProductPage() {
   const [gender, setGender] = useState<ProductGender>("unisex");
   const [shape, setShape] = useState<ProductShape>("rectangular");
   const [frameColor, setFrameColor] = useState("");
+  const [frameSize, setFrameSize] = useState<ProductFrameSize>("medium");
+  const [frameMaterial, setFrameMaterial] =
+    useState<ProductFrameMaterial>("acetate");
+  const [clipOnCompatible, setClipOnCompatible] = useState(false);
   const [stock, setStock] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [images, setImages] = useState<ProductImage[]>([]);
@@ -135,6 +172,9 @@ export default function EditProductPage() {
       setGender(fetchedProduct.gender);
       setShape(fetchedProduct.shape);
       setFrameColor(fetchedProduct.frameColor);
+      setFrameSize(fetchedProduct.frameSize);
+      setFrameMaterial(fetchedProduct.frameMaterial);
+      setClipOnCompatible(fetchedProduct.clipOnCompatible);
       setStock(String(fetchedProduct.stock));
       setIsActive(fetchedProduct.isActive);
       setImages(fetchedProduct.images || []);
@@ -201,6 +241,9 @@ export default function EditProductPage() {
           gender,
           shape,
           frameColor: frameColor.trim(),
+          frameSize,
+          frameMaterial,
+          clipOnCompatible,
           stock: numericStock,
           isActive,
           reason: "Admin product edit",
@@ -447,7 +490,7 @@ export default function EditProductPage() {
               <section className="rounded-2xl border p-6">
                 <h2 className="text-2xl font-semibold">Características</h2>
 
-                <div className="mt-6 grid gap-5 md:grid-cols-4">
+                <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                   <label className="block">
                     <span className="text-sm font-medium">Tipo</span>
                     <select
@@ -501,6 +544,64 @@ export default function EditProductPage() {
                       required
                       className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
                     />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-sm font-medium">Tamaño</span>
+                    <select
+                      value={frameSize}
+                      onChange={(event) =>
+                        setFrameSize(event.target.value as ProductFrameSize)
+                      }
+                      className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                    >
+                      <option value="extra_small">Extra chico</option>
+                      <option value="small">Chico</option>
+                      <option value="medium">Mediano</option>
+                      <option value="large">Grande</option>
+                      <option value="extra_large">Extra grande</option>
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <span className="text-sm font-medium">Material</span>
+                    <select
+                      value={frameMaterial}
+                      onChange={(event) =>
+                        setFrameMaterial(
+                          event.target.value as ProductFrameMaterial
+                        )
+                      }
+                      className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+                    >
+                      <option value="acetate_stainless_steel">
+                        Acetato + Acero Inoxidable
+                      </option>
+                      <option value="stainless_steel">
+                        Acero Inoxidable
+                      </option>
+                      <option value="acetate">Acetato</option>
+                      <option value="acetate_slash_stainless_steel">
+                        Acetato/Acero Inoxidable
+                      </option>
+                      <option value="titanium">Titanio</option>
+                      <option value="nylon">Nylon</option>
+                      <option value="titanium_nylon">Titanio + Nylon</option>
+                      <option value="reform">ReForm</option>
+                    </select>
+                  </label>
+
+                  <label className="flex items-center gap-3 rounded-xl border px-4 py-3 md:self-end">
+                    <input
+                      type="checkbox"
+                      checked={clipOnCompatible}
+                      onChange={(event) =>
+                        setClipOnCompatible(event.target.checked)
+                      }
+                    />
+                    <span className="text-sm font-medium">
+                      Compatible con clip-on
+                    </span>
                   </label>
                 </div>
               </section>
@@ -599,6 +700,20 @@ export default function EditProductPage() {
                     <span className="rounded-full bg-gray-100 px-3 py-1">
                       {frameColor || "color"}
                     </span>
+
+                    <span className="rounded-full bg-gray-100 px-3 py-1">
+                      {frameSize}
+                    </span>
+
+                    <span className="rounded-full bg-gray-100 px-3 py-1">
+                      {getFrameMaterialLabel(frameMaterial)}
+                    </span>
+
+                    {clipOnCompatible && (
+                      <span className="rounded-full bg-gray-100 px-3 py-1">
+                        clip-on
+                      </span>
+                    )}
                   </div>
 
                   <div className="mt-5 rounded-2xl bg-gray-50 p-4 text-sm">

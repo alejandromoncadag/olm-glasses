@@ -28,6 +28,9 @@ type Product = {
   gender: string;
   shape: string;
   frameColor: string;
+  frameSize: string;
+  frameMaterial: string;
+  clipOnCompatible: boolean;
   stock: number;
   isActive: boolean;
   images: ProductImage[];
@@ -35,7 +38,23 @@ type Product = {
 
 function formatProductValue(value: string) {
   if (!value) return "Por confirmar";
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  const labels: Record<string, string> = {
+    extra_small: "Extra chico",
+    small: "Chico",
+    medium: "Mediano",
+    large: "Grande",
+    extra_large: "Extra grande",
+    acetate_stainless_steel: "Acetato + Acero Inoxidable",
+    stainless_steel: "Acero Inoxidable",
+    acetate: "Acetato",
+    acetate_slash_stainless_steel: "Acetato/Acero Inoxidable",
+    titanium: "Titanio",
+    nylon: "Nylon",
+    titanium_nylon: "Titanio + Nylon",
+    reform: "ReForm",
+  };
+
+  return labels[value] || value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function getProductDescription(product: Product) {
@@ -45,11 +64,9 @@ function getProductDescription(product: Product) {
 
   if (!isPlaceholder) return description;
 
-  const shape = product.shape ? ` de forma ${product.shape}` : "";
-  const color = product.frameColor ? ` en tono ${product.frameColor}` : "";
   const use = product.type === "sunglasses" ? "para días de sol" : "para uso diario";
 
-  return `Un armazón${shape}${color}, pensado ${use} y listo para personalizarse con la opción de lente que mejor se adapte a ti.`;
+  return `Un armazón cómodo y versátil, pensado ${use} y listo para personalizarse con la opción de lente que mejor se adapte a ti.`;
 }
 
 export default function ProductPage() {
@@ -300,24 +317,6 @@ export default function ProductPage() {
                 {productDescription}
               </p>
 
-              <div className="mt-5 flex flex-wrap gap-2 text-xs font-medium text-gray-700">
-                {product.gender && (
-                  <span className="rounded-full bg-[#f4f3f0] px-3 py-2">
-                    {product.gender}
-                  </span>
-                )}
-                {product.shape && (
-                  <span className="rounded-full bg-[#f4f3f0] px-3 py-2">
-                    {product.shape}
-                  </span>
-                )}
-                {product.frameColor && (
-                  <span className="rounded-full bg-[#f4f3f0] px-3 py-2">
-                    {product.frameColor}
-                  </span>
-                )}
-              </div>
-
               <div className="mt-5">
                 <LikeButton slug={product.slug} variant="full" />
               </div>
@@ -409,6 +408,20 @@ export default function ProductPage() {
                   <div className="flex justify-between gap-6 py-3">
                     <dt className="text-gray-500">Color</dt>
                     <dd className="text-right font-medium">{formatProductValue(product.frameColor)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-6 py-3">
+                    <dt className="text-gray-500">Tamaño</dt>
+                    <dd className="text-right font-medium">{formatProductValue(product.frameSize)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-6 py-3">
+                    <dt className="text-gray-500">Material</dt>
+                    <dd className="text-right font-medium">{formatProductValue(product.frameMaterial)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-6 py-3">
+                    <dt className="text-gray-500">Clip-on</dt>
+                    <dd className="text-right font-medium">
+                      {product.clipOnCompatible ? "Compatible" : "No compatible"}
+                    </dd>
                   </div>
                   <div className="flex justify-between gap-6 py-3 last:pb-0">
                     <dt className="text-gray-500">Colección</dt>

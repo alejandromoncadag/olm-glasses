@@ -7,6 +7,22 @@ import {
 
 export const runtime = "nodejs";
 
+type ProductFrameSize =
+  | "extra_small"
+  | "small"
+  | "medium"
+  | "large"
+  | "extra_large";
+type ProductFrameMaterial =
+  | "acetate_stainless_steel"
+  | "stainless_steel"
+  | "acetate"
+  | "acetate_slash_stainless_steel"
+  | "titanium"
+  | "nylon"
+  | "titanium_nylon"
+  | "reform";
+
 type RouteContext = {
   params: Promise<{
     slug: string;
@@ -22,6 +38,9 @@ type UpdateProductBody = {
   gender?: "hombre" | "mujer" | "unisex";
   shape?: "redondo" | "cuadrado" | "rectangular" | "aviador";
   frameColor?: string;
+  frameSize?: ProductFrameSize;
+  frameMaterial?: ProductFrameMaterial;
+  clipOnCompatible?: boolean;
   stock?: number;
   isActive?: boolean;
   imageUrl?: string;
@@ -41,6 +60,9 @@ function mapProduct(product: {
   gender: string;
   shape: string;
   frame_color: string;
+  frame_size: string;
+  frame_material: string;
+  clip_on_compatible: boolean;
   stock: number;
   is_active: boolean;
   created_at: string;
@@ -59,6 +81,9 @@ function mapProduct(product: {
     gender: product.gender,
     shape: product.shape,
     frameColor: product.frame_color,
+    frameSize: product.frame_size,
+    frameMaterial: product.frame_material,
+    clipOnCompatible: product.clip_on_compatible,
     stock: includePrivateInventory ? product.stock : product.stock > 0 ? 1 : 0,
     isAvailable: product.stock > 0,
     isActive: product.is_active,
@@ -82,6 +107,9 @@ async function getProductDetails(slug: string, includePrivateInventory: boolean)
         gender,
         shape,
         frame_color,
+        frame_size,
+        frame_material,
+        clip_on_compatible,
         stock,
         is_active,
         created_at,
@@ -193,6 +221,36 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
+    const allowedFrameSizes: ProductFrameSize[] = [
+      "extra_small",
+      "small",
+      "medium",
+      "large",
+      "extra_large",
+    ];
+    const allowedFrameMaterials: ProductFrameMaterial[] = [
+      "acetate_stainless_steel",
+      "stainless_steel",
+      "acetate",
+      "acetate_slash_stainless_steel",
+      "titanium",
+      "nylon",
+      "titanium_nylon",
+      "reform",
+    ];
+
+    if (
+      (body.frameSize !== undefined &&
+        !allowedFrameSizes.includes(body.frameSize)) ||
+      (body.frameMaterial !== undefined &&
+        !allowedFrameMaterials.includes(body.frameMaterial))
+    ) {
+      return NextResponse.json(
+        { error: "Invalid frame size or material" },
+        { status: 400 }
+      );
+    }
+
     await client.query("BEGIN");
 
     const currentProductResult = await client.query(
@@ -209,6 +267,9 @@ export async function PATCH(request: Request, context: RouteContext) {
           gender,
           shape,
           frame_color,
+          frame_size,
+          frame_material,
+          clip_on_compatible,
           stock,
           is_active,
           created_at,
@@ -244,6 +305,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     const nextGender = body.gender ?? currentProduct.gender;
     const nextShape = body.shape ?? currentProduct.shape;
     const nextFrameColor = body.frameColor ?? currentProduct.frame_color;
+    const nextFrameSize = body.frameSize ?? currentProduct.frame_size;
+    const nextFrameMaterial =
+      body.frameMaterial ?? currentProduct.frame_material;
+    const nextClipOnCompatible =
+      body.clipOnCompatible ?? currentProduct.clip_on_compatible;
     const nextStock = body.stock ?? currentProduct.stock;
     const nextIsActive = body.isActive ?? currentProduct.is_active;
 
@@ -259,9 +325,12 @@ export async function PATCH(request: Request, context: RouteContext) {
           gender = $6::product_gender,
           shape = $7::product_shape,
           frame_color = $8,
-          stock = $9,
-          is_active = $10
-        WHERE id = $11;
+          frame_size = $9,
+          frame_material = $10,
+          clip_on_compatible = $11,
+          stock = $12,
+          is_active = $13
+        WHERE id = $14;
       `,
       [
         nextName,
@@ -272,6 +341,9 @@ export async function PATCH(request: Request, context: RouteContext) {
         nextGender,
         nextShape,
         nextFrameColor,
+        nextFrameSize,
+        nextFrameMaterial,
+        nextClipOnCompatible,
         nextStock,
         nextIsActive,
         currentProduct.id,
