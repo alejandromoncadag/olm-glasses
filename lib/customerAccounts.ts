@@ -110,6 +110,50 @@ async function mergeCustomerRecords(
 
   await client.query(
     `
+      INSERT INTO customer_style_quiz_results (
+        customer_id,
+        answers,
+        recommendation_slugs,
+        completed_at,
+        created_at,
+        updated_at
+      )
+      SELECT
+        $1,
+        answers,
+        recommendation_slugs,
+        completed_at,
+        created_at,
+        updated_at
+      FROM customer_style_quiz_results
+      WHERE customer_id = $2
+      ON CONFLICT (customer_id) DO UPDATE
+      SET
+        answers = CASE
+          WHEN EXCLUDED.completed_at > customer_style_quiz_results.completed_at
+            THEN EXCLUDED.answers
+          ELSE customer_style_quiz_results.answers
+        END,
+        recommendation_slugs = CASE
+          WHEN EXCLUDED.completed_at > customer_style_quiz_results.completed_at
+            THEN EXCLUDED.recommendation_slugs
+          ELSE customer_style_quiz_results.recommendation_slugs
+        END,
+        completed_at = GREATEST(
+          customer_style_quiz_results.completed_at,
+          EXCLUDED.completed_at
+        )
+    `,
+    [targetCustomerId, sourceCustomerId]
+  );
+
+  await client.query(
+    `DELETE FROM customer_style_quiz_results WHERE customer_id = $1`,
+    [sourceCustomerId]
+  );
+
+  await client.query(
+    `
       UPDATE customer_addresses
       SET customer_id = $1, is_default = FALSE
       WHERE customer_id = $2

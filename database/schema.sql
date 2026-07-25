@@ -203,6 +203,18 @@ CREATE TABLE customer_favorites (
     PRIMARY KEY (customer_id, product_id)
 );
 -- =========================
+-- CUSTOMER STYLE QUIZ RESULTS
+-- =========================
+CREATE TABLE customer_style_quiz_results (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID NOT NULL UNIQUE REFERENCES customers(id) ON DELETE CASCADE,
+    answers JSONB NOT NULL,
+    recommendation_slugs TEXT[] NOT NULL DEFAULT '{}',
+    completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- =========================
 -- ORDERS
 -- =========================
 CREATE TABLE orders (
@@ -383,6 +395,8 @@ CREATE INDEX idx_customer_tax_profiles_customer_id ON customer_tax_profiles(cust
 CREATE UNIQUE INDEX idx_customer_tax_profiles_one_default ON customer_tax_profiles(customer_id)
 WHERE is_default;
 CREATE INDEX idx_customer_favorites_product_id ON customer_favorites(product_id);
+CREATE INDEX idx_customer_style_quiz_results_completed_at
+ON customer_style_quiz_results(completed_at DESC);
 CREATE INDEX idx_orders_customer_id ON orders(customer_id);
 CREATE INDEX idx_orders_status ON orders(status);
 CREATE INDEX idx_orders_payment_status ON orders(payment_status);
@@ -426,6 +440,8 @@ CREATE TRIGGER update_customer_addresses_updated_at BEFORE
 UPDATE ON customer_addresses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_customer_tax_profiles_updated_at BEFORE
 UPDATE ON customer_tax_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_customer_style_quiz_results_updated_at BEFORE
+UPDATE ON customer_style_quiz_results FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_orders_updated_at BEFORE
 UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_invoice_requests_updated_at BEFORE

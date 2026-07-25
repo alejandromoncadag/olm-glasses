@@ -57,6 +57,18 @@ export default function Footer() {
               Lentes de sol
             </Link>
 
+            <Link href="/clip-ons" className={footerLinkClass}>
+              Clip-on
+            </Link>
+
+            <Link href="/lentes-de-contacto" className={footerLinkClass}>
+              Lentes de contacto
+            </Link>
+
+            <Link href="/accessories" className={footerLinkClass}>
+              Accesorios
+            </Link>
+
             <Link href="/likes" className={footerLinkClass}>
               Mis favoritos
             </Link>

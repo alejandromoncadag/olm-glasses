@@ -9,8 +9,10 @@ import { useLikes } from "@/hooks/useLikes";
 const storeNavItems = [
   { href: "/eyeglasses", label: "Ópticos" },
   { href: "/sunglasses", label: "Sol" },
-  { href: "/tu-estilo", label: "Tu estilo" },
+  { href: "/clip-ons", label: "Clip-on" },
   { href: "/lentes-de-contacto", label: "Contactos" },
+  { href: "/accessories", label: "Accesorios" },
+  { href: "/tu-estilo", label: "Tu estilo" },
   { href: "/eye-exam", label: "Examen" },
   { href: "/locations", label: "Tiendas" },
   { href: "/order-status", label: "Pedido" },
@@ -105,7 +107,7 @@ function StoreNavbar() {
       </div>
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:px-6">
 
-        <div className="hidden items-center gap-1 whitespace-nowrap text-xs font-medium text-gray-700 lg:flex xl:gap-3 xl:text-sm">
+        <div className="hidden items-center gap-0 whitespace-nowrap text-[11px] font-medium text-gray-700 lg:flex xl:gap-1 xl:text-xs">
           {storeNavItems.map((item) => (
             <a
               key={item.href}

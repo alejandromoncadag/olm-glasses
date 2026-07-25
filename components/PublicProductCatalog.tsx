@@ -56,6 +56,8 @@ type PublicProductCatalogProps = {
   showNewBadge?: boolean;
   heroImage?: string;
   heroImagePosition?: string;
+  restrictToClipOn?: boolean;
+  showClipOnFilter?: boolean;
 };
 
 type CatalogFilterControlsProps = {
@@ -78,6 +80,7 @@ type CatalogFilterControlsProps = {
   onMaxPriceChange: (value: number) => void;
   onClipOnChange: (value: boolean) => void;
   onReset: () => void;
+  showClipOnFilter: boolean;
 };
 
 const NEW_PRODUCT_WINDOW_DAYS = 30;
@@ -269,6 +272,7 @@ function CatalogFilterControls({
   onMaxPriceChange,
   onClipOnChange,
   onReset,
+  showClipOnFilter,
 }: CatalogFilterControlsProps) {
   return (
     <>
@@ -429,30 +433,32 @@ function CatalogFilterControls({
         </div>
       </FilterSection>
 
-      <FilterSection title="Compatibilidad">
-        <button
-          type="button"
-          onClick={() => onClipOnChange(!clipOnOnly)}
-          aria-pressed={clipOnOnly}
-          className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-medium transition ${
-            clipOnOnly
-              ? "border-[var(--brand-espresso)] bg-[#f2ede8] text-[var(--brand-espresso)]"
-              : "border-black/15 bg-white hover:border-[var(--brand-espresso)]"
-          }`}
-        >
-          Compatible con clip-on
-          <span
-            aria-hidden="true"
-            className={`flex h-5 w-5 items-center justify-center rounded-full border text-xs ${
+      {showClipOnFilter && (
+        <FilterSection title="Compatibilidad">
+          <button
+            type="button"
+            onClick={() => onClipOnChange(!clipOnOnly)}
+            aria-pressed={clipOnOnly}
+            className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-medium transition ${
               clipOnOnly
-                ? "border-[var(--brand-espresso)] bg-[var(--brand-espresso)] text-white"
-                : "border-black/20"
+                ? "border-[var(--brand-espresso)] bg-[#f2ede8] text-[var(--brand-espresso)]"
+                : "border-black/15 bg-white hover:border-[var(--brand-espresso)]"
             }`}
           >
-            {clipOnOnly ? "✓" : ""}
-          </span>
-        </button>
-      </FilterSection>
+            Compatible con clip-on
+            <span
+              aria-hidden="true"
+              className={`flex h-5 w-5 items-center justify-center rounded-full border text-xs ${
+                clipOnOnly
+                  ? "border-[var(--brand-espresso)] bg-[var(--brand-espresso)] text-white"
+                  : "border-black/20"
+              }`}
+            >
+              {clipOnOnly ? "✓" : ""}
+            </span>
+          </button>
+        </FilterSection>
+      )}
 
       {hasActiveFilters && (
         <button
@@ -476,6 +482,8 @@ export default function PublicProductCatalog({
   showNewBadge = false,
   heroImage,
   heroImagePosition = "center",
+  restrictToClipOn = false,
+  showClipOnFilter = true,
 }: PublicProductCatalogProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -505,7 +513,10 @@ export default function PublicProductCatalog({
         const data = await response.json();
 
         const activeProducts = data.products.filter(
-          (product: Product) => product.type === type && product.isActive
+          (product: Product) =>
+            product.type === type &&
+            product.isActive &&
+            (!restrictToClipOn || product.clipOnCompatible)
         );
 
         setProducts(activeProducts);
@@ -518,7 +529,7 @@ export default function PublicProductCatalog({
     }
 
     fetchProducts();
-  }, [type]);
+  }, [restrictToClipOn, type]);
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
   const colorOptions = Array.from(
@@ -623,6 +634,7 @@ export default function PublicProductCatalog({
         onMaxPriceChange={setMaxPrice}
         onClipOnChange={setClipOnOnly}
         onReset={resetFilters}
+        showClipOnFilter={showClipOnFilter}
       />
     );
   }
@@ -765,6 +777,7 @@ export default function PublicProductCatalog({
             fill
             sizes="100vw"
             fetchPriority="high"
+            loading="eager"
             className="object-cover"
             style={{ objectPosition: heroImagePosition }}
           />
