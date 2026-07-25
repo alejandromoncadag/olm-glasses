@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useLikes } from "@/hooks/useLikes";
+import { useCartCount } from "@/hooks/useCartCount";
 
 const storeNavItems = [
   { href: "/eyeglasses", label: "Ópticos" },
@@ -72,6 +73,7 @@ function QuizHeader() {
 function StoreNavbar() {
   const { user, loading, logout } = useAuth();
   const { likes } = useLikes();
+  const cartCount = useCartCount();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -143,10 +145,22 @@ function StoreNavbar() {
 
           <a
             href="/cart"
-            className="flex h-10 items-center gap-2 whitespace-nowrap rounded-full px-2 transition hover:bg-gray-100 sm:px-2.5"
-            aria-label="Carrito"
+            className="relative flex h-10 items-center gap-2 whitespace-nowrap rounded-full px-2 transition hover:bg-gray-100 sm:px-2.5"
+            aria-label={
+              cartCount > 0
+                ? `Carrito, ${cartCount} ${cartCount === 1 ? "producto" : "productos"}`
+                : "Carrito"
+            }
           >
-            <BagIcon />
+            <span className="relative flex h-6 w-6 shrink-0 items-center justify-center">
+              <BagIcon />
+
+              {cartCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--brand-espresso)] px-1 text-[9px] font-semibold leading-none text-white ring-2 ring-white">
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              )}
+            </span>
             <span className="hidden xl:inline">Carrito</span>
           </a>
 

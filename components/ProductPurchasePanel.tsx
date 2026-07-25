@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { readCart, writeCart, type CartItem } from "@/lib/cart";
 
 type LensOption = {
   id: string;
@@ -22,15 +23,6 @@ type ProductPurchasePanelProps = {
     price: number;
     stock: number;
   };
-};
-
-type CartItem = {
-  slug: string;
-  name: string;
-  price: number;
-  quantity: number;
-  lensOption: string;
-  prescriptionMethod: string;
 };
 
 const lensOptions: LensOption[] = [
@@ -78,8 +70,6 @@ export default function ProductPurchasePanel({
   const [selectedLens, setSelectedLens] = useState<LensOption>(lensOptions[0]);
   const [selectedPrescription, setSelectedPrescription] =
     useState<PrescriptionOption>(prescriptionOptions[0]);
-  const [added, setAdded] = useState(false);
-
   const finalPrice = product.price + selectedLens.extraPrice;
   const isOutOfStock = product.stock <= 0;
 
@@ -89,12 +79,7 @@ export default function ProductPurchasePanel({
       return;
     }
 
-    const currentCart: CartItem[] = JSON.parse(
-      localStorage.getItem("olm-cart") || "[]"
-    );
-
-
-
+    const currentCart = readCart();
 
     const cartSlug = `${product.slug}-${selectedLens.id}-${selectedPrescription.id}`;
 
@@ -131,13 +116,8 @@ export default function ProductPurchasePanel({
       ];
     }
 
-    localStorage.setItem("olm-cart", JSON.stringify(updatedCart));
-
-    setAdded(true);
-
-    setTimeout(() => {
-      setAdded(false);
-    }, 1500);
+    writeCart(updatedCart);
+    window.location.href = "/checkout";
   }
 
   return (
@@ -286,9 +266,7 @@ export default function ProductPurchasePanel({
         >
           {isOutOfStock
             ? "Producto agotado"
-            : added
-              ? "Agregado al carrito"
-              : "Agregar al carrito"}
+            : "Agregar al carrito y continuar"}
         </button>
       </div>
     </div>

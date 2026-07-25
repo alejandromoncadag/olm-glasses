@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import LikeButton from "@/components/LikeButton";
 import ProductPurchasePanel from "@/components/ProductPurchasePanel";
+import QuickAddToCheckoutButton from "@/components/QuickAddToCheckoutButton";
 import { createWhatsAppLink } from "@/lib/whatsapp";
 
 type ProductImage = {
@@ -24,7 +25,7 @@ type Product = {
   priceCents: number;
   currency: string;
   category: string;
-  type: "eyeglasses" | "sunglasses";
+  type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
   gender: string;
   shape: string;
   frameColor: string;
@@ -64,7 +65,16 @@ function getProductDescription(product: Product) {
 
   if (!isPlaceholder) return description;
 
-  const use = product.type === "sunglasses" ? "para días de sol" : "para uso diario";
+  if (product.type === "accessory") {
+    return "Un accesorio práctico de Óptica OLM para acompañar y cuidar tus lentes todos los días.";
+  }
+
+  if (product.type === "contact_lenses") {
+    return "Lentes de contacto para una visión cómoda y clara. Confirma tu graduación antes de finalizar la compra.";
+  }
+
+  const use =
+    product.type === "sunglasses" ? "para días de sol" : "para uso diario";
 
   return `Un armazón cómodo y versátil, pensado ${use} y listo para personalizarse con la opción de lente que mejor se adapte a ti.`;
 }
@@ -200,10 +210,24 @@ export default function ProductPage() {
   }
 
   const collectionHref =
-    product.type === "sunglasses" ? "/sunglasses" : "/eyeglasses";
+    product.type === "sunglasses"
+      ? "/sunglasses"
+      : product.type === "accessory"
+        ? "/accessories"
+        : product.type === "contact_lenses"
+          ? "/lentes-de-contacto"
+          : "/eyeglasses";
   const productDescription = getProductDescription(product);
   const productTypeLabel =
-    product.type === "sunglasses" ? "Lentes de sol" : "Lentes ópticos";
+    product.type === "sunglasses"
+      ? "Lentes de sol"
+      : product.type === "accessory"
+        ? "Accesorio"
+        : product.type === "contact_lenses"
+          ? "Lentes de contacto"
+          : "Lentes ópticos";
+  const isEyewear =
+    product.type === "eyeglasses" || product.type === "sunglasses";
 
   return (
     <main className="min-h-screen bg-white text-black">
@@ -330,7 +354,7 @@ export default function ProductPage() {
                   Este producto está agotado o inactivo.
                 </p>
               </div>
-            ) : (
+            ) : isEyewear ? (
               <ProductPurchasePanel
                 product={{
                   slug: product.slug,
@@ -339,6 +363,31 @@ export default function ProductPage() {
                   stock: product.stock,
                 }}
               />
+            ) : (
+              <div className="mt-8 rounded-3xl bg-[#f4f3f0] p-5 sm:p-6">
+                <div className="flex items-end justify-between gap-4 border-b border-black/10 pb-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+                      Total
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold tracking-tight">
+                      ${product.price.toLocaleString("es-MX")} MXN
+                    </p>
+                  </div>
+                </div>
+
+                <p className="mt-4 text-sm leading-6 text-gray-600">
+                  {product.type === "contact_lenses"
+                    ? "Agrega el producto y continúa al checkout. Confirmaremos tu graduación antes de procesar el pedido."
+                    : "Agrega el producto y continúa al checkout para elegir entrega y forma de pago."}
+                </p>
+
+                <QuickAddToCheckoutButton
+                  slug={product.slug}
+                  label="Agregar al carrito y continuar"
+                  className="mt-5 h-12 w-full"
+                />
+              </div>
             )}
 
             <section className="mt-8 rounded-[1.75rem] bg-[#f7f3ee] p-6 sm:p-7">
@@ -347,11 +396,24 @@ export default function ProductPage() {
               </p>
               <h2 className="mt-2 text-xl font-semibold">Incluido con tu compra</h2>
               <div className="mt-5 divide-y divide-black/10">
-                {[
-                  "Ajuste de armazón en tienda",
-                  "Examen incluido al comprar en tienda",
-                  "Acompañamiento para enviar tu receta",
-                ].map((benefit) => (
+                {(product.type === "accessory"
+                  ? [
+                      "Pago seguro en pesos mexicanos",
+                      "Entrega a domicilio o recolección",
+                      "Atención en tiendas Óptica OLM",
+                    ]
+                  : product.type === "contact_lenses"
+                    ? [
+                        "Confirmación de graduación",
+                        "Orientación para tu adaptación",
+                        "Entrega a domicilio o recolección",
+                      ]
+                    : [
+                        "Ajuste de armazón en tienda",
+                        "Examen incluido al comprar en tienda",
+                        "Acompañamiento para enviar tu receta",
+                      ]
+                ).map((benefit) => (
                   <div key={benefit} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                     <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-black/20 text-xs" aria-hidden="true">
                       ✓
@@ -389,40 +451,59 @@ export default function ProductPage() {
                 Diseñado para acompañarte todos los días.
               </h2>
               <p className="mt-5 max-w-xl leading-7 text-gray-600">
-                {productDescription} Puedes elegir tu tipo de lente y la forma de enviar tu receta antes de agregarlo al carrito.
+                {productDescription}{" "}
+                {isEyewear
+                  ? "Puedes elegir tu tipo de lente y la forma de enviar tu receta antes de agregarlo al carrito."
+                  : "Puedes agregarlo al carrito y continuar directamente al checkout."}
               </p>
             </div>
 
             <div className="grid gap-8 rounded-[2rem] bg-[#f7f3ee] p-6 sm:grid-cols-2 sm:p-8">
               <div>
-                <h3 className="text-lg font-semibold">Detalles del armazón</h3>
+                <h3 className="text-lg font-semibold">
+                  {isEyewear ? "Detalles del armazón" : "Detalles del producto"}
+                </h3>
                 <dl className="mt-5 divide-y divide-black/10 text-sm">
                   <div className="flex justify-between gap-6 py-3 first:pt-0">
                     <dt className="text-gray-500">Tipo</dt>
                     <dd className="text-right font-medium">{productTypeLabel}</dd>
                   </div>
-                  <div className="flex justify-between gap-6 py-3">
-                    <dt className="text-gray-500">Forma</dt>
-                    <dd className="text-right font-medium">{formatProductValue(product.shape)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-6 py-3">
-                    <dt className="text-gray-500">Color</dt>
-                    <dd className="text-right font-medium">{formatProductValue(product.frameColor)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-6 py-3">
-                    <dt className="text-gray-500">Tamaño</dt>
-                    <dd className="text-right font-medium">{formatProductValue(product.frameSize)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-6 py-3">
-                    <dt className="text-gray-500">Material</dt>
-                    <dd className="text-right font-medium">{formatProductValue(product.frameMaterial)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-6 py-3">
-                    <dt className="text-gray-500">Clip-on</dt>
-                    <dd className="text-right font-medium">
-                      {product.clipOnCompatible ? "Compatible" : "No compatible"}
-                    </dd>
-                  </div>
+                  {isEyewear && (
+                    <>
+                      <div className="flex justify-between gap-6 py-3">
+                        <dt className="text-gray-500">Forma</dt>
+                        <dd className="text-right font-medium">
+                          {formatProductValue(product.shape)}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-6 py-3">
+                        <dt className="text-gray-500">Color</dt>
+                        <dd className="text-right font-medium">
+                          {formatProductValue(product.frameColor)}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-6 py-3">
+                        <dt className="text-gray-500">Tamaño</dt>
+                        <dd className="text-right font-medium">
+                          {formatProductValue(product.frameSize)}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-6 py-3">
+                        <dt className="text-gray-500">Material</dt>
+                        <dd className="text-right font-medium">
+                          {formatProductValue(product.frameMaterial)}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-6 py-3">
+                        <dt className="text-gray-500">Clip-on</dt>
+                        <dd className="text-right font-medium">
+                          {product.clipOnCompatible
+                            ? "Compatible"
+                            : "No compatible"}
+                        </dd>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between gap-6 py-3 last:pb-0">
                     <dt className="text-gray-500">Colección</dt>
                     <dd className="text-right font-medium">{formatProductValue(product.category)}</dd>
@@ -433,18 +514,29 @@ export default function ProductPage() {
               <div>
                 <h3 className="text-lg font-semibold">Tu compra, a tu manera</h3>
                 <ul className="mt-5 space-y-4 text-sm leading-6 text-gray-600">
-                  <li className="flex gap-3">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-black" />
-                    Elige entre graduación sencilla, mica transparente o lentes de sol.
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-black" />
-                    Envía tu receta después o solicita apoyo por WhatsApp.
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-black" />
-                    Recoge en tienda y recibe ayuda con el ajuste de tu armazón.
-                  </li>
+                  {(isEyewear
+                    ? [
+                        "Elige entre graduación sencilla, mica transparente o lentes de sol.",
+                        "Envía tu receta después o solicita apoyo por WhatsApp.",
+                        "Recoge en tienda y recibe ayuda con el ajuste de tu armazón.",
+                      ]
+                    : product.type === "contact_lenses"
+                      ? [
+                          "Agrega las cajas que necesitas.",
+                          "Confirma tu graduación con nuestro equipo.",
+                          "Elige entrega a domicilio o recolección.",
+                        ]
+                      : [
+                          "Agrega la cantidad que necesitas.",
+                          "Elige entrega a domicilio o recolección.",
+                          "Paga en línea o selecciona pago en tienda.",
+                        ]
+                  ).map((item) => (
+                    <li key={item} className="flex gap-3">
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-black" />
+                      {item}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>

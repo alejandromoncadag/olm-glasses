@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useLikes } from "@/hooks/useLikes";
+import { readCart, writeCart } from "@/lib/cart";
 
 type ApiProduct = {
   slug: string;
   name: string;
   price: number;
   category: string;
+  type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
   frameColor: string;
   stock: number;
   isActive: boolean;
@@ -148,13 +150,17 @@ export default function LikesGrid() {
   }
 
   function addAllToCart() {
-    const cart = JSON.parse(localStorage.getItem("olm-cart") || "[]");
+    const cart = readCart();
     let added = 0;
 
     likedProducts.forEach(({ product }) => {
       if (product.stock <= 0 || !product.isActive) return;
 
-      const slug = `${product.slug}-single-vision-upload-later`;
+      const isEyewear =
+        product.type === "eyeglasses" || product.type === "sunglasses";
+      const slug = isEyewear
+        ? `${product.slug}-single-vision-upload-later`
+        : product.slug;
 
       const exists = cart.find((item: { slug: string }) => item.slug === slug);
 
@@ -166,17 +172,32 @@ export default function LikesGrid() {
           name: product.name,
           price: product.price,
           quantity: 1,
-          lensOption: "Graduación sencilla",
-          prescriptionMethod: "Subir receta después",
+          lensOption:
+            product.type === "contact_lenses"
+              ? "Lentes de contacto"
+              : product.type === "accessory"
+                ? "Accesorio"
+                : "Graduación sencilla",
+          prescriptionMethod:
+            product.type === "contact_lenses"
+              ? "Graduación por confirmar"
+              : product.type === "accessory"
+                ? "No aplica"
+                : "Subir receta después",
         });
       }
 
       added += 1;
     });
 
-    localStorage.setItem("olm-cart", JSON.stringify(cart));
-    alert(`${added} producto(s) agregado(s) al carrito.`);
-    window.location.href = "/cart";
+    writeCart(cart);
+
+    if (added === 0) {
+      alert("No hay productos disponibles para agregar.");
+      return;
+    }
+
+    window.location.href = "/checkout";
   }
 
   return (

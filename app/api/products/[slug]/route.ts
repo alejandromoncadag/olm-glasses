@@ -34,7 +34,7 @@ type UpdateProductBody = {
   description?: string;
   price?: number;
   category?: string;
-  type?: "eyeglasses" | "sunglasses";
+  type?: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
   gender?: "hombre" | "mujer" | "unisex";
   shape?: "redondo" | "cuadrado" | "rectangular" | "aviador";
   frameColor?: string;

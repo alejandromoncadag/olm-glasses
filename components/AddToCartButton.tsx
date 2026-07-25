@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-type CartItem = {
-  slug: string;
-  name: string;
-  price: number;
-  quantity: number;
-};
+import { readCart, writeCart, type CartItem } from "@/lib/cart";
 
 type AddToCartButtonProps = {
   product: {
@@ -21,9 +15,7 @@ export default function AddToCartButton({ product }: AddToCartButtonProps) {
   const [added, setAdded] = useState(false);
 
   function handleAddToCart() {
-    const currentCart: CartItem[] = JSON.parse(
-      localStorage.getItem("olm-cart") || "[]"
-    );
+    const currentCart = readCart();
 
     const existingItem = currentCart.find((item) => item.slug === product.slug);
 
@@ -43,17 +35,16 @@ export default function AddToCartButton({ product }: AddToCartButtonProps) {
           name: product.name,
           price: product.price,
           quantity: 1,
+          lensOption: "Producto",
+          prescriptionMethod: "No aplica",
         },
       ];
     }
 
-    localStorage.setItem("olm-cart", JSON.stringify(updatedCart));
+    writeCart(updatedCart);
 
     setAdded(true);
-
-    setTimeout(() => {
-      setAdded(false);
-    }, 1500);
+    window.location.href = "/checkout";
   }
 
   return (

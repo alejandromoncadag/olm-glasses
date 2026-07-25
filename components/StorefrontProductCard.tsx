@@ -1,39 +1,49 @@
 import Image from "next/image";
+import LikeButton from "@/components/LikeButton";
+import QuickAddToCheckoutButton from "@/components/QuickAddToCheckoutButton";
 
 type StorefrontProductCardProps = {
+  slug: string;
   name: string;
   eyebrow: string;
   description: string;
   price: number;
   image: string;
   details?: string[];
-  actionHref: string;
   actionLabel?: string;
   priority?: boolean;
 };
 
 export default function StorefrontProductCard({
+  slug,
   name,
   eyebrow,
   description,
   price,
   image,
   details = [],
-  actionHref,
-  actionLabel = "Consultar disponibilidad",
+  actionLabel = "Agregar al carrito",
   priority = false,
 }: StorefrontProductCardProps) {
+  const productHref = `/product/${slug}`;
+
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-black/10 bg-white">
       <div className="relative aspect-[4/3] overflow-hidden bg-[#f4f1ed]">
-        <Image
-          src={image}
-          alt={name}
-          fill
-          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-          loading={priority ? "eager" : "lazy"}
-          className="object-cover transition duration-500 group-hover:scale-[1.025]"
-        />
+        <a href={productHref} aria-label={`Ver ${name}`}>
+          <Image
+            src={image}
+            alt={name}
+            fill
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            loading={priority ? "eager" : "lazy"}
+            className="object-cover transition duration-500 group-hover:scale-[1.025]"
+          />
+        </a>
+
+        <div className="absolute right-4 top-4 z-10">
+          <LikeButton slug={slug} size="md" />
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col p-5 sm:p-6">
@@ -42,7 +52,11 @@ export default function StorefrontProductCard({
         </p>
 
         <div className="mt-2 flex items-start justify-between gap-4">
-          <h2 className="text-xl font-semibold">{name}</h2>
+          <a href={productHref}>
+            <h2 className="text-xl font-semibold transition group-hover:underline group-hover:underline-offset-4">
+              {name}
+            </h2>
+          </a>
           <p className="shrink-0 font-semibold">
             ${price.toLocaleString("es-MX")}{" "}
             <span className="text-[10px] font-normal text-gray-500">MXN</span>
@@ -64,16 +78,19 @@ export default function StorefrontProductCard({
 
         <p className="mt-4 text-sm leading-6 text-gray-600">{description}</p>
 
-        <a
-          href={actionHref}
-          target={actionHref.startsWith("https://") ? "_blank" : undefined}
-          rel={
-            actionHref.startsWith("https://") ? "noopener noreferrer" : undefined
-          }
-          className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-full border border-[var(--brand-espresso)] px-5 text-sm font-semibold text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white"
-        >
-          {actionLabel}
-        </a>
+        <div className="mt-auto flex flex-col gap-2 pt-6">
+          <QuickAddToCheckoutButton
+            slug={slug}
+            label={actionLabel}
+            className="w-full"
+          />
+          <a
+            href={productHref}
+            className="inline-flex h-11 w-full items-center justify-center rounded-full border border-[var(--brand-espresso)] px-5 text-sm font-semibold text-[var(--brand-espresso)] transition hover:bg-[#f4f1ed]"
+          >
+            Ver detalles
+          </a>
+        </div>
       </div>
     </article>
   );

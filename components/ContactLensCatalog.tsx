@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import StorefrontProductCard from "@/components/StorefrontProductCard";
 import type { ContactLensProduct } from "@/data/secondaryCatalog";
-import { createWhatsAppLink } from "@/lib/whatsapp";
 
 type ContactLensCatalogProps = {
   products: ContactLensProduct[];
@@ -230,6 +229,7 @@ export default function ContactLensCatalog({
               {visibleProducts.map((product, index) => (
                 <StorefrontProductCard
                   key={product.slug}
+                  slug={product.slug}
                   name={product.name}
                   eyebrow={product.brand}
                   description={product.description}
@@ -240,10 +240,7 @@ export default function ContactLensCatalog({
                     product.replacement,
                     product.lensType,
                   ]}
-                  actionHref={createWhatsAppLink(
-                    `Hola, quiero comprar ${product.name} y confirmar mi graduación y disponibilidad.`
-                  )}
-                  actionLabel="Seleccionar producto"
+                  actionLabel="Agregar al carrito"
                   priority={index === 0}
                 />
               ))}

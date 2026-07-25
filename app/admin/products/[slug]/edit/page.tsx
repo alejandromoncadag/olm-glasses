@@ -6,7 +6,11 @@ import { useParams, useRouter } from "next/navigation";
 import AdminNav from "@/components/AdminNav";
 import ProductImageGalleryManager from "@/components/ProductImageGalleryManager";
 
-type ProductType = "eyeglasses" | "sunglasses";
+type ProductType =
+  | "eyeglasses"
+  | "sunglasses"
+  | "accessory"
+  | "contact_lenses";
 type ProductGender = "hombre" | "mujer" | "unisex";
 type ProductShape = "redondo" | "cuadrado" | "rectangular" | "aviador";
 type ProductFrameSize =
@@ -71,6 +75,8 @@ function formatDate(date?: string) {
 function getProductTypeLabel(type: ProductType) {
   if (type === "eyeglasses") return "Lentes ópticos";
   if (type === "sunglasses") return "Lentes de sol";
+  if (type === "accessory") return "Accesorio";
+  if (type === "contact_lenses") return "Lentes de contacto";
 
   return "Producto";
 }
@@ -502,6 +508,10 @@ export default function EditProductPage() {
                     >
                       <option value="eyeglasses">Lentes ópticos</option>
                       <option value="sunglasses">Lentes de sol</option>
+                      <option value="accessory">Accesorio</option>
+                      <option value="contact_lenses">
+                        Lentes de contacto
+                      </option>
                     </select>
                   </label>
 

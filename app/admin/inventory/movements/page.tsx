@@ -17,7 +17,7 @@ type Movement = {
     slug: string;
     name: string;
     category: string;
-    type: "eyeglasses" | "sunglasses";
+    type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
     stock: number;
     isActive: boolean;
   };
@@ -30,7 +30,12 @@ type MovementFilter =
   | "adjustment"
   | "return";
 
-type ProductTypeFilter = "all" | "eyeglasses" | "sunglasses";
+type ProductTypeFilter =
+  | "all"
+  | "eyeglasses"
+  | "sunglasses"
+  | "accessory"
+  | "contact_lenses";
 
 function formatDateTime(date: string) {
   return new Date(date).toLocaleString("es-MX", {
@@ -63,6 +68,8 @@ function getMovementClassName(type: string) {
 function getProductTypeLabel(type: Movement["product"]["type"]) {
   if (type === "eyeglasses") return "Lentes ópticos";
   if (type === "sunglasses") return "Lentes de sol";
+  if (type === "accessory") return "Accesorio";
+  if (type === "contact_lenses") return "Lentes de contacto";
 
   return "Producto";
 }
@@ -349,6 +356,8 @@ export default function InventoryMovementsPage() {
               <option value="all">Todos los tipos</option>
               <option value="eyeglasses">Lentes ópticos</option>
               <option value="sunglasses">Lentes de sol</option>
+              <option value="accessory">Accesorios</option>
+              <option value="contact_lenses">Lentes de contacto</option>
             </select>
           </div>
 

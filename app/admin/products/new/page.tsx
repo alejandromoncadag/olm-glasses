@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import AdminNav from "@/components/AdminNav";
 import ProductImageUploader from "@/components/ProductImageUploader";
 
-type ProductType = "eyeglasses" | "sunglasses";
+type ProductType =
+  | "eyeglasses"
+  | "sunglasses"
+  | "accessory"
+  | "contact_lenses";
 type ProductGender = "hombre" | "mujer" | "unisex";
 type ProductShape = "redondo" | "cuadrado" | "rectangular" | "aviador";
 type ProductFrameSize =
@@ -42,6 +46,8 @@ function formatMoney(amount: number) {
 function getProductTypeLabel(type: ProductType) {
   if (type === "eyeglasses") return "Lentes ópticos";
   if (type === "sunglasses") return "Lentes de sol";
+  if (type === "accessory") return "Accesorio";
+  if (type === "contact_lenses") return "Lentes de contacto";
 
   return "Producto";
 }
@@ -118,6 +124,14 @@ export default function NewProductPage() {
 
     if (value === "sunglasses" && category === "Lentes ópticos") {
       setCategory("Lentes de sol");
+    }
+
+    if (value === "accessory") {
+      setCategory("Accesorios");
+    }
+
+    if (value === "contact_lenses") {
+      setCategory("Lentes de contacto");
     }
   }
 
@@ -371,6 +385,10 @@ export default function NewProductPage() {
                     >
                       <option value="eyeglasses">Lentes ópticos</option>
                       <option value="sunglasses">Lentes de sol</option>
+                      <option value="accessory">Accesorio</option>
+                      <option value="contact_lenses">
+                        Lentes de contacto
+                      </option>
                     </select>
                   </label>
 

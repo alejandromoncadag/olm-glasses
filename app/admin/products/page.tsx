@@ -14,7 +14,7 @@ type Product = {
   priceCents: number;
   currency: string;
   category: string;
-  type: "eyeglasses" | "sunglasses";
+  type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
   gender: string;
   shape: string;
   frameColor: string;
@@ -35,7 +35,12 @@ type ProductStatus =
   | "out-of-stock"
   | "inactive";
 
-type ProductTypeFilter = "all" | "eyeglasses" | "sunglasses";
+type ProductTypeFilter =
+  | "all"
+  | "eyeglasses"
+  | "sunglasses"
+  | "accessory"
+  | "contact_lenses";
 
 type SortBy =
   | "newest"
@@ -60,6 +65,8 @@ function formatDate(date: string) {
 function getProductTypeLabel(type: Product["type"]) {
   if (type === "eyeglasses") return "Lentes ópticos";
   if (type === "sunglasses") return "Lentes de sol";
+  if (type === "accessory") return "Accesorio";
+  if (type === "contact_lenses") return "Lentes de contacto";
 
   return "Producto";
 }
@@ -459,6 +466,8 @@ export default function AdminProductsPage() {
               <option value="all">Todos los tipos</option>
               <option value="eyeglasses">Lentes ópticos</option>
               <option value="sunglasses">Lentes de sol</option>
+              <option value="accessory">Accesorios</option>
+              <option value="contact_lenses">Lentes de contacto</option>
             </select>
 
             <select

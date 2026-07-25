@@ -2,15 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-type CartItem = {
-  slug: string;
-  name: string;
-  price: number;
-  quantity: number;
-  lensOption: string;
-  prescriptionMethod: string;
-};
+import { writeCart, type CartItem } from "@/lib/cart";
 
 type ApiProduct = {
   slug: string;
@@ -86,7 +78,7 @@ export default function CartItems() {
 
   function saveCart(updatedCart: CartItem[]) {
     setCartItems(updatedCart);
-    localStorage.setItem("olm-cart", JSON.stringify(updatedCart));
+    writeCart(updatedCart);
   }
 
   function getTotalQuantityForProduct(productSlug: string) {
@@ -268,9 +260,11 @@ export default function CartItems() {
                     {item.lensOption}
                   </p>
 
-                  <p className="text-sm text-gray-600">
-                    {item.prescriptionMethod}
-                  </p>
+                  {item.prescriptionMethod !== "No aplica" && (
+                    <p className="text-sm text-gray-600">
+                      {item.prescriptionMethod}
+                    </p>
+                  )}
 
                   <p className="mt-3 text-sm text-gray-500">
                     Stock disponible: {productStock}

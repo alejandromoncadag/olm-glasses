@@ -3,7 +3,7 @@ export type Product = {
   name: string;
   price: number;
   category: string;
-  type: "eyeglasses" | "sunglasses";
+  type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
   color: string;
   description: string;
   gender: "hombre" | "mujer" | "unisex";

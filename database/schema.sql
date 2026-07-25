@@ -4,7 +4,12 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- =========================
 -- ENUM TYPES
 -- =========================
-CREATE TYPE product_type AS ENUM ('eyeglasses', 'sunglasses');
+CREATE TYPE product_type AS ENUM (
+    'eyeglasses',
+    'sunglasses',
+    'accessory',
+    'contact_lenses'
+);
 CREATE TYPE product_gender AS ENUM ('hombre', 'mujer', 'unisex');
 CREATE TYPE product_shape AS ENUM (
     'redondo',

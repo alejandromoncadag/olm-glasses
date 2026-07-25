@@ -464,9 +464,11 @@ export default function CheckoutSummary() {
                     {item.lensOption}
                   </p>
 
-                  <p className="text-sm text-gray-600">
-                    {item.prescriptionMethod}
-                  </p>
+                  {item.prescriptionMethod !== "No aplica" && (
+                    <p className="text-sm text-gray-600">
+                      {item.prescriptionMethod}
+                    </p>
+                  )}
 
                   <p className="mt-1 text-sm text-gray-500">
                     Cantidad: {item.quantity}

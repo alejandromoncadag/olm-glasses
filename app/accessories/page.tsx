@@ -1,6 +1,5 @@
 import StorefrontProductCard from "@/components/StorefrontProductCard";
 import { accessoryProducts } from "@/data/secondaryCatalog";
-import { createWhatsAppLink } from "@/lib/whatsapp";
 
 export const metadata = {
   title: "Accesorios · Óptica OLM",
@@ -40,15 +39,13 @@ export default function AccessoriesPage() {
           {accessoryProducts.map((product, index) => (
             <StorefrontProductCard
               key={product.slug}
+              slug={product.slug}
               name={product.name}
               eyebrow={product.eyebrow}
               description={product.description}
               price={product.price}
               image={product.image}
-              actionHref={createWhatsAppLink(
-                `Hola, quiero comprar ${product.name} y confirmar disponibilidad.`
-              )}
-              actionLabel="Comprar"
+              actionLabel="Agregar al carrito"
               priority={index === 0}
             />
           ))}
