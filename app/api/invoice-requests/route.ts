@@ -64,13 +64,8 @@ export async function GET() {
   try {
     const result = await pool.query(`
       SELECT
-        invoice_requests.*,
-        customers.full_name AS customer_name,
-        customers.email AS purchase_email,
-        orders.created_at AS order_date
+        invoice_requests.*
       FROM invoice_requests
-      LEFT JOIN customers ON customers.id = invoice_requests.customer_id
-      LEFT JOIN orders ON orders.id = invoice_requests.order_id
       ORDER BY invoice_requests.created_at DESC
     `);
 
@@ -126,13 +121,15 @@ export async function POST(request: Request) {
           orders.customer_id,
           orders.total_cents,
           orders.payment_method,
+          orders.payment_status,
+          orders.status,
+          orders.created_at,
+          customers.full_name,
           customers.email
         FROM orders
         JOIN customers ON customers.id = orders.customer_id
         WHERE UPPER(orders.order_number) = $1
           AND LOWER(customers.email) = LOWER($2)
-          AND orders.status <> 'cancelled'
-          AND orders.payment_status NOT IN ('failed', 'refunded')
         LIMIT 1
         FOR SHARE OF orders, customers
       `,
@@ -154,6 +151,16 @@ export async function POST(request: Request) {
             "No encontramos una compra elegible con esos datos. Vuelve al paso anterior.",
         },
         { status: 404 }
+      );
+    }
+
+    if (order.status === "cancelled" || order.payment_status !== "paid") {
+      await client.query("ROLLBACK");
+      transactionStarted = false;
+
+      return NextResponse.json(
+        { error: "Este pedido aún no está confirmado para facturación." },
+        { status: 409 }
       );
     }
 
@@ -315,6 +322,9 @@ export async function POST(request: Request) {
           request_number,
           order_id,
           order_number,
+          customer_name,
+          purchase_email,
+          order_date,
           customer_id,
           customer_tax_profile_id,
           rfc,
@@ -328,7 +338,7 @@ export async function POST(request: Request) {
           status
         )
         VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending'
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'pending'
         )
         RETURNING *
       `,
@@ -336,6 +346,9 @@ export async function POST(request: Request) {
         generateRequestNumber(),
         order.id,
         order.order_number,
+        order.full_name,
+        order.email,
+        order.created_at,
         order.customer_id,
         customerTaxProfileId,
         fiscalData.rfc,

@@ -90,7 +90,7 @@ export async function GET() {
           JOIN customers ON customers.id = orders.customer_id
           WHERE orders.customer_id = $1
             AND orders.status <> 'cancelled'
-            AND orders.payment_status NOT IN ('failed', 'refunded')
+            AND orders.payment_status = 'paid'
           ORDER BY orders.created_at DESC
         `,
         [customer.customerId]
@@ -143,6 +143,8 @@ export async function POST(request: Request) {
           orders.total_cents,
           orders.currency,
           orders.payment_method,
+          orders.payment_status,
+          orders.status,
           orders.created_at,
           customers.full_name,
           customers.email
@@ -150,8 +152,6 @@ export async function POST(request: Request) {
         JOIN customers ON customers.id = orders.customer_id
         WHERE UPPER(orders.order_number) = $1
           AND LOWER(customers.email) = LOWER($2)
-          AND orders.status <> 'cancelled'
-          AND orders.payment_status NOT IN ('failed', 'refunded')
         LIMIT 1
       `,
       [orderNumber, purchaseEmail]
@@ -166,6 +166,13 @@ export async function POST(request: Request) {
             "No encontramos una compra elegible con esos datos. Revisa el número y el email.",
         },
         { status: 404 }
+      );
+    }
+
+    if (order.status === "cancelled" || order.payment_status !== "paid") {
+      return NextResponse.json(
+        { error: "Este pedido aún no está confirmado para facturación." },
+        { status: 409 }
       );
     }
 

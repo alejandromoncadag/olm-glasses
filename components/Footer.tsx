@@ -82,6 +82,10 @@ export default function Footer() {
             <Link href="/locations" className={footerLinkClass}>
               Nuestras tiendas
             </Link>
+
+            <Link href="/facturacion" className={footerLinkClass}>
+              Facturación electrónica
+            </Link>
           </div>
         </div>
 

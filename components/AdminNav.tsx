@@ -16,6 +16,10 @@ const navItems = [
     href: "/admin/orders",
   },
   {
+    label: "Facturación",
+    href: "/admin/facturacion",
+  },
+  {
     label: "Exámenes",
     href: "/admin/eye-exams",
   },
