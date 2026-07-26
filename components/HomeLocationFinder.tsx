@@ -117,12 +117,18 @@ export default function HomeLocationFinder({ locations }: HomeLocationFinderProp
                 <p>{selectedLocation.hours[0]?.time}</p>
               </div>
               <div className="flex flex-col items-start gap-3 sm:items-end">
-                <a
-                  href={"tel:" + selectedLocation.phone.replace(/\s/g, "")}
-                  className="text-sm underline underline-offset-4"
-                >
-                  {selectedLocation.phone}
-                </a>
+                {selectedLocation.phone ? (
+                  <a
+                    href={"tel:" + selectedLocation.phone.replace(/\s/g, "")}
+                    className="text-sm underline underline-offset-4"
+                  >
+                    {selectedLocation.phone}
+                  </a>
+                ) : (
+                  <span className="text-sm text-gray-500">
+                    Teléfono próximamente
+                  </span>
+                )}
                 <Link
                   href={"/locations/" + selectedLocation.slug}
                   className="inline-flex h-11 items-center justify-center rounded-full border border-black bg-transparent px-5 text-sm font-semibold transition hover:bg-black hover:text-white"

@@ -10,6 +10,7 @@ import { useCartCount } from "@/hooks/useCartCount";
 const storeNavItems = [
   { href: "/eyeglasses", label: "Ópticos" },
   { href: "/sunglasses", label: "Sol" },
+  { href: "/deportivos", label: "Deportivos" },
   { href: "/clip-ons", label: "Clip-on" },
   { href: "/lentes-de-contacto", label: "Contactos" },
   { href: "/accessories", label: "Accesorios" },
@@ -89,20 +90,20 @@ function StoreNavbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-black/10 bg-white/95 text-black backdrop-blur">
       <div className="bg-[#2d1f1a] text-white">
-        <div className="mx-auto grid h-9 max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 sm:px-6">
-          <p className="truncate text-[9px] font-medium uppercase tracking-[0.08em] sm:text-xs sm:tracking-[0.12em]">
+        <div className="mx-auto grid h-10 max-w-7xl grid-cols-1 items-center gap-2 px-4 sm:grid-cols-[1fr_auto_1fr] sm:px-6">
+          <p className="hidden truncate text-xs font-medium uppercase tracking-[0.12em] sm:block">
             Diseño premium, precios justos
           </p>
 
           <Link
             href="/"
-            className="whitespace-nowrap text-xs font-bold uppercase tracking-[0.22em] sm:text-sm sm:tracking-[0.3em]"
+            className="justify-self-center whitespace-nowrap text-sm font-bold uppercase tracking-[0.28em] sm:tracking-[0.3em]"
             aria-label="Óptica OLM, inicio"
           >
             Óptica OLM
           </Link>
 
-          <p className="justify-self-end whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.08em] sm:text-xs sm:tracking-[0.12em]">
+          <p className="hidden justify-self-end whitespace-nowrap text-xs font-semibold uppercase tracking-[0.12em] sm:block">
             20% en tu primera compra
           </p>
         </div>
@@ -122,6 +123,15 @@ function StoreNavbar() {
         </div>
 
         <div className="ml-auto flex items-center gap-0.5 text-sm font-medium sm:gap-1">
+          <a
+            href="/search"
+            className="flex h-10 items-center gap-2 whitespace-nowrap rounded-full px-2 transition hover:bg-gray-100 sm:px-2.5"
+            aria-label="Buscar en Óptica OLM"
+          >
+            <SearchIcon />
+            <span className="hidden xl:inline">Buscar</span>
+          </a>
+
           <a
             href="/likes"
             className="relative flex h-10 items-center gap-2 whitespace-nowrap rounded-full px-2 transition hover:bg-gray-100 sm:px-2.5"
@@ -350,6 +360,24 @@ function HeartIcon({ filled }: { filled: boolean }) {
       aria-hidden
     >
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="19"
+      height="19"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
     </svg>
   );
 }

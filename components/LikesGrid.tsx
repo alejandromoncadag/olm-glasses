@@ -197,7 +197,7 @@ export default function LikesGrid() {
       return;
     }
 
-    window.location.href = "/checkout";
+    window.location.href = "/cart";
   }
 
   return (

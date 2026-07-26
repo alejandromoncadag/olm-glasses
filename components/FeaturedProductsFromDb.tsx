@@ -152,7 +152,7 @@ export default function FeaturedProductsFromDb() {
       {!loading && !error && (
         <div
           ref={carouselRef}
-          className="product-carousel mt-10 grid snap-x snap-mandatory grid-flow-col auto-cols-[88%] gap-5 overflow-x-auto pb-5 sm:auto-cols-[48%] lg:auto-cols-[calc((100%-2.5rem)/3)]"
+          className="product-carousel mt-10 grid snap-x snap-mandatory grid-flow-col auto-cols-[86%] gap-4 overflow-x-auto pb-5 sm:auto-cols-[48%] sm:gap-5 lg:auto-cols-[calc((100%-3.75rem)/4)]"
         >
           {products.map((product) => (
             <div key={product.slug} className="snap-start">

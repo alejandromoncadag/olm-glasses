@@ -117,7 +117,7 @@ export default function ProductPurchasePanel({
     }
 
     writeCart(updatedCart);
-    window.location.href = "/checkout";
+    window.location.href = "/cart";
   }
 
   return (

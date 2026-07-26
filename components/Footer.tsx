@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { locations } from "@/data/locations";
+import { createWhatsAppLink } from "@/lib/whatsapp";
 
 const footerLinkClass =
   "w-fit transition hover:text-[var(--brand-espresso)] hover:underline hover:underline-offset-4";
@@ -33,7 +35,33 @@ function FacebookIcon() {
   );
 }
 
+function WhatsAppIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20.5 11.7a8.5 8.5 0 0 1-12.6 7.5L3.5 20.5l1.4-4.2a8.5 8.5 0 1 1 15.6-4.6Z" />
+      <path d="M8.2 7.8c.2-.4.4-.4.7-.4h.5c.2 0 .3.1.4.4l.7 1.7c.1.3.1.5-.1.7l-.6.7c-.2.2-.1.4 0 .6.7 1.3 1.7 2.3 3 2.9.2.1.4.1.6-.1l.8-1c.2-.2.4-.3.7-.2l1.8.8c.3.1.4.3.4.5 0 .4-.2 1.4-1 2-.7.6-1.6.8-2.4.6-1-.3-2.3-.8-3.8-2.1-1.8-1.6-3-3.5-3.3-4.7-.3-1.1.1-1.9.5-2.4.4-.4.8-.5 1.1-.5Z" />
+    </svg>
+  );
+}
+
 export default function Footer() {
+  const whatsappLocation = locations.find((location) => location.whatsapp);
+  const whatsappHref = whatsappLocation?.whatsapp
+    ? createWhatsAppLink(
+        "Hola, necesito ayuda con Óptica OLM.",
+        whatsappLocation.whatsapp
+      )
+    : null;
+
   return (
     <footer className="border-t border-black/10 bg-[#f7f3ee] px-6 py-12 text-black">
       <div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-[1.35fr_repeat(4,minmax(0,1fr))]">
@@ -55,6 +83,10 @@ export default function Footer() {
 
             <Link href="/sunglasses" className={footerLinkClass}>
               Lentes de sol
+            </Link>
+
+            <Link href="/deportivos" className={footerLinkClass}>
+              Lentes deportivos
             </Link>
 
             <Link href="/clip-ons" className={footerLinkClass}>
@@ -172,6 +204,18 @@ export default function Footer() {
           >
             <FacebookIcon />
           </a>
+
+          {whatsappHref && (
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="WhatsApp de Óptica OLM"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-black/15 bg-white transition hover:border-[#2b7a4b] hover:bg-[#2b7a4b] hover:text-white"
+            >
+              <WhatsAppIcon />
+            </a>
+          )}
         </div>
       </div>
     </footer>

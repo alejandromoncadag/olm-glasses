@@ -1,547 +1,1236 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import {
-  eyeExamServices as services,
-  eyeExamTimeSlots as timeSlots,
-  type EyeExamService,
-} from "@/data/eyeExamServices";
 import { locations, type Location } from "@/data/locations";
 import { useAuth } from "@/hooks/useAuth";
-import { createWhatsAppLink } from "@/lib/whatsapp";
 
-type ContactInfo = {
+type Step = 1 | 2 | 3 | 4;
+type PatientAgeGroup = "adult" | "child";
+
+type PatientInfo = {
   fullName: string;
   email: string;
   phone: string;
+  dateOfBirth: string;
+  notes: string;
 };
 
-type CreateBookingResponse = {
-  booking?: {
-    id: string;
-    bookingNumber: string;
-    status: string;
-    createdAt: string;
-  };
+type Booking = {
+  id: string;
+  bookingNumber: string;
+  locationSlug: string;
+  locationName: string;
+  serviceName: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  durationMinutes: number;
+  patientAgeGroup: PatientAgeGroup;
+  dateOfBirth: string;
+  patientDetails: Record<string, unknown>;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  notes: string | null;
+  status: "pending" | "confirmed" | "cancelled" | "completed";
+};
+
+type BookingResponse = {
+  booking?: Booking;
+  manageToken?: string;
+  emailNotifications?: string[];
+  emailNotification?: string;
   error?: string;
 };
 
-function nextSevenDays() {
-  const days = [];
-  const today = new Date();
-  for (let i = 1; i <= 7; i += 1) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
-    days.push(date);
+type AvailabilityResponse = {
+  slots?: Array<{
+    time: string;
+    available: boolean;
+  }>;
+  error?: string;
+};
+
+const initialPatientInfo: PatientInfo = {
+  fullName: "",
+  email: "",
+  phone: "",
+  dateOfBirth: "",
+  notes: "",
+};
+
+const stepLabels = [
+  "Paciente",
+  "Sucursal",
+  "Fecha y hora",
+  "Tus datos",
+];
+
+const weekdayLabels = ["D", "L", "M", "M", "J", "V", "S"];
+const monthLabels = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+function startOfDay(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function startOfMonth(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), 1);
+}
+
+function addMonths(value: Date, amount: number) {
+  return new Date(value.getFullYear(), value.getMonth() + amount, 1);
+}
+
+function getCalendarDays(month: Date) {
+  const firstWeekday = month.getDay();
+  const totalDays = new Date(
+    month.getFullYear(),
+    month.getMonth() + 1,
+    0
+  ).getDate();
+  const cells: Array<Date | null> = Array(firstWeekday).fill(null);
+
+  for (let day = 1; day <= totalDays; day += 1) {
+    cells.push(new Date(month.getFullYear(), month.getMonth(), day));
   }
-  return days;
+
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
 }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("es-MX", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  }).format(date);
+function formatDateForApi(date: Date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 
-function formatDateLong(date: Date) {
+function formatDateInput(date: Date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function birthDateYearsAgo(years: number, addDays = 0) {
+  const today = new Date();
+  const result = new Date(
+    today.getFullYear() - years,
+    today.getMonth(),
+    today.getDate() + addDays
+  );
+  return formatDateInput(result);
+}
+
+function formatLongDate(value: string) {
   return new Intl.DateTimeFormat("es-MX", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
-  }).format(date);
+    timeZone: "UTC",
+  }).format(new Date(`${value}T12:00:00.000Z`));
 }
 
-function formatDateForApi(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+function normalizeSearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
-type Step = 1 | 2 | 3 | 4 | 5;
+function getLocationSearchText(location: Location) {
+  return normalizeSearch(
+    [
+      location.name,
+      location.neighborhood,
+      location.address,
+      location.city,
+      location.state,
+      location.zipCode,
+      location.country,
+    ].join(" ")
+  );
+}
+
+function ChoiceCard({
+  selected,
+  title,
+  copy,
+  illustration,
+  onClick,
+}: {
+  selected: boolean;
+  title: string;
+  copy: string;
+  illustration: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`group min-h-72 overflow-hidden rounded-[1.75rem] border p-4 text-left transition ${
+        selected
+          ? "border-[var(--brand-espresso)] bg-[#f7f3ee] shadow-sm"
+          : "border-black/10 bg-white hover:border-[var(--brand-espresso)]"
+      }`}
+    >
+      <div className="flex h-44 items-center justify-center overflow-hidden rounded-2xl bg-[#f7f3ee]">
+        {illustration}
+      </div>
+      <div className="px-2 pb-2">
+        <h3 className="mt-5 text-lg font-semibold">{title}</h3>
+        <p className="mt-1 text-sm leading-6 text-gray-600">{copy}</p>
+      </div>
+    </button>
+  );
+}
 
 export default function EyeExamBooking() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const presetLocation = searchParams.get("location");
-
+  const manageBookingNumber = searchParams.get("manage");
+  const manageTokenFromUrl = searchParams.get("token");
   const initialLocation =
-    locations.find((location) => location.slug === presetLocation) ??
-    locations[0];
-
+    locations.find((entry) => entry.slug === presetLocation) || null;
+  const currentMonth = useMemo(() => startOfMonth(new Date()), []);
+  const bookingYears = useMemo(
+    () =>
+      Array.from(
+        { length: 6 },
+        (_, index) => currentMonth.getFullYear() + index
+      ),
+    [currentMonth]
+  );
   const [step, setStep] = useState<Step>(1);
-  const [location, setLocation] = useState<Location>(initialLocation);
-  const [service, setService] = useState<EyeExamService>(services[0]);
+  const [patientAgeGroup, setPatientAgeGroup] =
+    useState<PatientAgeGroup | null>(null);
+  const [locationSearch, setLocationSearch] = useState("");
+  const [location, setLocation] = useState<Location | null>(initialLocation);
+  const [calendarMonth, setCalendarMonth] = useState(currentMonth);
   const [date, setDate] = useState<Date | null>(null);
-  const [time, setTime] = useState<string | null>(null);
-  const [contact, setContact] = useState<ContactInfo>({
-    fullName: "",
-    email: "",
-    phone: "",
-  });
-  const [confirmed, setConfirmed] = useState<{
-    id: string;
-    dateLabel: string;
-  } | null>(null);
+  const [time, setTime] = useState("");
+  const [slots, setSlots] = useState<
+    Array<{ time: string; available: boolean }>
+  >([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [patientInfo, setPatientInfo] =
+    useState<PatientInfo>(initialPatientInfo);
+  const [confirmedBooking, setConfirmedBooking] =
+    useState<Booking | null>(null);
+  const [manageToken, setManageToken] = useState("");
+  const [rescheduling, setRescheduling] = useState(false);
+  const [loadingManagedBooking, setLoadingManagedBooking] = useState(
+    Boolean(manageBookingNumber && manageTokenFromUrl)
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const filteredLocations = useMemo(() => {
+    const query = normalizeSearch(locationSearch);
+    if (!query) return locations;
+
+    return locations.filter((entry) =>
+      getLocationSearchText(entry).includes(query)
+    );
+  }, [locationSearch]);
+  const calendarDays = useMemo(
+    () => getCalendarDays(calendarMonth),
+    [calendarMonth]
+  );
 
   useEffect(() => {
     if (!user) return;
 
     const timeoutId = window.setTimeout(() => {
-      setContact((previous) => ({
-        ...previous,
-        fullName: previous.fullName || user.fullName,
-        email: previous.email || user.email,
+      setPatientInfo((current) => ({
+        ...current,
+        fullName: current.fullName || user.fullName,
+        email: current.email || user.email,
       }));
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
   }, [user]);
 
-  const days = useMemo(() => nextSevenDays(), []);
-
-  function goTo(target: Step) {
-    setStep(target);
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+  useEffect(() => {
+    if (!manageBookingNumber || !manageTokenFromUrl) {
+      return;
     }
+
+    let active = true;
+    const bookingNumber = manageBookingNumber;
+    const token = manageTokenFromUrl;
+
+    async function loadManagedBooking() {
+      try {
+        setLoadingManagedBooking(true);
+        setError("");
+        const response = await fetch(
+          `/api/eye-exam/bookings/${encodeURIComponent(
+            bookingNumber
+          )}/manage?token=${encodeURIComponent(token)}`
+        );
+        const result = (await response
+          .json()
+          .catch(() => ({}))) as BookingResponse;
+
+        if (!response.ok || !result.booking) {
+          throw new Error(result.error || "No pudimos cargar esta cita.");
+        }
+
+        if (active) {
+          setConfirmedBooking(result.booking);
+          setManageToken(token);
+        }
+      } catch (loadError) {
+        if (active) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "No pudimos cargar esta cita."
+          );
+        }
+      } finally {
+        if (active) setLoadingManagedBooking(false);
+      }
+    }
+
+    loadManagedBooking();
+
+    return () => {
+      active = false;
+    };
+  }, [manageBookingNumber, manageTokenFromUrl]);
+
+  useEffect(() => {
+    if (!location || !date) {
+      return;
+    }
+
+    let active = true;
+    const selectedDate = formatDateForApi(date);
+    const selectedLocationSlug = location.slug;
+
+    async function loadSlots() {
+      try {
+        setLoadingSlots(true);
+        setError("");
+        const response = await fetch(
+          `/api/eye-exam/availability?location=${encodeURIComponent(
+            selectedLocationSlug
+          )}&date=${selectedDate}`
+        );
+        const result = (await response
+          .json()
+          .catch(() => ({}))) as AvailabilityResponse;
+
+        if (!response.ok || !result.slots) {
+          throw new Error(
+            result.error || "No pudimos consultar los horarios."
+          );
+        }
+
+        if (active) {
+          setSlots(result.slots);
+          setTime((current) =>
+            result.slots?.some(
+              (slot) => slot.time === current && slot.available
+            )
+              ? current
+              : ""
+          );
+        }
+      } catch (slotError) {
+        if (active) {
+          setSlots([]);
+          setError(
+            slotError instanceof Error
+              ? slotError.message
+              : "No pudimos consultar los horarios."
+          );
+        }
+      } finally {
+        if (active) setLoadingSlots(false);
+      }
+    }
+
+    loadSlots();
+
+    return () => {
+      active = false;
+    };
+  }, [date, location]);
+
+  function goTo(nextStep: Step) {
+    setStep(nextStep);
+    setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function handleConfirm() {
-    if (!date || !time) return;
+  function selectAgeGroup(value: PatientAgeGroup) {
+    setPatientAgeGroup(value);
+    setPatientInfo((current) => ({ ...current, dateOfBirth: "" }));
+    goTo(2);
+  }
 
-    const dateLabel = formatDateLong(date);
-    setIsSubmitting(true);
-    setSubmitError(null);
+  function selectLocation(entry: Location) {
+    setLocation(entry);
+    setDate(null);
+    setTime("");
+    setCalendarMonth(currentMonth);
+    goTo(3);
+  }
+
+  function updateCalendarMonth(month: number) {
+    const candidate = new Date(calendarMonth.getFullYear(), month, 1);
+    setCalendarMonth(
+      candidate.getTime() < currentMonth.getTime() ? currentMonth : candidate
+    );
+    setDate(null);
+    setTime("");
+  }
+
+  function updateCalendarYear(year: number) {
+    const candidate = new Date(year, calendarMonth.getMonth(), 1);
+    setCalendarMonth(
+      candidate.getTime() < currentMonth.getTime() ? currentMonth : candidate
+    );
+    setDate(null);
+    setTime("");
+  }
+
+  function selectDirectDate(value: string) {
+    if (!value) return;
+
+    const [year, month, day] = value.split("-").map(Number);
+    const selectedDate = new Date(year, month - 1, day);
+    if (startOfDay(selectedDate) < startOfDay(new Date())) return;
+
+    setCalendarMonth(startOfMonth(selectedDate));
+    setDate(selectedDate);
+    setTime("");
+  }
+
+  function canSubmitPatientInfo() {
+    return Boolean(
+      patientInfo.fullName.trim() &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patientInfo.email.trim()) &&
+        patientInfo.phone.trim() &&
+        patientInfo.dateOfBirth
+    );
+  }
+
+  async function submitBooking() {
+    if (
+      !patientAgeGroup ||
+      !location ||
+      !date ||
+      !time ||
+      !canSubmitPatientInfo()
+    ) {
+      setError("Completa todos los campos requeridos.");
+      return;
+    }
 
     try {
+      setIsSubmitting(true);
+      setError("");
+      setNotice("");
       const response = await fetch("/api/eye-exam/bookings", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           locationSlug: location.slug,
-          serviceId: service.id,
           appointmentDate: formatDateForApi(date),
           appointmentTime: time,
-          customerName: contact.fullName,
-          customerEmail: contact.email,
-          customerPhone: contact.phone,
+          patientAgeGroup,
+          dateOfBirth: patientInfo.dateOfBirth,
+          customerName: patientInfo.fullName,
+          customerEmail: patientInfo.email,
+          customerPhone: patientInfo.phone,
+          patientDetails: {},
+          notes: patientInfo.notes,
+          reschedule:
+            rescheduling && confirmedBooking && manageToken
+              ? {
+                  bookingNumber: confirmedBooking.bookingNumber,
+                  manageToken,
+                }
+              : undefined,
         }),
       });
-
       const result = (await response
         .json()
-        .catch(() => ({}))) as CreateBookingResponse;
+        .catch(() => ({}))) as BookingResponse;
 
-      if (!response.ok || !result.booking) {
-        throw new Error(
-          result.error || "No se pudo guardar la cita. Intenta de nuevo."
-        );
+      if (!response.ok || !result.booking || !result.manageToken) {
+        throw new Error(result.error || "No se pudo guardar la cita.");
       }
 
-      const cachedBooking = {
-        id: result.booking.id,
-        bookingNumber: result.booking.bookingNumber,
-        locationSlug: location.slug,
-        locationName: location.name,
-        date: dateLabel,
-        time,
-        service: service.label,
-        fullName: contact.fullName,
-        email: contact.email,
-        phone: contact.phone,
-        status: result.booking.status,
-        createdAt: result.booking.createdAt,
-      };
-
-      try {
-        const storedBookings = JSON.parse(
-          localStorage.getItem("olm-eye-exam-bookings") || "[]"
-        );
-        const existingBookings = Array.isArray(storedBookings)
-          ? storedBookings
-          : [];
-
-        localStorage.setItem(
-          "olm-eye-exam-bookings",
-          JSON.stringify([cachedBooking, ...existingBookings])
-        );
-      } catch (storageError) {
-        console.warn("Could not cache eye exam booking:", storageError);
-      }
-
-      setConfirmed({ id: result.booking.bookingNumber, dateLabel });
-      goTo(5);
-    } catch (error) {
-      setSubmitError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo guardar la cita. Intenta de nuevo."
+      setConfirmedBooking(result.booking);
+      setManageToken(result.manageToken);
+      setRescheduling(false);
+      setNotice(
+        result.emailNotifications?.some((item) => item.endsWith("_failed"))
+          ? "La cita quedó guardada, pero la notificación por correo requiere revisión."
+          : "La confirmación por correo quedó preparada para envío."
+      );
+      window.history.replaceState(
+        {},
+        "",
+        `/eye-exam/book?manage=${encodeURIComponent(
+          result.booking.bookingNumber
+        )}&token=${encodeURIComponent(result.manageToken)}`
+      );
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "No se pudo guardar la cita."
       );
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  if (confirmed) {
+  function beginReschedule() {
+    if (!confirmedBooking) return;
+
+    const currentLocation =
+      locations.find(
+        (entry) => entry.slug === confirmedBooking.locationSlug
+      ) || null;
+    setPatientAgeGroup(confirmedBooking.patientAgeGroup);
+    setLocation(currentLocation);
+    setPatientInfo({
+      fullName: confirmedBooking.customerName,
+      email: confirmedBooking.customerEmail,
+      phone: confirmedBooking.customerPhone,
+      dateOfBirth: confirmedBooking.dateOfBirth,
+      notes: confirmedBooking.notes || "",
+    });
+    setDate(null);
+    setTime("");
+    setSlots([]);
+    setCalendarMonth(currentMonth);
+    setStep(1);
+    setRescheduling(true);
+    setNotice("Elige los nuevos datos. Tu cita actual seguirá activa hasta confirmar el cambio.");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function cancelBooking() {
+    if (!confirmedBooking || !manageToken) return;
+
+    if (
+      !window.confirm(
+        "¿Seguro que quieres cancelar esta cita? El horario se liberará."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsCancelling(true);
+      setError("");
+      const response = await fetch(
+        `/api/eye-exam/bookings/${encodeURIComponent(
+          confirmedBooking.bookingNumber
+        )}/manage`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "cancel", manageToken }),
+        }
+      );
+      const result = (await response
+        .json()
+        .catch(() => ({}))) as BookingResponse;
+
+      if (!response.ok || !result.booking) {
+        throw new Error(result.error || "No se pudo cancelar la cita.");
+      }
+
+      setConfirmedBooking(result.booking);
+      setNotice("La cita fue cancelada y la notificación por correo quedó preparada.");
+    } catch (cancelError) {
+      setError(
+        cancelError instanceof Error
+          ? cancelError.message
+          : "No se pudo cancelar la cita."
+      );
+    } finally {
+      setIsCancelling(false);
+    }
+  }
+
+  if (loadingManagedBooking) {
     return (
-      <div className="mx-auto max-w-2xl rounded-3xl border bg-white p-10 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-700">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
+      <div className="mx-auto max-w-3xl rounded-[2rem] border border-black/10 bg-white p-10 text-center">
+        <p className="text-gray-600">Cargando los datos de tu cita…</p>
+      </div>
+    );
+  }
+
+  if (confirmedBooking && !rescheduling) {
+    const selectedLocation =
+      locations.find(
+        (entry) => entry.slug === confirmedBooking.locationSlug
+      ) || null;
+    const isCancelled = confirmedBooking.status === "cancelled";
+
+    return (
+      <div className="mx-auto max-w-3xl overflow-hidden rounded-[2rem] border border-black/10 bg-white shadow-sm">
+        <div
+          className={`px-8 py-10 text-center ${
+            isCancelled ? "bg-[#f4f1ed]" : "bg-[#edf6ef]"
+          }`}
+        >
+          <div
+            className={`mx-auto grid h-14 w-14 place-items-center rounded-full border-2 text-2xl ${
+              isCancelled
+                ? "border-gray-500 text-gray-600"
+                : "border-green-700 text-green-700"
+            }`}
           >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
+            {isCancelled ? "×" : "✓"}
+          </div>
+          <p className="mt-5 text-xs font-semibold uppercase tracking-[0.24em] text-gray-600">
+            {isCancelled ? "Cita cancelada" : "Reservación confirmada"}
+          </p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight">
+            {isCancelled
+              ? "Tu examen fue cancelado"
+              : "Tu examen de la vista está confirmado"}
+          </h2>
+          <p className="mt-3 text-sm text-gray-600">
+            Folio {confirmedBooking.bookingNumber}
+          </p>
         </div>
 
-        <h2 className="mt-6 text-3xl font-bold">¡Cita agendada!</h2>
+        <div className="grid gap-8 p-7 sm:p-10 md:grid-cols-[1.2fr_.8fr]">
+          <div>
+            <dl className="divide-y divide-black/10">
+              <div className="py-4 first:pt-0">
+                <dt className="text-xs uppercase tracking-[0.16em] text-gray-500">
+                  Fecha y hora
+                </dt>
+                <dd className="mt-2 font-semibold">
+                  {formatLongDate(confirmedBooking.appointmentDate)}
+                </dd>
+                <dd className="text-gray-700">
+                  {confirmedBooking.appointmentTime} · 45 minutos
+                </dd>
+              </div>
+              <div className="py-4">
+                <dt className="text-xs uppercase tracking-[0.16em] text-gray-500">
+                  Sucursal
+                </dt>
+                <dd className="mt-2 font-semibold">
+                  {confirmedBooking.locationName}
+                </dd>
+                {selectedLocation && (
+                  <dd className="mt-1 text-sm leading-6 text-gray-600">
+                    {selectedLocation.address}, {selectedLocation.city},{" "}
+                    {selectedLocation.state}, C.P. {selectedLocation.zipCode}
+                  </dd>
+                )}
+              </div>
+              <div className="py-4 last:pb-0">
+                <dt className="text-xs uppercase tracking-[0.16em] text-gray-500">
+                  Paciente
+                </dt>
+                <dd className="mt-2 font-semibold">
+                  {confirmedBooking.customerName}
+                </dd>
+                <dd className="text-sm text-gray-600">
+                  {confirmedBooking.customerEmail}
+                </dd>
+              </div>
+            </dl>
+          </div>
 
-        <p className="mt-3 text-gray-600">
-          Tu cita quedó registrada. Conserva tu folio para cualquier cambio.
-        </p>
+          <div className="rounded-3xl bg-[#f7f3ee] p-6">
+            <h3 className="font-semibold">
+              {isCancelled ? "¿Necesitas otra cita?" : "Administra tu cita"}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              {isCancelled
+                ? "Puedes comenzar una reservación nueva cuando quieras."
+                : "Puedes cambiar la sucursal, fecha u horario sin llamar a la tienda."}
+            </p>
 
-        <div className="mt-8 grid gap-3 rounded-2xl bg-[#f7f3ee] p-6 text-left text-gray-700">
-          <p>
-            <strong>Folio:</strong> {confirmed.id}
-          </p>
-          <p>
-            <strong>Servicio:</strong> {service.label}
-          </p>
-          <p>
-            <strong>Tienda:</strong> {location.name}
-          </p>
-          <p>
-            <strong>Día:</strong> {confirmed.dateLabel}
-          </p>
-          <p>
-            <strong>Hora:</strong> {time}
-          </p>
+            {!isCancelled ? (
+              <div className="mt-5 grid gap-2">
+                <button
+                  type="button"
+                  onClick={beginReschedule}
+                  className="h-11 rounded-full bg-[var(--brand-espresso)] px-5 text-sm font-semibold text-white transition hover:bg-[#1f1511]"
+                >
+                  Reagendar examen
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelBooking}
+                  disabled={isCancelling}
+                  className="h-11 rounded-full border border-[var(--brand-espresso)] px-5 text-sm font-semibold text-[var(--brand-espresso)] transition hover:bg-white disabled:opacity-50"
+                >
+                  {isCancelling ? "Cancelando…" : "Cancelar examen"}
+                </button>
+              </div>
+            ) : (
+              <a
+                href="/eye-exam/book"
+                className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-[var(--brand-espresso)] px-5 text-sm font-semibold text-white"
+              >
+                Agendar otra cita
+              </a>
+            )}
+          </div>
         </div>
 
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <a
-            href="/account"
-            className="rounded-full bg-black px-6 py-3 text-white"
+        {(notice || error) && (
+          <div
+            role={error ? "alert" : "status"}
+            className={`mx-7 mb-7 rounded-2xl px-4 py-3 text-sm sm:mx-10 sm:mb-10 ${
+              error
+                ? "bg-red-50 text-red-700"
+                : "bg-[#f7f3ee] text-gray-700"
+            }`}
           >
-            Ver mis citas
-          </a>
-          {location.whatsapp && (
-            <a
-              href={createWhatsAppLink(
-                `Hola, tengo una pregunta sobre mi cita ${confirmed.id}.`,
-                location.whatsapp
-              )}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full border border-black px-6 py-3 transition hover:bg-black hover:text-white"
-            >
-              Preguntar por WhatsApp
-            </a>
-          )}
-          <a
-            href="/eyeglasses"
-            className="rounded-full border border-black px-6 py-3"
-          >
-            Seguir viendo lentes
-          </a>
-        </div>
+            {error || notice}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <ol className="mb-10 flex items-center justify-between text-xs uppercase tracking-widest text-gray-500">
-        {[
-          { step: 1, label: "Tienda" },
-          { step: 2, label: "Servicio" },
-          { step: 3, label: "Día y hora" },
-          { step: 4, label: "Contacto" },
-        ].map((item) => (
-          <li
-            key={item.step}
-            className={`flex flex-1 items-center gap-2 ${
-              step >= item.step ? "text-black" : ""
-            }`}
-          >
+    <div className="mx-auto max-w-4xl">
+      <div className="mb-8">
+        <div className="h-1 overflow-hidden rounded-full bg-black/10">
+          <div
+            className="h-full rounded-full bg-[var(--brand-espresso)] transition-all"
+            style={{ width: `${(step / 4) * 100}%` }}
+          />
+        </div>
+        <div className="mt-3 flex justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 sm:text-xs">
+          {stepLabels.map((label, index) => (
             <span
-              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs ${
-                step >= item.step
-                  ? "bg-black text-white"
-                  : "border border-gray-300"
-              }`}
+              key={label}
+              className={step >= index + 1 ? "text-[var(--brand-espresso)]" : ""}
             >
-              {item.step}
+              {index + 1}. <span className="hidden sm:inline">{label}</span>
             </span>
-            <span className="hidden sm:inline">{item.label}</span>
-          </li>
-        ))}
-      </ol>
+          ))}
+        </div>
+      </div>
+
+      {notice && (
+        <p
+          role="status"
+          className="mb-6 rounded-2xl bg-[#f7f3ee] px-5 py-4 text-sm text-gray-700"
+        >
+          {notice}
+        </p>
+      )}
 
       {step === 1 && (
-        <div className="rounded-3xl border bg-white p-8">
-          <h2 className="text-2xl font-semibold">Elige tu tienda</h2>
-          <p className="mt-2 text-gray-600">
-            Selecciona dónde quieres hacer tu examen.
+        <section className="rounded-[2rem] border border-black/10 bg-white p-6 sm:p-10">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">
+              Empecemos
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              ¿Para quién es esta consulta?
+            </h2>
+            <p className="mt-3 text-gray-600">
+              Esto nos ayuda a preparar el examen correcto.
+            </p>
+          </div>
+
+          <div className="mx-auto mt-9 grid max-w-2xl gap-4 sm:grid-cols-2">
+            <ChoiceCard
+              selected={patientAgeGroup === "adult"}
+              title="Adulto"
+              copy="Paciente de 18 años o más"
+              onClick={() => selectAgeGroup("adult")}
+              illustration={
+                <div className="relative h-full w-full">
+                  <Image
+                    src="/images/eye-exam/adult-patient.png"
+                    alt="Ilustración de una persona adulta con lentes"
+                    fill
+                    sizes="(min-width: 640px) 320px, 90vw"
+                    className="object-cover object-[center_35%] transition duration-500 group-hover:scale-[1.03]"
+                  />
+                </div>
+              }
+            />
+            <ChoiceCard
+              selected={patientAgeGroup === "child"}
+              title="Niño o adolescente"
+              copy="Paciente de 2 a 17 años"
+              onClick={() => selectAgeGroup("child")}
+              illustration={
+                <div className="relative h-full w-full">
+                  <Image
+                    src="/images/eye-exam/young-patient.png"
+                    alt="Ilustración de un niño y una adolescente con lentes"
+                    fill
+                    sizes="(min-width: 640px) 320px, 90vw"
+                    className="object-cover object-[center_35%] transition duration-500 group-hover:scale-[1.03]"
+                  />
+                </div>
+              }
+            />
+          </div>
+
+          <p className="mt-7 text-center text-sm text-gray-500">
+            Selecciona una opción para avanzar.
           </p>
-
-          <div className="mt-6 grid gap-4">
-            {locations.map((entry) => (
-              <button
-                key={entry.slug}
-                onClick={() => setLocation(entry)}
-                className={`rounded-2xl border p-5 text-left transition ${
-                  location.slug === entry.slug
-                    ? "border-black bg-gray-50"
-                    : "hover:border-black"
-                }`}
-              >
-                <p className="font-semibold">{entry.name}</p>
-                <p className="mt-1 text-sm text-gray-600">
-                  {entry.address}, {entry.city}
-                </p>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-8 flex justify-end">
-            <button
-              onClick={() => goTo(2)}
-              className="rounded-full bg-black px-6 py-3 text-white"
-            >
-              Continuar
-            </button>
-          </div>
-        </div>
+        </section>
       )}
 
       {step === 2 && (
-        <div className="rounded-3xl border bg-white p-8">
-          <h2 className="text-2xl font-semibold">Elige tu servicio</h2>
-          <p className="mt-2 text-gray-600">
-            ¿Qué tipo de examen necesitas?
-          </p>
+        <section className="rounded-[2rem] border border-black/10 bg-white p-6 sm:p-10">
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">
+              Cerca de ti
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              Elige una sucursal
+            </h2>
+            <p className="mt-3 text-gray-600">
+              Busca por código postal, colonia, dirección, ciudad o nombre.
+            </p>
+          </div>
 
-          <div className="mt-6 grid gap-3">
-            {services.map((entry) => (
+          <label className="mx-auto mt-8 block max-w-2xl">
+            <span className="sr-only">Buscar sucursal</span>
+            <input
+              type="search"
+              value={locationSearch}
+              onChange={(event) => setLocationSearch(event.target.value)}
+              placeholder="Ej. 77725, Playa del Carmen, Cuautitlán…"
+              className="h-13 w-full rounded-full border border-black/15 px-6 outline-none transition focus:border-[var(--brand-espresso)]"
+            />
+          </label>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            {filteredLocations.map((entry) => (
               <button
-                key={entry.id}
-                onClick={() => setService(entry)}
-                className={`rounded-2xl border p-5 text-left transition ${
-                  service.id === entry.id
-                    ? "border-black bg-gray-50"
-                    : "hover:border-black"
+                type="button"
+                key={entry.slug}
+                onClick={() => selectLocation(entry)}
+                aria-pressed={location?.slug === entry.slug}
+                className={`overflow-hidden rounded-[1.75rem] border text-left transition ${
+                  location?.slug === entry.slug
+                    ? "border-[var(--brand-espresso)] shadow-sm"
+                    : "border-black/10 hover:border-[var(--brand-espresso)]"
                 }`}
               >
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-semibold">{entry.label}</p>
-                    <p className="mt-1 text-sm text-gray-600">
-                      {entry.duration}
-                    </p>
-                  </div>
-                  <p className="font-semibold">{entry.price}</p>
+                <div className="relative h-36 bg-[#f7f3ee]">
+                  <Image
+                    src={entry.image}
+                    alt={`Zona de ${entry.neighborhood}`}
+                    fill
+                    sizes="(min-width: 768px) 50vw, 100vw"
+                    className="object-cover"
+                  />
+                </div>
+                <div className="p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+                    {entry.neighborhood} · C.P. {entry.zipCode}
+                  </p>
+                  <h3 className="mt-2 text-lg font-semibold">{entry.name}</h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-600">
+                    {entry.address}, {entry.city}, {entry.state}
+                  </p>
                 </div>
               </button>
             ))}
           </div>
 
-          <div className="mt-8 flex justify-between">
+          {filteredLocations.length === 0 && (
+            <div className="mt-8 rounded-3xl bg-[#f7f3ee] p-7 text-center">
+              <p className="font-semibold">No encontramos una sucursal.</p>
+              <p className="mt-2 text-sm text-gray-600">
+                Intenta con otra colonia, código postal o parte de la dirección.
+              </p>
+            </div>
+          )}
+
+          <div className="mt-9">
             <button
+              type="button"
               onClick={() => goTo(1)}
-              className="rounded-full border border-black px-6 py-3"
+              className="h-12 rounded-full border border-[var(--brand-espresso)] px-6 font-semibold text-[var(--brand-espresso)]"
             >
               Atrás
             </button>
-            <button
-              onClick={() => goTo(3)}
-              className="rounded-full bg-black px-6 py-3 text-white"
-            >
-              Continuar
-            </button>
           </div>
-        </div>
+        </section>
       )}
 
       {step === 3 && (
-        <div className="rounded-3xl border bg-white p-8">
-          <h2 className="text-2xl font-semibold">Elige día y hora</h2>
-          <p className="mt-2 text-gray-600">
-            Disponibilidad en los próximos 7 días.
-          </p>
+        <section className="rounded-[2rem] border border-black/10 bg-white p-6 sm:p-10">
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">
+              Citas de 45 minutos
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              Elige fecha y hora
+            </h2>
+            <p className="mt-3 text-gray-600">
+              Disponibilidad en {location?.name}.
+            </p>
+          </div>
 
-          <div className="mt-6">
-            <p className="text-sm font-medium">Día</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {days.map((day) => {
+          <div className="mx-auto mt-9 max-w-lg rounded-[1.75rem] border border-black/10 p-4 sm:p-6">
+            <label className="mb-5 block rounded-2xl bg-[#f7f3ee] p-4">
+              <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
+                Ir directamente a una fecha
+              </span>
+              <input
+                type="date"
+                value={date ? formatDateForApi(date) : ""}
+                min={formatDateForApi(new Date())}
+                max={`${currentMonth.getFullYear() + 5}-12-31`}
+                onChange={(event) => selectDirectDate(event.target.value)}
+                className="mt-2 h-12 w-full rounded-xl border border-black/10 bg-white px-4 text-base outline-none focus:border-[var(--brand-espresso)]"
+              />
+            </label>
+
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                aria-label="Mes anterior"
+                disabled={calendarMonth.getTime() <= currentMonth.getTime()}
+                onClick={() =>
+                  setCalendarMonth((current) => addMonths(current, -1))
+                }
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 text-xl transition hover:border-[var(--brand-espresso)] disabled:cursor-not-allowed disabled:opacity-25"
+              >
+                ‹
+              </button>
+              <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
+                <label>
+                  <span className="sr-only">Mes</span>
+                  <select
+                    value={calendarMonth.getMonth()}
+                    onChange={(event) =>
+                      updateCalendarMonth(Number(event.target.value))
+                    }
+                    className="h-10 w-full rounded-full border border-black/10 bg-white px-3 text-sm font-semibold outline-none focus:border-[var(--brand-espresso)]"
+                  >
+                    {monthLabels.map((label, index) => (
+                      <option
+                        key={label}
+                        value={index}
+                        disabled={
+                          calendarMonth.getFullYear() ===
+                            currentMonth.getFullYear() &&
+                          index < currentMonth.getMonth()
+                        }
+                      >
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span className="sr-only">Año</span>
+                  <select
+                    value={calendarMonth.getFullYear()}
+                    onChange={(event) =>
+                      updateCalendarYear(Number(event.target.value))
+                    }
+                    className="h-10 w-full rounded-full border border-black/10 bg-white px-3 text-sm font-semibold outline-none focus:border-[var(--brand-espresso)]"
+                  >
+                    {bookingYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <button
+                type="button"
+                aria-label="Mes siguiente"
+                onClick={() =>
+                  setCalendarMonth((current) => addMonths(current, 1))
+                }
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 text-xl transition hover:border-[var(--brand-espresso)]"
+              >
+                ›
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-7 gap-1 text-center">
+              {weekdayLabels.map((label, index) => (
+                <span
+                  key={`${label}-${index}`}
+                  className="py-2 text-xs font-semibold text-gray-400"
+                >
+                  {label}
+                </span>
+              ))}
+              {calendarDays.map((day, index) => {
+                if (!day) {
+                  return <span key={`empty-${index}`} aria-hidden="true" />;
+                }
+
+                const isPast = startOfDay(day) < startOfDay(new Date());
                 const selected =
-                  date && day.toDateString() === date.toDateString();
+                  date?.toDateString() === day.toDateString();
+                const isToday =
+                  startOfDay(day).getTime() === startOfDay(new Date()).getTime();
+
                 return (
                   <button
+                    type="button"
                     key={day.toISOString()}
-                    onClick={() => setDate(day)}
-                    className={`rounded-2xl border px-4 py-3 text-sm transition ${
+                    disabled={isPast}
+                    aria-label={new Intl.DateTimeFormat("es-MX", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    }).format(day)}
+                    aria-pressed={selected}
+                    onClick={() => {
+                      setDate(day);
+                      setTime("");
+                    }}
+                    className={`aspect-square rounded-full text-sm font-semibold transition ${
                       selected
-                        ? "border-black bg-black text-white"
-                        : "hover:border-black"
-                    }`}
+                        ? "bg-[var(--brand-espresso)] text-white"
+                        : isPast
+                          ? "cursor-not-allowed text-gray-300"
+                          : "hover:bg-[#f7f3ee]"
+                    } ${isToday && !selected ? "ring-1 ring-[var(--brand-espresso)]" : ""}`}
                   >
-                    {formatDate(day)}
+                    {day.getDate()}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {date && (
-            <div className="mt-8">
-              <p className="text-sm font-medium">Hora</p>
-              <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
-                {timeSlots.map((slot) => (
+          <div className="mt-8 min-h-44">
+            {!date ? (
+              <div className="rounded-3xl bg-[#f7f3ee] p-8 text-center text-gray-600">
+                Selecciona un día para consultar horarios.
+              </div>
+            ) : loadingSlots ? (
+              <div className="rounded-3xl bg-[#f7f3ee] p-8 text-center text-gray-600">
+                Consultando disponibilidad…
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                {slots.map((slot) => (
                   <button
-                    key={slot}
-                    onClick={() => setTime(slot)}
-                    className={`rounded-xl border px-3 py-2 text-sm transition ${
-                      time === slot
-                        ? "border-black bg-black text-white"
-                        : "hover:border-black"
+                    type="button"
+                    key={slot.time}
+                    disabled={!slot.available}
+                    onClick={() => {
+                      setTime(slot.time);
+                      goTo(4);
+                    }}
+                    className={`h-12 rounded-xl border text-sm font-semibold transition ${
+                      time === slot.time
+                        ? "border-[var(--brand-espresso)] bg-[var(--brand-espresso)] text-white"
+                        : slot.available
+                          ? "border-black/10 hover:border-[var(--brand-espresso)]"
+                          : "cursor-not-allowed border-black/5 bg-gray-50 text-gray-300 line-through"
                     }`}
                   >
-                    {slot}
+                    {slot.time}
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          <div className="mt-10 flex justify-between">
+          <div className="mt-9 flex items-center justify-between gap-4">
             <button
+              type="button"
               onClick={() => goTo(2)}
-              className="rounded-full border border-black px-6 py-3"
+              className="h-12 rounded-full border border-[var(--brand-espresso)] px-6 font-semibold text-[var(--brand-espresso)]"
             >
               Atrás
             </button>
-            <button
-              onClick={() => goTo(4)}
-              disabled={!date || !time}
-              className="rounded-full bg-black px-6 py-3 text-white disabled:cursor-not-allowed disabled:bg-gray-300"
-            >
-              Continuar
-            </button>
+            <p className="text-right text-sm text-gray-500">
+              Selecciona un horario para avanzar.
+            </p>
           </div>
-        </div>
+        </section>
       )}
 
       {step === 4 && (
-        <div className="rounded-3xl border bg-white p-8">
-          <h2 className="text-2xl font-semibold">Tus datos</h2>
-          <p className="mt-2 text-gray-600">
-            Para enviarte el recordatorio de tu cita.
-          </p>
+        <section className="rounded-[2rem] border border-black/10 bg-white p-6 sm:p-10">
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">
+              Ya casi terminamos
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              Información del paciente
+            </h2>
+            <p className="mt-3 text-gray-600">
+              Usaremos estos datos para preparar el examen y confirmar la cita.
+            </p>
+          </div>
 
-          <div className="mt-6 grid gap-4">
-            <div>
-              <label className="text-sm font-medium">Nombre completo</label>
+          <div className="mt-9 grid gap-5 sm:grid-cols-2">
+            <label className="sm:col-span-2">
+              <span className="text-sm font-semibold">Nombre completo *</span>
               <input
-                value={contact.fullName}
+                value={patientInfo.fullName}
                 onChange={(event) =>
-                  setContact((prev) => ({
-                    ...prev,
+                  setPatientInfo((current) => ({
+                    ...current,
                     fullName: event.target.value,
                   }))
                 }
-                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                placeholder="Alejandro Moncada"
+                autoComplete="name"
+                className="mt-2 h-12 w-full rounded-xl border border-black/15 px-4 outline-none focus:border-[var(--brand-espresso)]"
               />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Correo electrónico</label>
+            </label>
+            <label>
+              <span className="text-sm font-semibold">
+                Correo electrónico *
+              </span>
               <input
                 type="email"
-                value={contact.email}
+                value={patientInfo.email}
                 onChange={(event) =>
-                  setContact((prev) => ({
-                    ...prev,
+                  setPatientInfo((current) => ({
+                    ...current,
                     email: event.target.value,
                   }))
                 }
-                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                placeholder="correo@email.com"
+                autoComplete="email"
+                className="mt-2 h-12 w-full rounded-xl border border-black/15 px-4 outline-none focus:border-[var(--brand-espresso)]"
               />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Teléfono</label>
+            </label>
+            <label>
+              <span className="text-sm font-semibold">Teléfono *</span>
               <input
-                value={contact.phone}
+                type="tel"
+                value={patientInfo.phone}
                 onChange={(event) =>
-                  setContact((prev) => ({
-                    ...prev,
+                  setPatientInfo((current) => ({
+                    ...current,
                     phone: event.target.value,
                   }))
                 }
-                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                placeholder="55 1234 5678"
+                autoComplete="tel"
+                className="mt-2 h-12 w-full rounded-xl border border-black/15 px-4 outline-none focus:border-[var(--brand-espresso)]"
               />
-            </div>
+            </label>
+            <label className="sm:col-span-2">
+              <span className="text-sm font-semibold">
+                Fecha de nacimiento *
+              </span>
+              <input
+                type="date"
+                value={patientInfo.dateOfBirth}
+                min={
+                  patientAgeGroup === "child"
+                    ? birthDateYearsAgo(18, 1)
+                    : undefined
+                }
+                max={
+                  patientAgeGroup === "adult"
+                    ? birthDateYearsAgo(18)
+                    : birthDateYearsAgo(2)
+                }
+                onChange={(event) =>
+                  setPatientInfo((current) => ({
+                    ...current,
+                    dateOfBirth: event.target.value,
+                  }))
+                }
+                className="mt-2 h-12 w-full rounded-xl border border-black/15 px-4 outline-none focus:border-[var(--brand-espresso)]"
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                {patientAgeGroup === "adult"
+                  ? "La persona debe tener 18 años o más."
+                  : "La persona debe tener entre 2 y 17 años."}
+              </p>
+            </label>
           </div>
 
-          <div className="mt-8 rounded-2xl bg-[#f7f3ee] p-5 text-sm text-gray-700">
-            <p className="font-semibold">Resumen</p>
-            <p className="mt-2">{service.label}</p>
-            <p>{location.name}</p>
-            <p>
-              {date ? formatDateLong(date) : ""} · {time}
+          <div className="mt-9 rounded-3xl bg-[#f7f3ee] p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+              Resumen
+            </p>
+            <p className="mt-3 font-semibold">{location?.name}</p>
+            <p className="mt-1 text-sm text-gray-600">
+              {date ? formatLongDate(formatDateForApi(date)) : ""} · {time} ·
+              45 minutos
             </p>
           </div>
 
-          {submitError && (
+          {error && (
             <p
               role="alert"
-              className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700"
+              className="mt-6 rounded-2xl bg-red-50 px-5 py-4 text-sm text-red-700"
             >
-              {submitError}
+              {error}
             </p>
           )}
 
-          <div className="mt-8 flex justify-between">
+          <div className="mt-9 flex justify-between">
             <button
+              type="button"
               onClick={() => goTo(3)}
-              className="rounded-full border border-black px-6 py-3"
+              className="h-12 rounded-full border border-[var(--brand-espresso)] px-6 font-semibold text-[var(--brand-espresso)]"
             >
               Atrás
             </button>
             <button
-              onClick={handleConfirm}
-              disabled={
-                isSubmitting ||
-                !contact.fullName.trim() ||
-                !contact.email.includes("@") ||
-                !contact.phone.trim()
-              }
-              className="rounded-full bg-black px-6 py-3 text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+              type="button"
+              disabled={isSubmitting || !canSubmitPatientInfo()}
+              onClick={submitBooking}
+              className="h-12 rounded-full bg-[var(--brand-espresso)] px-7 font-semibold text-white transition hover:bg-[#1f1511] disabled:cursor-not-allowed disabled:opacity-35"
             >
-              {isSubmitting ? "Agendando…" : "Confirmar cita"}
+              {isSubmitting
+                ? rescheduling
+                  ? "Reagendando…"
+                  : "Confirmando…"
+                : rescheduling
+                  ? "Confirmar nueva cita"
+                  : "Confirmar cita"}
             </button>
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

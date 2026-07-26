@@ -44,7 +44,7 @@ export default function AddToCartButton({ product }: AddToCartButtonProps) {
     writeCart(updatedCart);
 
     setAdded(true);
-    window.location.href = "/checkout";
+    window.location.href = "/cart";
   }
 
   return (

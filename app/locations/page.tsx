@@ -1,3 +1,5 @@
+import Image from "next/image";
+import Link from "next/link";
 import { locations } from "@/data/locations";
 
 export const metadata = {
@@ -25,18 +27,20 @@ export default function LocationsPage() {
       <section className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-8 md:grid-cols-2">
           {locations.map((location) => (
-            <a
+            <Link
               key={location.slug}
               href={`/locations/${location.slug}`}
               className="group overflow-hidden rounded-3xl border bg-white transition hover:shadow-lg"
             >
-              <div
-                className="flex h-56 items-center justify-center"
-                style={{ backgroundColor: location.color }}
-              >
-                <span className="text-sm text-gray-500">
-                  Foto de la tienda
-                </span>
+              <div className="relative h-64 overflow-hidden bg-[#f7f3ee]">
+                <Image
+                  src={location.image}
+                  alt={`Vista inspirada en ${location.city}`}
+                  fill
+                  sizes="(min-width: 768px) 50vw, 100vw"
+                  className="object-cover transition duration-500 group-hover:scale-[1.03]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
               </div>
 
               <div className="p-6">
@@ -63,7 +67,7 @@ export default function LocationsPage() {
                   </span>
                 </div>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       </section>

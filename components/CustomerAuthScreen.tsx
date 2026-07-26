@@ -80,25 +80,8 @@ export default function CustomerAuthScreen({
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col items-center gap-8 lg:flex-row lg:items-stretch">
-      <section className="flex flex-1 flex-col justify-center rounded-3xl bg-[#4a2d23] p-8 text-white lg:p-12">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
-          Óptica OLM
-        </p>
-        <h1 className="mt-5 text-4xl font-semibold leading-tight">
-          Tu graduación, pedidos y favoritos en un mismo lugar.
-        </h1>
-        <ul className="mt-8 space-y-4 text-sm text-white/85">
-          <li>• Consulta pedidos y pagos desde cualquier dispositivo.</li>
-          <li>• Guarda direcciones y modelos favoritos.</li>
-          <li>• Mantén tus citas y datos de contacto organizados.</li>
-        </ul>
-        <p className="mt-8 text-xs text-white/60">
-          Acceso seguro con tu cuenta de Google.
-        </p>
-      </section>
-
-      <section className="flex min-h-[440px] flex-1 items-center justify-center rounded-3xl border border-black/10 bg-white p-8 sm:p-12">
+    <div className="mx-auto flex max-w-xl justify-center">
+      <section className="flex min-h-[440px] w-full items-center justify-center rounded-3xl border border-black/10 bg-white p-8 shadow-sm sm:p-12">
         <div className="w-full max-w-sm text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#6b4a3f]">
             Cuenta OLM
@@ -108,8 +91,8 @@ export default function CustomerAuthScreen({
           </h1>
           <p className="mt-3 text-sm leading-6 text-gray-600">
             {isSignup
-              ? "Tu cuenta se creará al verificar tu identidad con Google."
-              : "Continúa con Google para consultar tu información guardada."}
+              ? "Crea tu cuenta de forma segura con Google."
+              : "Si ya creaste una cuenta, usa el mismo correo de Google para entrar."}
           </p>
 
           {error && (
@@ -125,12 +108,16 @@ export default function CustomerAuthScreen({
             className="mt-7 flex w-full items-center justify-center gap-3 rounded-full border border-black/15 px-5 py-3 text-sm font-medium transition hover:border-[#4a2d23] hover:bg-[#f7f3ee] disabled:cursor-wait disabled:opacity-60"
           >
             <GoogleIcon />
-            {submitting ? "Abriendo Google…" : "Continuar con Google"}
+            {submitting
+              ? "Abriendo Google…"
+              : isSignup
+                ? "Crear cuenta con Google"
+                : "Iniciar sesión con Google"}
           </button>
 
           <p className="mt-6 text-xs leading-5 text-gray-500">
-            Al continuar, aceptas que usemos tu correo verificado para vincular
-            tus pedidos, citas y favoritos.
+            Google verifica tu identidad. Óptica OLM usa tu correo para
+            vincular pedidos, citas y favoritos.
           </p>
 
           <p className="mt-7 text-sm text-gray-600">

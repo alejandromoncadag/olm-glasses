@@ -12,17 +12,17 @@ type ApiProduct = {
   isActive: boolean;
 };
 
-type QuickAddToCheckoutButtonProps = {
+type QuickAddToCartButtonProps = {
   slug: string;
   className?: string;
   label?: string;
 };
 
-export default function QuickAddToCheckoutButton({
+export default function QuickAddToCartButton({
   slug,
   className = "",
   label = "Agregar al carrito",
-}: QuickAddToCheckoutButtonProps) {
+}: QuickAddToCartButtonProps) {
   const [loading, setLoading] = useState(false);
 
   async function handleAddToCart() {
@@ -54,7 +54,7 @@ export default function QuickAddToCheckoutButton({
         return;
       }
 
-      window.location.href = "/checkout";
+      window.location.href = "/cart";
     } catch (error) {
       console.error(error);
       alert("No pudimos agregar el producto. Intenta de nuevo.");

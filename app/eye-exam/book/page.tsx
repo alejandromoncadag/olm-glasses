@@ -12,9 +12,10 @@ export default function EyeExamBookPage() {
         <p className="text-sm uppercase tracking-[0.3em] text-gray-600">
           Examen de la vista
         </p>
-        <h1 className="mt-3 text-4xl font-bold">Reserva tu cita</h1>
+        <h1 className="mt-3 text-4xl font-semibold">Reserva tu cita</h1>
         <p className="mt-4 max-w-2xl text-gray-700">
-          Cuatro pasos rápidos y listo. Sin pagar nada por adelantado.
+          Cuatro pasos rápidos, horarios de 45 minutos y listo. Sin pagar nada
+          por adelantado.
         </p>
       </div>
 

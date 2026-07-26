@@ -640,12 +640,24 @@ export default function StyleQuiz() {
   }, []);
 
   function selectAnswer(value: string) {
-    setAnswers((currentAnswers) => ({
-      ...currentAnswers,
+    const completedAnswers = {
+      ...answers,
       [currentQuestion.id]: value,
-    }));
+    };
+
+    setAnswers(completedAnswers);
     setSaveState("idle");
     setResetError("");
+
+    if (currentStep === questions.length - 1) {
+      setShowResults(true);
+      void saveQuizResult(completedAnswers);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    setCurrentStep((step) => step + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function goBack() {
@@ -683,18 +695,6 @@ export default function StyleQuiz() {
     } catch {
       setSaveState("error");
     }
-  }
-
-  function goNext() {
-    if (!currentAnswer) return;
-
-    if (currentStep === questions.length - 1) {
-      setShowResults(true);
-      void saveQuizResult(answers);
-      return;
-    }
-
-    setCurrentStep((step) => step + 1);
   }
 
   async function restartQuiz() {
@@ -944,16 +944,9 @@ export default function StyleQuiz() {
               >
                 Atrás
               </button>
-              <button
-                type="button"
-                onClick={goNext}
-                disabled={!currentAnswer}
-                className="rounded-full border border-[var(--brand-espresso)] bg-[var(--brand-espresso)] px-7 py-3 font-medium text-white transition hover:bg-transparent hover:text-[var(--brand-espresso)] disabled:cursor-not-allowed disabled:border-black/10 disabled:bg-black/10 disabled:text-black/30"
-              >
-                {currentStep === questions.length - 1
-                  ? "Ver resultados"
-                  : "Siguiente"}
-              </button>
+              <p className="max-w-xs text-right text-sm text-black/50">
+                Selecciona una opción para avanzar automáticamente.
+              </p>
             </div>
           </div>
         </div>

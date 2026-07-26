@@ -1,6 +1,6 @@
 import Image from "next/image";
 import LikeButton from "@/components/LikeButton";
-import QuickAddToCheckoutButton from "@/components/QuickAddToCheckoutButton";
+import QuickAddToCartButton from "@/components/QuickAddToCartButton";
 
 type StorefrontProductCardProps = {
   slug: string;
@@ -79,7 +79,7 @@ export default function StorefrontProductCard({
         <p className="mt-4 text-sm leading-6 text-gray-600">{description}</p>
 
         <div className="mt-auto flex flex-col gap-2 pt-6">
-          <QuickAddToCheckoutButton
+          <QuickAddToCartButton
             slug={slug}
             label={actionLabel}
             className="w-full"

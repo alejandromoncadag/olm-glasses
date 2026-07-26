@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import LikeButton from "@/components/LikeButton";
 import ProductPurchasePanel from "@/components/ProductPurchasePanel";
-import QuickAddToCheckoutButton from "@/components/QuickAddToCheckoutButton";
+import QuickAddToCartButton from "@/components/QuickAddToCartButton";
 import { createWhatsAppLink } from "@/lib/whatsapp";
 
 type ProductImage = {
@@ -209,8 +209,11 @@ export default function ProductPage() {
     );
   }
 
+  const isSportsProduct = product.category.toLowerCase().includes("deportivos");
   const collectionHref =
-    product.type === "sunglasses"
+    isSportsProduct
+      ? "/deportivos"
+      : product.type === "sunglasses"
       ? "/sunglasses"
       : product.type === "accessory"
         ? "/accessories"
@@ -378,11 +381,11 @@ export default function ProductPage() {
 
                 <p className="mt-4 text-sm leading-6 text-gray-600">
                   {product.type === "contact_lenses"
-                    ? "Agrega el producto y continúa al checkout. Confirmaremos tu graduación antes de procesar el pedido."
-                    : "Agrega el producto y continúa al checkout para elegir entrega y forma de pago."}
+                    ? "Agrega el producto y revisa tu carrito. Confirmaremos tu graduación antes de procesar el pedido."
+                    : "Agrega el producto y revisa tu carrito antes de continuar al checkout."}
                 </p>
 
-                <QuickAddToCheckoutButton
+                <QuickAddToCartButton
                   slug={product.slug}
                   label="Agregar al carrito y continuar"
                   className="mt-5 h-12 w-full"
@@ -454,7 +457,7 @@ export default function ProductPage() {
                 {productDescription}{" "}
                 {isEyewear
                   ? "Puedes elegir tu tipo de lente y la forma de enviar tu receta antes de agregarlo al carrito."
-                  : "Puedes agregarlo al carrito y continuar directamente al checkout."}
+                  : "Puedes agregarlo al carrito, revisar tu selección y después continuar al checkout."}
               </p>
             </div>
 

@@ -361,6 +361,11 @@ CREATE TABLE eye_exam_bookings (
         appointment_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
     ),
     duration_minutes INTEGER NOT NULL CHECK (duration_minutes > 0),
+    patient_age_group TEXT CHECK (
+        patient_age_group IN ('adult', 'child')
+    ),
+    date_of_birth DATE,
+    patient_details JSONB NOT NULL DEFAULT '{}'::JSONB,
     customer_name TEXT NOT NULL,
     customer_email TEXT NOT NULL,
     customer_phone TEXT NOT NULL,
@@ -368,6 +373,11 @@ CREATE TABLE eye_exam_bookings (
     status TEXT NOT NULL DEFAULT 'pending' CHECK (
         status IN ('pending', 'confirmed', 'cancelled', 'completed')
     ),
+    manage_token_hash TEXT,
+    cancellation_reason TEXT,
+    cancelled_at TIMESTAMPTZ,
+    rescheduled_from_booking_id UUID REFERENCES eye_exam_bookings(id) ON DELETE
+    SET NULL,
     google_calendar_event_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -425,11 +435,47 @@ CREATE INDEX idx_eye_exam_bookings_customer_email ON eye_exam_bookings(customer_
 CREATE INDEX idx_eye_exam_bookings_customer_id ON eye_exam_bookings(customer_id);
 CREATE INDEX idx_eye_exam_bookings_location_date ON eye_exam_bookings(location_slug, appointment_date);
 CREATE INDEX idx_eye_exam_bookings_status ON eye_exam_bookings(status);
+CREATE UNIQUE INDEX idx_eye_exam_bookings_manage_token_hash
+ON eye_exam_bookings(manage_token_hash)
+WHERE manage_token_hash IS NOT NULL;
+CREATE INDEX idx_eye_exam_bookings_rescheduled_from
+ON eye_exam_bookings(rescheduled_from_booking_id)
+WHERE rescheduled_from_booking_id IS NOT NULL;
 CREATE UNIQUE INDEX idx_eye_exam_bookings_active_slot ON eye_exam_bookings(
     location_slug,
     appointment_date,
     appointment_time
 ) WHERE status IN ('pending', 'confirmed');
+-- =========================
+-- APPOINTMENT EMAIL OUTBOX
+-- =========================
+CREATE TABLE appointment_email_outbox (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_id UUID REFERENCES eye_exam_bookings(id) ON DELETE SET NULL,
+    recipient_email TEXT NOT NULL,
+    email_type TEXT NOT NULL CHECK (
+        email_type IN (
+            'confirmation',
+            'cancellation',
+            'reschedule_confirmation'
+        )
+    ),
+    subject TEXT NOT NULL,
+    html_body TEXT NOT NULL,
+    text_body TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (
+        status IN ('pending', 'sent', 'failed')
+    ),
+    attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    provider_message_id TEXT,
+    last_error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    sent_at TIMESTAMPTZ
+);
+CREATE INDEX idx_appointment_email_outbox_status_created
+ON appointment_email_outbox(status, created_at);
+CREATE INDEX idx_appointment_email_outbox_booking
+ON appointment_email_outbox(booking_id);
 -- =========================
 -- UPDATED_AT TRIGGER
 -- =========================

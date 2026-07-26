@@ -28,29 +28,6 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-@keyframes announcement-scroll {
-  from {
-    transform: translateX(0);
-  }
-
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-.announcement-track {
-  animation: announcement-scroll 24s linear infinite;
-}
-
-.announcement-bar:hover .announcement-track {
-  animation-play-state: paused;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .announcement-track {
-    animation: none;
-  }
-}
 .product-carousel {
   scrollbar-width: none;
   -ms-overflow-style: none;

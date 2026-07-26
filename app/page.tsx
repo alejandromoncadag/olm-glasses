@@ -4,25 +4,23 @@ import FeaturedProductsFromDb from "@/components/FeaturedProductsFromDb";
 import HomeLocationFinder from "@/components/HomeLocationFinder";
 import { locations } from "@/data/locations";
 
-const announcements = [
-  { title: "Envío gratis", copy: "En pedidos mayores a $1,500 MXN" },
-  { title: "Examen incluido", copy: "Gratis al comprar tu armazón en tienda" },
-  { title: "Prueba sin compromiso", copy: "Cambia o devuelve en 30 días" },
+const servicePromises = [
+  {
+    number: "01",
+    title: "Envío gratis",
+    copy: "En compras desde $1,500 MXN.",
+  },
+  {
+    number: "02",
+    title: "Examen incluido",
+    copy: "Al comprar tu armazón en tienda.",
+  },
+  {
+    number: "03",
+    title: "30 días para decidir",
+    copy: "Cambia o devuelve sin complicaciones.",
+  },
 ];
-
-function AnnouncementItems({ hidden = false }: { hidden?: boolean }) {
-  return (
-    <div className="flex shrink-0 items-center" aria-hidden={hidden || undefined}>
-      {announcements.map((announcement) => (
-        <div key={announcement.title} className="flex min-w-max items-center gap-3 px-8 md:px-14">
-          <span className="text-sm font-bold uppercase tracking-[0.12em]">{announcement.title}</span>
-          <span className="text-sm text-black/65">{announcement.copy}</span>
-          <span className="ml-5 text-lg" aria-hidden="true">•</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 const outlineButton =
   "rounded-full border border-black bg-white/55 px-7 py-3 backdrop-blur-sm transition-colors duration-200 hover:bg-black hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black";
@@ -30,23 +28,23 @@ const outlineButton =
 export default function Home() {
   return (
     <main className="bg-white text-black">
-      <section className="relative isolate min-h-[620px] overflow-hidden">
+      <section className="relative isolate min-h-[680px] overflow-hidden sm:min-h-[620px]">
         <Image
           src="/images/home-hero-eyewear.png"
-          alt=""
+          alt="Armazones ópticos OLM en tonos oliva y carey"
           fill
           preload
+          quality={100}
           sizes="100vw"
-          className="-z-20 object-cover object-[64%_center] md:object-center"
+          className="-z-20 object-cover object-[70%_center] sm:object-[64%_center] lg:object-center"
         />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#f7f3ee] via-[#f7f3ee]/90 to-[#f7f3ee]/10 md:via-[#f7f3ee]/65 md:to-transparent" />
 
-        <div className="mx-auto flex min-h-[620px] max-w-6xl items-center px-6 py-20">
-          <div className="max-w-xl text-left">
+        <div className="mx-auto flex min-h-[680px] max-w-7xl items-end px-4 py-6 sm:min-h-[620px] sm:items-center sm:px-6 sm:py-16">
+          <div className="max-w-xl rounded-[1.75rem] bg-[#f7f3ee]/95 p-6 text-left shadow-[0_18px_50px_rgba(45,31,26,0.12)] backdrop-blur-[2px] sm:p-9 lg:p-11">
             <p className="mb-5 text-sm font-semibold uppercase tracking-[0.3em]">
               Óptica OLM
             </p>
-            <h1 className="text-5xl font-bold leading-[0.98] tracking-[-0.04em] md:text-7xl">
+            <h1 className="text-4xl font-bold leading-[0.98] tracking-[-0.04em] sm:text-5xl md:text-6xl">
               Lentes modernos para todos los días
             </h1>
             <p className="mt-7 max-w-lg text-base leading-relaxed text-gray-700 md:text-lg">
@@ -67,14 +65,25 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="announcement-bar overflow-hidden border-y border-black/20 bg-white py-5" aria-label="Anuncios de la tienda">
-        <div className="announcement-track flex w-max">
-          <AnnouncementItems />
-          <AnnouncementItems hidden />
+      <section className="border-y border-black/10 bg-[#f7f3ee]" aria-label="Beneficios de comprar en Óptica OLM">
+        <div className="mx-auto grid max-w-7xl divide-y divide-black/10 px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-6">
+          {servicePromises.map((promise) => (
+            <article key={promise.number} className="flex gap-4 py-6 sm:px-6 lg:px-9">
+              <span className="text-xs font-semibold tracking-[0.16em] text-black/40">
+                {promise.number}
+              </span>
+              <div>
+                <h2 className="text-sm font-bold uppercase tracking-[0.12em]">
+                  {promise.title}
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-black/60">{promise.copy}</p>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-16">
+      <section className="mx-auto max-w-7xl px-5 py-14 sm:px-6 sm:py-16">
         <FeaturedProductsFromDb />
       </section>
 

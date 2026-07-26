@@ -11,6 +11,7 @@ export type Location = {
   phone: string;
   whatsapp: string | null;
   email: string;
+  mapsUrl: string;
   hours: { day: string; time: string }[];
   appointmentDurationMinutes: number;
   appointmentBufferMinutes: number;
@@ -23,24 +24,25 @@ export type Location = {
 
 export const locations: Location[] = [
   {
-    slug: "polanco",
-    name: "Óptica OLM Polanco",
-    neighborhood: "Polanco",
-    city: "Ciudad de México",
-    state: "CDMX",
-    zipCode: "11560",
+    slug: "playa-del-carmen",
+    name: "Óptica OLM Playa del Carmen",
+    neighborhood: "Playa del Carmen",
+    city: "Playa del Carmen",
+    state: "Quintana Roo",
+    zipCode: "77725",
     country: "México",
-    timezone: "America/Mexico_City",
-    address: "Av. Presidente Masaryk 123, Polanco IV Sección",
-    phone: "55 1234 5678",
-    whatsapp: null,
-    email: "polanco@opticaolm.mx",
+    timezone: "America/Cancun",
+    address: "Av. 28 de Julio esquina-115",
+    phone: "+52 984 177 6838",
+    whatsapp: "+52 984 177 6838",
+    email: "opticaplaya@gmail.com",
+    mapsUrl: "https://maps.app.goo.gl/t9aWm2pDaKn5TUCWA",
     hours: [
       { day: "Lunes – Viernes", time: "10:00 – 20:00" },
       { day: "Sábado", time: "11:00 – 19:00" },
       { day: "Domingo", time: "12:00 – 18:00" },
     ],
-    appointmentDurationMinutes: 30,
+    appointmentDurationMinutes: 45,
     appointmentBufferMinutes: 0,
     googleCalendarId: null,
     services: [
@@ -51,9 +53,9 @@ export const locations: Location[] = [
       "Recoger pedidos en tienda",
     ],
     description:
-      "Nuestra tienda insignia en el corazón de Polanco. Pasa a probarte cualquier modelo, agenda un examen de la vista o recoge tu pedido en persona.",
-    color: "#f7f3ee",
-    image: "/images/locations/polanco-neighborhood.png",
+      "Visítanos en Playa del Carmen para realizar tu examen de la vista, probarte armazones y recibir asesoría personalizada cerca del corazón de la Riviera Maya.",
+    color: "#eee6d8",
+    image: "/images/locations/playa-del-carmen-neighborhood.png",
   },
   {
     slug: "cuautitlan-edomex",
@@ -68,11 +70,12 @@ export const locations: Location[] = [
     phone: "+52 1 56 2086 8654",
     whatsapp: "+52 1 56 2086 8654",
     email: "recepcion@opticaolm.com.mx",
+    mapsUrl: "https://maps.app.goo.gl/HGA4idkxvrCVZZJZA",
     hours: [
       { day: "Lunes – Sábado", time: "10:00 – 20:00" },
       { day: "Domingo", time: "Cerrado" },
     ],
-    appointmentDurationMinutes: 30,
+    appointmentDurationMinutes: 45,
     appointmentBufferMinutes: 10,
     googleCalendarId: null,
     services: [

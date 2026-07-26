@@ -10,8 +10,8 @@ export const eyeExamServices: EyeExamService[] = [
   {
     id: "full",
     label: "Examen completo de la vista",
-    duration: "30 min",
-    durationMinutes: 30,
+    duration: "45 min",
+    durationMinutes: 45,
     price: "$400 MXN",
   },
   {
@@ -24,28 +24,25 @@ export const eyeExamServices: EyeExamService[] = [
   {
     id: "kids",
     label: "Examen para niños",
-    duration: "30 min",
-    durationMinutes: 30,
+    duration: "45 min",
+    durationMinutes: 45,
     price: "$350 MXN",
   },
 ];
 
 export const eyeExamTimeSlots = [
   "10:00",
-  "10:30",
-  "11:00",
+  "10:45",
   "11:30",
-  "12:00",
-  "12:30",
-  "14:00",
+  "12:15",
+  "13:00",
+  "13:45",
   "14:30",
-  "15:00",
-  "15:30",
+  "15:15",
   "16:00",
-  "16:30",
-  "17:00",
+  "16:45",
   "17:30",
-  "18:00",
+  "18:15",
 ];
 
 export function getEyeExamServiceById(id: string) {

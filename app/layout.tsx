@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import AuthProvider from "@/components/AuthProvider";
 import { isCustomerAuthConfigured } from "@/lib/customerAuthConfig";
 import { LikesProvider } from "@/hooks/useLikes";
+import FloatingHelpWidget from "@/components/FloatingHelpWidget";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,6 +41,7 @@ export default function RootLayout({
             <Navbar />
             <div className="flex-1">{children}</div>
             <Footer />
+            <FloatingHelpWidget />
           </LikesProvider>
         </AuthProvider>
       </body>
