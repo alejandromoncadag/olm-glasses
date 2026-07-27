@@ -2,18 +2,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  CART_UPDATED_EVENT,
+  readCart,
+  type CartItem,
+} from "@/lib/cart";
 
 type PaymentMethod = "stripe" | "store_payment";
 type DeliveryMethod = "shipping" | "pickup";
-
-type CartItem = {
-  slug: string;
-  name: string;
-  price: number;
-  quantity: number;
-  lensOption: string;
-  prescriptionMethod: string;
-};
 
 type CheckoutCustomer = {
   fullName?: string;
@@ -156,18 +152,12 @@ export default function CheckoutSummary() {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    const savedCart = localStorage.getItem("olm-cart");
-
-    if (savedCart) {
-      try {
-        const parsedCart = JSON.parse(savedCart) as CartItem[];
-        window.setTimeout(() => setCartItems(parsedCart), 0);
-      } catch (error) {
-        console.error("Could not read cart:", error);
-        localStorage.removeItem("olm-cart");
-      }
+    function syncCart() {
+      setCartItems(readCart());
     }
 
+    syncCart();
+    window.addEventListener(CART_UPDATED_EVENT, syncCart);
     window.setTimeout(() => setCheckoutCustomer(readSavedCustomer()), 0);
     fetchProducts();
 
@@ -197,6 +187,7 @@ export default function CheckoutSummary() {
         "olm-checkout-customer-updated",
         handleCustomerUpdate
       );
+      window.removeEventListener(CART_UPDATED_EVENT, syncCart);
     };
   }, []);
 
@@ -240,9 +231,7 @@ export default function CheckoutSummary() {
       setIsPlacingOrder(true);
       setErrorMessage("");
 
-      const savedCart = localStorage.getItem("olm-cart");
-
-      const latestCartItems: CartItem[] = savedCart ? JSON.parse(savedCart) : [];
+      const latestCartItems = readCart();
       const customer = readSavedCustomer();
 
       const paymentMethod = isPaymentMethod(customer.paymentMethod)

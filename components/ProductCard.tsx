@@ -1,4 +1,5 @@
 import LikeButton from "@/components/LikeButton";
+import Image from "next/image";
 
 type ProductCardProps = {
   slug: string;
@@ -58,10 +59,11 @@ export default function ProductCard({
             style={{ backgroundColor: color }}
           >
             {imageUrl ? (
-              <img
+              <Image
                 src={imageUrl}
                 alt={imageAltText || name}
-                loading="lazy"
+                fill
+                sizes="(min-width: 1280px) 30vw, (min-width: 640px) 50vw, 100vw"
                 className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
               />
             ) : (

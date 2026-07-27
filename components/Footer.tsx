@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { locations } from "@/data/locations";
 import { createWhatsAppLink } from "@/lib/whatsapp";
+import LiveChatButton from "@/components/LiveChatButton";
 
 const footerLinkClass =
   "w-fit transition hover:text-[var(--brand-espresso)] hover:underline hover:underline-offset-4";
@@ -181,6 +182,8 @@ export default function Footer() {
         </p>
 
         <div className="flex items-center gap-3">
+          <LiveChatButton />
+
           <span className="mr-1 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
             Síguenos
           </span>

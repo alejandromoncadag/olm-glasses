@@ -49,9 +49,16 @@ export function LikesProvider({ children }: { children: ReactNode }) {
   const [likes, setLikes] = useState<LikedItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const customerSignedIn = user?.role === "customer";
+  const adminSignedIn = user?.role === "admin";
 
   const loadLikes = useCallback(async () => {
     if (authLoading) return;
+
+    if (adminSignedIn) {
+      setLikes([]);
+      setLoaded(true);
+      return;
+    }
 
     if (!customerSignedIn) {
       setLikes(getLocalLikes());
@@ -87,7 +94,7 @@ export function LikesProvider({ children }: { children: ReactNode }) {
     if (localLikes.length > 0) {
       replaceLocalLikes([]);
     }
-  }, [authLoading, customerSignedIn]);
+  }, [adminSignedIn, authLoading, customerSignedIn]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -95,7 +102,10 @@ export function LikesProvider({ children }: { children: ReactNode }) {
     }, 0);
 
     function syncGuestLikes() {
-      if (!customerSignedIn) {
+      if (adminSignedIn) {
+        setLikes([]);
+        setLoaded(true);
+      } else if (!customerSignedIn) {
         setLikes(getLocalLikes());
         setLoaded(true);
       }
@@ -109,10 +119,12 @@ export function LikesProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("olm-likes-change", syncGuestLikes);
       window.removeEventListener("storage", syncGuestLikes);
     };
-  }, [customerSignedIn, loadLikes]);
+  }, [adminSignedIn, customerSignedIn, loadLikes]);
 
   const toggleLike = useCallback(
     async (slug: string) => {
+      if (adminSignedIn) return;
+
       const existing = likes.some((like) => like.slug === slug);
       const previousLikes = likes;
       const nextLikes = existing
@@ -148,7 +160,7 @@ export function LikesProvider({ children }: { children: ReactNode }) {
 
       setLikes(parseFavorites(await response.json()));
     },
-    [customerSignedIn, likes]
+    [adminSignedIn, customerSignedIn, likes]
   );
 
   const removeLike = useCallback(
@@ -160,6 +172,8 @@ export function LikesProvider({ children }: { children: ReactNode }) {
   );
 
   const clearLikes = useCallback(async () => {
+    if (adminSignedIn) return;
+
     const previousLikes = likes;
     setLikes([]);
 
@@ -175,7 +189,7 @@ export function LikesProvider({ children }: { children: ReactNode }) {
     if (!response.ok) {
       setLikes(previousLikes);
     }
-  }, [customerSignedIn, likes]);
+  }, [adminSignedIn, customerSignedIn, likes]);
 
   const value = useMemo(
     () => ({

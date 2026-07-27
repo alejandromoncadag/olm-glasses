@@ -67,7 +67,7 @@ export default function SiteSearch() {
   const normalizedQuery = normalize(query.trim());
   const productResults = useMemo(
     () =>
-      normalizedQuery.length < 2
+      normalizedQuery.length < 1
         ? []
         : products.filter((product) =>
             normalize(
@@ -78,7 +78,7 @@ export default function SiteSearch() {
   );
   const destinationResults = useMemo(
     () =>
-      normalizedQuery.length < 2
+      normalizedQuery.length < 1
         ? siteDestinations
         : siteDestinations.filter((item) =>
             normalize(`${item.name} ${item.description}`).includes(normalizedQuery)
@@ -121,12 +121,6 @@ export default function SiteSearch() {
           </button>
         </form>
 
-        {query.trim().length > 0 && query.trim().length < 2 && (
-          <p className="mt-4 text-sm text-gray-500">
-            Escribe al menos dos letras para buscar productos.
-          </p>
-        )}
-
         <div className="mt-12 grid gap-12 lg:grid-cols-[1fr_1.7fr]">
           <section>
             <h2 className="text-xl font-semibold">Secciones</h2>
@@ -154,7 +148,7 @@ export default function SiteSearch() {
           <section>
             <div className="flex items-center justify-between gap-4">
               <h2 className="text-xl font-semibold">Productos</h2>
-              {normalizedQuery.length >= 2 && !loading && (
+              {normalizedQuery.length >= 1 && !loading && (
                 <span className="text-sm text-gray-500">
                   {productResults.length} resultados
                 </span>
@@ -163,7 +157,7 @@ export default function SiteSearch() {
 
             {loading ? (
               <p className="mt-5 text-gray-500">Buscando productos…</p>
-            ) : normalizedQuery.length < 2 ? (
+            ) : normalizedQuery.length < 1 ? (
               <div className="mt-5 rounded-3xl bg-[#f7f3ee] p-8">
                 <p className="font-medium">Busca por nombre o categoría</p>
                 <p className="mt-2 text-sm leading-6 text-gray-600">

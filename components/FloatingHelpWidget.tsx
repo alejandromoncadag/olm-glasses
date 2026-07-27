@@ -93,8 +93,15 @@ export default function FloatingHelpWidget() {
     function closeWithEscape(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
     }
+    function openFromFooter() {
+      setOpen(true);
+    }
     window.addEventListener("keydown", closeWithEscape);
-    return () => window.removeEventListener("keydown", closeWithEscape);
+    window.addEventListener("olm:open-help", openFromFooter);
+    return () => {
+      window.removeEventListener("keydown", closeWithEscape);
+      window.removeEventListener("olm:open-help", openFromFooter);
+    };
   }, []);
 
   useEffect(() => {
@@ -163,7 +170,7 @@ export default function FloatingHelpWidget() {
         role="dialog"
         aria-label="Ayuda de Óptica OLM"
         aria-hidden={!open}
-        className={`fixed bottom-24 left-3 right-3 z-50 flex max-h-[min(680px,72svh)] w-auto origin-bottom-right flex-col overflow-hidden rounded-[28px] border border-black/10 bg-white shadow-[0_24px_80px_rgba(45,31,26,0.24)] transition duration-300 sm:left-auto sm:right-6 sm:w-[390px] ${
+        className={`fixed bottom-6 left-3 right-3 z-50 flex max-h-[min(680px,72svh)] w-auto origin-bottom-right flex-col overflow-hidden rounded-[28px] border border-black/10 bg-white shadow-[0_24px_80px_rgba(45,31,26,0.24)] transition duration-300 sm:left-auto sm:right-6 sm:w-[390px] ${
           open
             ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
             : "pointer-events-none translate-y-4 scale-95 opacity-0"
@@ -276,33 +283,6 @@ export default function FloatingHelpWidget() {
         </form>
       </section>
 
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        aria-controls="olm-help-panel"
-        aria-label={open ? "Cerrar ayuda" : "Abrir ayuda"}
-        className="fixed bottom-5 right-3 z-50 flex h-14 items-center gap-2 rounded-full bg-[var(--brand-espresso)] px-4 text-sm font-semibold text-white shadow-[0_12px_34px_rgba(45,31,26,0.28)] transition hover:-translate-y-0.5 hover:bg-black sm:right-6"
-      >
-        <ChatIcon />
-        <span>Ayuda</span>
-      </button>
     </>
-  );
-}
-
-function ChatIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      aria-hidden
-    >
-      <path d="M5 18.5 3.8 21l3.7-1.2c1.3.7 2.8 1.1 4.5 1.1 5 0 9-3.8 9-8.5s-4-8.5-9-8.5-9 3.8-9 8.5c0 2.4 1 4.5 2 6.1Z" />
-      <path d="M8 12h.01M12 12h.01M16 12h.01" strokeLinecap="round" />
-    </svg>
   );
 }

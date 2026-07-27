@@ -2,7 +2,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { writeCart, type CartItem } from "@/lib/cart";
+import {
+  CART_UPDATED_EVENT,
+  readCart,
+  writeCart,
+  type CartItem,
+} from "@/lib/cart";
 
 type ApiProduct = {
   slug: string;
@@ -39,16 +44,16 @@ export default function CartItems() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const savedCart = localStorage.getItem("olm-cart");
-
-    if (savedCart) {
-      try {
-        setCartItems(JSON.parse(savedCart));
-      } catch (error) {
-        console.error("Could not read cart:", error);
-        localStorage.removeItem("olm-cart");
-      }
+    function syncCart() {
+      setCartItems(readCart());
     }
+
+    syncCart();
+    window.addEventListener(CART_UPDATED_EVENT, syncCart);
+
+    return () => {
+      window.removeEventListener(CART_UPDATED_EVENT, syncCart);
+    };
   }, []);
 
   useEffect(() => {

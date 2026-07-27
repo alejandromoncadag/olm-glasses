@@ -785,15 +785,15 @@ export default function PublicProductCatalog({
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(247,243,238,0.97)_0%,rgba(247,243,238,0.9)_38%,rgba(247,243,238,0.35)_65%,rgba(247,243,238,0.05)_100%)]" />
         <div className="relative mx-auto flex min-h-[330px] max-w-[1440px] items-center px-6 py-14 md:min-h-[390px] md:px-10 md:py-20">
           <div className="max-w-xl text-left">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-500">
-            Colección OLM
-          </p>
-          <h1 className="mt-3 text-5xl font-bold tracking-[-0.04em] md:text-6xl lg:text-7xl">
-            {title}
-          </h1>
-          <p className="mt-4 max-w-lg text-base leading-relaxed text-gray-700 md:text-lg">
-            {description}
-          </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-500">
+              Colección OLM
+            </p>
+            <h1 className="mt-3 text-5xl font-bold tracking-[-0.04em] md:text-6xl lg:text-7xl">
+              {title}
+            </h1>
+            <p className="mt-4 max-w-lg text-base leading-relaxed text-gray-700 md:text-lg">
+              {description}
+            </p>
           </div>
         </div>
       </section>

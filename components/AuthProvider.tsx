@@ -5,6 +5,7 @@ import {
   signOut as signOutCustomer,
   useSession,
 } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import {
   createContext,
   ReactNode,
@@ -113,20 +114,22 @@ function UnifiedAuthState({
   customerSession: CustomerSession;
   customerAuthConfigured: boolean;
 }) {
+  const pathname = usePathname();
+  const isAdminRoute = pathname.startsWith("/admin");
   const [adminUser, setAdminUser] = useState<User | null>(null);
   const [adminLoading, setAdminLoading] = useState(true);
 
   const refreshAdmin = useCallback(async () => {
-    if (!customerSession.loaded || customerSession.user) {
+    if (!customerSession.loaded) {
       setAdminUser(null);
-      setAdminLoading(false);
+      setAdminLoading(true);
       return;
     }
 
     setAdminLoading(true);
     setAdminUser(await getBackendAdminUser());
     setAdminLoading(false);
-  }, [customerSession.loaded, customerSession.user]);
+  }, [customerSession.loaded]);
 
   useEffect(() => {
     window.localStorage.removeItem("olm-users");
@@ -148,7 +151,9 @@ function UnifiedAuthState({
     };
   }, [refreshAdmin]);
 
-  const user = customerSession.user || adminUser;
+  const user = isAdminRoute
+    ? adminUser
+    : customerSession.user || adminUser;
   const loading = !customerSession.loaded || adminLoading;
 
   const value = useMemo<AuthContextValue>(
@@ -158,6 +163,13 @@ function UnifiedAuthState({
       customerAuthConfigured,
       refresh: refreshAdmin,
       logout: async () => {
+        if (isAdminRoute && adminUser) {
+          await logoutAdmin();
+          setAdminUser(null);
+          window.dispatchEvent(new Event("olm-auth-change"));
+          return;
+        }
+
         if (customerSession.user) {
           await customerSession.signOut();
           return;
@@ -169,8 +181,10 @@ function UnifiedAuthState({
       },
     }),
     [
+      adminUser,
       customerAuthConfigured,
       customerSession,
+      isAdminRoute,
       loading,
       refreshAdmin,
       user,

@@ -28,7 +28,7 @@ const outlineButton =
 export default function Home() {
   return (
     <main className="bg-white text-black">
-      <section className="relative isolate min-h-[680px] overflow-hidden sm:min-h-[620px]">
+      <section className="relative isolate min-h-[760px] overflow-hidden sm:min-h-[680px]">
         <Image
           src="/images/home-hero-eyewear.png"
           alt="Armazones ópticos OLM en tonos oliva y carey"
@@ -36,15 +36,18 @@ export default function Home() {
           preload
           quality={100}
           sizes="100vw"
-          className="-z-20 object-cover object-[70%_center] sm:object-[64%_center] lg:object-center"
+          className="z-0 object-cover object-[70%_center] sm:object-[64%_center] lg:object-center"
         />
 
-        <div className="mx-auto flex min-h-[680px] max-w-7xl items-end px-4 py-6 sm:min-h-[620px] sm:items-center sm:px-6 sm:py-16">
-          <div className="max-w-xl rounded-[1.75rem] bg-[#f7f3ee]/95 p-6 text-left shadow-[0_18px_50px_rgba(45,31,26,0.12)] backdrop-blur-[2px] sm:p-9 lg:p-11">
+        <div className="absolute inset-0 z-10 bg-[linear-gradient(90deg,rgba(247,243,238,0.95)_0%,rgba(247,243,238,0.76)_35%,rgba(247,243,238,0.12)_64%,rgba(247,243,238,0)_100%)]" />
+        <div className="absolute inset-x-0 bottom-0 z-10 h-52 bg-gradient-to-t from-[#f7f3ee]/90 via-[#f7f3ee]/35 to-transparent" />
+
+        <div className="relative z-20 mx-auto flex min-h-[760px] max-w-7xl items-center px-5 pb-44 pt-16 sm:min-h-[680px] sm:px-8 sm:pb-40 sm:pt-20">
+          <div className="max-w-xl text-left">
             <p className="mb-5 text-sm font-semibold uppercase tracking-[0.3em]">
               Óptica OLM
             </p>
-            <h1 className="text-4xl font-bold leading-[0.98] tracking-[-0.04em] sm:text-5xl md:text-6xl">
+            <h1 className="text-5xl font-bold leading-[0.94] tracking-[-0.055em] sm:text-6xl md:text-7xl">
               Lentes modernos para todos los días
             </h1>
             <p className="mt-7 max-w-lg text-base leading-relaxed text-gray-700 md:text-lg">
@@ -63,12 +66,17 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </section>
 
-      <section className="border-y border-black/10 bg-[#f7f3ee]" aria-label="Beneficios de comprar en Óptica OLM">
-        <div className="mx-auto grid max-w-7xl divide-y divide-black/10 px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-6">
+        <div
+          className="absolute inset-x-0 bottom-0 z-20"
+          aria-label="Beneficios de comprar en Óptica OLM"
+        >
+          <div className="mx-auto grid max-w-7xl divide-y divide-black/15 border-t border-black/20 px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-8">
           {servicePromises.map((promise) => (
-            <article key={promise.number} className="flex gap-4 py-6 sm:px-6 lg:px-9">
+            <article
+              key={promise.number}
+              className="flex gap-4 py-5 sm:px-6 sm:py-6 lg:px-9"
+            >
               <span className="text-xs font-semibold tracking-[0.16em] text-black/40">
                 {promise.number}
               </span>
@@ -80,6 +88,7 @@ export default function Home() {
               </div>
             </article>
           ))}
+          </div>
         </div>
       </section>
 

@@ -152,6 +152,13 @@ CREATE TABLE sessions (
     "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires TIMESTAMPTZ NOT NULL
 );
+
+CREATE TABLE customer_password_credentials (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 CREATE TABLE verification_token (
     identifier TEXT NOT NULL,
     expires TIMESTAMPTZ NOT NULL,
@@ -206,6 +213,16 @@ CREATE TABLE customer_favorites (
     product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (customer_id, product_id)
+);
+-- =========================
+-- CUSTOMER CARTS
+-- =========================
+CREATE TABLE customer_carts (
+    customer_id UUID PRIMARY KEY REFERENCES customers(id) ON DELETE CASCADE,
+    items JSONB NOT NULL DEFAULT '[]'::JSONB
+        CHECK (JSONB_TYPEOF(items) = 'array'),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 -- =========================
 -- CUSTOMER STYLE QUIZ RESULTS

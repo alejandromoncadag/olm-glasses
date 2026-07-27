@@ -7,6 +7,7 @@ import AuthProvider from "@/components/AuthProvider";
 import { isCustomerAuthConfigured } from "@/lib/customerAuthConfig";
 import { LikesProvider } from "@/hooks/useLikes";
 import FloatingHelpWidget from "@/components/FloatingHelpWidget";
+import CartPersistence from "@/components/CartPersistence";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +38,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider customerAuthConfigured={customerAuthConfigured}>
+          <CartPersistence />
           <LikesProvider>
             <Navbar />
             <div className="flex-1">{children}</div>

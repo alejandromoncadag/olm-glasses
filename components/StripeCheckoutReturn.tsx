@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { clearCart } from "@/lib/cart";
 
 type CheckoutResult = {
   checkoutStatus: "open" | "complete" | "expired";
@@ -58,9 +59,8 @@ export default function StripeCheckoutReturn({ sessionId }: { sessionId: string 
         setResult(data as CheckoutResult);
 
         if (data.checkoutStatus === "complete") {
-          localStorage.removeItem("olm-cart");
+          clearCart();
           localStorage.removeItem("olm-checkout-customer");
-          window.dispatchEvent(new Event("olm-cart-updated"));
         }
       } catch (error) {
         if (!cancelled) {

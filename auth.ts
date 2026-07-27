@@ -3,10 +3,13 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
 import { pool } from "@/lib/db";
+import { isGoogleCustomerAuthConfigured } from "@/lib/customerAuthConfig";
+
+const providers = isGoogleCustomerAuthConfigured() ? [Google] : [];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PostgresAdapter(pool),
-  providers: [Google],
+  providers,
   pages: {
     signIn: "/login",
   },
