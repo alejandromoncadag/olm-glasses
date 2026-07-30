@@ -33,13 +33,19 @@ function storageKeyForOwner(owner: CartStorageOwner) {
   return `olm-cart:${owner.role}:${encodeURIComponent(owner.id)}`;
 }
 
+function storageForKey(storageKey: string) {
+  return storageKey === CART_STORAGE_KEY
+    ? window.sessionStorage
+    : window.localStorage;
+}
+
 function readCartFromKey(storageKey: string): CartItem[] {
   if (typeof window === "undefined") {
     return [];
   }
 
   try {
-    const value = window.localStorage.getItem(storageKey);
+    const value = storageForKey(storageKey).getItem(storageKey);
     const parsed = value ? (JSON.parse(value) as unknown) : [];
 
     return Array.isArray(parsed) ? (parsed as CartItem[]) : [];
@@ -79,6 +85,10 @@ export function setCartStorageOwner(owner: CartStorageOwner) {
 
   const nextStorageKey = storageKeyForOwner(owner);
 
+  // Remove the old browser-wide guest key so a new anonymous visit never
+  // inherits a cart left by a different visit.
+  window.localStorage.removeItem(CART_STORAGE_KEY);
+
   if (owner?.role === "customer" && nextStorageKey !== CART_STORAGE_KEY) {
     const guestCart = readCartFromKey(CART_STORAGE_KEY);
 
@@ -88,7 +98,7 @@ export function setCartStorageOwner(owner: CartStorageOwner) {
         nextStorageKey,
         JSON.stringify(mergeCartItems(customerCart, guestCart))
       );
-      window.localStorage.removeItem(CART_STORAGE_KEY);
+      window.sessionStorage.removeItem(CART_STORAGE_KEY);
     }
   }
 
@@ -108,7 +118,10 @@ export function getCartCount() {
 }
 
 export function writeCart(items: CartItem[]) {
-  window.localStorage.setItem(activeCartStorageKey, JSON.stringify(items));
+  storageForKey(activeCartStorageKey).setItem(
+    activeCartStorageKey,
+    JSON.stringify(items)
+  );
   window.dispatchEvent(
     new CustomEvent(CART_UPDATED_EVENT, {
       detail: {
@@ -121,7 +134,7 @@ export function writeCart(items: CartItem[]) {
 export function clearCart() {
   if (typeof window === "undefined") return;
 
-  window.localStorage.removeItem(activeCartStorageKey);
+  storageForKey(activeCartStorageKey).removeItem(activeCartStorageKey);
   window.dispatchEvent(new Event(CART_UPDATED_EVENT));
 }
 

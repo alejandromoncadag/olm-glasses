@@ -13,13 +13,29 @@ export default function HomeLocationFinder({ locations }: HomeLocationFinderProp
   const selectedLocation =
     locations.find((location) => location.slug === selectedSlug) ?? locations[0];
 
-  function moveLocationRail(direction: "left" | "right") {
-    const rail = locationRailRef.current;
-    if (!rail) return;
+  function selectAdjacentLocation(direction: "previous" | "next") {
+    if (locations.length < 2) return;
 
-    rail.scrollBy({
-      left: direction === "left" ? -Math.max(260, rail.clientWidth * 0.7) : Math.max(260, rail.clientWidth * 0.7),
-      behavior: "smooth",
+    const currentIndex = Math.max(
+      0,
+      locations.findIndex((location) => location.slug === selectedLocation.slug)
+    );
+    const offset = direction === "previous" ? -1 : 1;
+    const nextIndex = (currentIndex + offset + locations.length) % locations.length;
+    const nextLocation = locations[nextIndex];
+
+    setSelectedSlug(nextLocation.slug);
+
+    window.requestAnimationFrame(() => {
+      const nextButton = locationRailRef.current?.children.item(nextIndex);
+
+      if (nextButton instanceof HTMLElement) {
+        nextButton.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+          inline: "center",
+        });
+      }
     });
   }
 
@@ -63,22 +79,22 @@ export default function HomeLocationFinder({ locations }: HomeLocationFinderProp
           })}
         </div>
 
-        <div className="hidden shrink-0 gap-2 sm:flex">
+        <div className="flex shrink-0 gap-2">
           <button
             type="button"
-            onClick={() => moveLocationRail("left")}
+            onClick={() => selectAdjacentLocation("previous")}
             className="grid h-10 w-10 place-items-center rounded-full border border-black/20 transition hover:border-black hover:bg-black hover:text-white"
             aria-label="Ver ubicaciones anteriores"
           >
-            <span aria-hidden="true">←</span>
+            <ArrowIcon direction="left" />
           </button>
           <button
             type="button"
-            onClick={() => moveLocationRail("right")}
+            onClick={() => selectAdjacentLocation("next")}
             className="grid h-10 w-10 place-items-center rounded-full border border-black/20 transition hover:border-black hover:bg-black hover:text-white"
             aria-label="Ver más ubicaciones"
           >
-            <span aria-hidden="true">→</span>
+            <ArrowIcon direction="right" />
           </button>
         </div>
       </div>
@@ -145,5 +161,33 @@ export default function HomeLocationFinder({ locations }: HomeLocationFinderProp
         </div>
       </div>
     </div>
+  );
+}
+
+function ArrowIcon({ direction }: { direction: "left" | "right" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {direction === "left" ? (
+        <>
+          <path d="m14.5 6-6 6 6 6" />
+          <path d="M9 12h10" />
+        </>
+      ) : (
+        <>
+          <path d="m9.5 6 6 6-6 6" />
+          <path d="M5 12h10" />
+        </>
+      )}
+    </svg>
   );
 }

@@ -18,13 +18,18 @@ function safeParse<T>(value: string | null, fallback: T): T {
 
 export function getLikes(): LikedItem[] {
   if (typeof window === "undefined") return [];
-  return safeParse<LikedItem[]>(localStorage.getItem(STORAGE_KEY), []);
+
+  // Guest favorites last only for the current tab. Signed-in favorites are
+  // stored per customer in PostgreSQL by the account API.
+  localStorage.removeItem(STORAGE_KEY);
+  return safeParse<LikedItem[]>(sessionStorage.getItem(STORAGE_KEY), []);
 }
 
 export function replaceLikes(likes: LikedItem[]) {
   if (typeof window === "undefined") return;
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(likes));
+  localStorage.removeItem(STORAGE_KEY);
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(likes));
   window.dispatchEvent(new Event("olm-likes-change"));
 }
 

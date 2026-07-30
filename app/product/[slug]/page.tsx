@@ -456,7 +456,7 @@ export default function ProductPage() {
               <p className="mt-5 max-w-xl leading-7 text-gray-600">
                 {productDescription}{" "}
                 {isEyewear
-                  ? "Puedes elegir tu tipo de lente y la forma de enviar tu receta antes de agregarlo al carrito."
+                  ? "Puedes elegir el tipo de lente y su tratamiento antes de revisar la selección y agregarla al carrito."
                   : "Puedes agregarlo al carrito, revisar tu selección y después continuar al checkout."}
               </p>
             </div>
