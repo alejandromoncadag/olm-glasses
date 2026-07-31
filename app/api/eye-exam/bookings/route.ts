@@ -194,6 +194,12 @@ function validateBookingInput(body: unknown): ValidatedBookingInput {
     throw new EyeExamBookingError("Ingresa un correo electrónico válido.");
   }
 
+  if (!/^\+\d{8,15}$/.test(customerPhone)) {
+    throw new EyeExamBookingError(
+      "Ingresa un teléfono válido con código de país."
+    );
+  }
+
   if (customerName.length > 150 || customerPhone.length > 50) {
     throw new EyeExamBookingError("Revisa el nombre y teléfono ingresados.");
   }

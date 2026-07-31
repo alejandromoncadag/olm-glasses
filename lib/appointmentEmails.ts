@@ -1,4 +1,5 @@
 import { pool } from "@/lib/db";
+import { formatAppointmentTime } from "@/lib/formatAppointmentTime";
 
 export type AppointmentEmailType =
   | "confirmation"
@@ -110,7 +111,7 @@ function buildEmail(
   const details = [
     `Folio: ${booking.bookingNumber}`,
     `Fecha: ${dateLabel}`,
-    `Hora: ${booking.appointmentTime}`,
+    `Hora: ${formatAppointmentTime(booking.appointmentTime)}`,
     `Duración: ${booking.durationMinutes} minutos`,
     `Sucursal: ${booking.locationName}`,
     `Dirección: ${booking.locationAddress}`,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ProductCard from "@/components/ProductCard";
 import type { Product } from "@/types/product";
 
@@ -61,6 +61,7 @@ export default function FeaturedProductsFromDb() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const carouselRef = useRef<HTMLDivElement>(null);
+  const carouselPausedRef = useRef(false);
 
   useEffect(() => {
     async function fetchProducts() {
@@ -98,7 +99,7 @@ export default function FeaturedProductsFromDb() {
         setProducts(newProducts);
       } catch (error) {
         console.error(error);
-        setError("No pudimos cargar los lentes nuevos.");
+        setError("No pudimos cargar los productos nuevos.");
       } finally {
         setLoading(false);
       }
@@ -107,15 +108,38 @@ export default function FeaturedProductsFromDb() {
     fetchProducts();
   }, []);
 
-  function moveCarousel(direction: "left" | "right") {
+  const moveCarousel = useCallback((direction: "left" | "right") => {
     const carousel = carouselRef.current;
     if (!carousel) return;
 
-    carousel.scrollBy({
-      left: direction === "left" ? -carousel.clientWidth * 0.85 : carousel.clientWidth * 0.85,
+    const distance = carousel.clientWidth * 0.85;
+    const maxScrollLeft = carousel.scrollWidth - carousel.clientWidth;
+    const reachedEnd = carousel.scrollLeft >= maxScrollLeft - 8;
+    const reachedStart = carousel.scrollLeft <= 8;
+
+    carousel.scrollTo({
+      left:
+        direction === "right"
+          ? reachedEnd
+            ? 0
+            : Math.min(carousel.scrollLeft + distance, maxScrollLeft)
+          : reachedStart
+            ? maxScrollLeft
+            : Math.max(carousel.scrollLeft - distance, 0),
       behavior: "smooth",
     });
-  }
+  }, []);
+
+  useEffect(() => {
+    if (products.length < 2) return;
+
+    const intervalId = window.setInterval(() => {
+      if (document.hidden || carouselPausedRef.current) return;
+      moveCarousel("right");
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [moveCarousel, products.length]);
 
   return (
     <>
@@ -124,7 +148,7 @@ export default function FeaturedProductsFromDb() {
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-gray-500">
             Recién llegados
           </p>
-          <h2 className="mt-2 text-3xl md:text-4xl">Lentes nuevos</h2>
+          <h2 className="mt-2 text-3xl md:text-4xl">Productos nuevos</h2>
           <Link href="/eyeglasses" className="mt-3 inline-block text-sm font-semibold underline underline-offset-4">
             Ver todos
           </Link>
@@ -150,13 +174,28 @@ export default function FeaturedProductsFromDb() {
         </div>
       </div>
 
-      {loading && <p className="mt-10 text-gray-600">Cargando lentes nuevos...</p>}
+      {loading && <p className="mt-10 text-gray-600">Cargando productos nuevos...</p>}
       {error && <p className="mt-10 text-red-600">{error}</p>}
 
       {!loading && !error && (
         <div
           ref={carouselRef}
+          onMouseEnter={() => {
+            carouselPausedRef.current = true;
+          }}
+          onMouseLeave={() => {
+            carouselPausedRef.current = false;
+          }}
+          onFocusCapture={() => {
+            carouselPausedRef.current = true;
+          }}
+          onBlurCapture={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+              carouselPausedRef.current = false;
+            }
+          }}
           className="product-carousel mt-10 grid snap-x snap-mandatory grid-flow-col auto-cols-[86%] gap-4 overflow-x-auto pb-5 sm:auto-cols-[48%] sm:gap-5 lg:auto-cols-[calc((100%-3.75rem)/4)]"
+          aria-label="Productos nuevos. El carrusel avanza automáticamente cada cinco segundos."
         >
           {products.map((product) => (
             <div key={product.slug} className="snap-start">

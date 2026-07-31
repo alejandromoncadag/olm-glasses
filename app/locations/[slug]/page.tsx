@@ -68,7 +68,7 @@ export default async function LocationDetailPage({
                 href={`/eye-exam/book?location=${location.slug}`}
                 className="rounded-full bg-white px-6 py-3 font-semibold text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white"
               >
-                Agendar examen de la vista
+                Agendar examen visual
               </Link>
               {location.phone && (
                 <a
@@ -189,7 +189,7 @@ export default async function LocationDetailPage({
             href={`/eye-exam/book?location=${location.slug}`}
             className="mt-8 inline-block rounded-full bg-[var(--brand-espresso)] px-8 py-4 text-white"
           >
-            Reservar mi cita
+            Agendar examen visual
           </Link>
         </div>
       </section>

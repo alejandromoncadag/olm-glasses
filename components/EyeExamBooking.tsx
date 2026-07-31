@@ -5,10 +5,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { locations, type Location } from "@/data/locations";
 import { useAuth } from "@/hooks/useAuth";
+import { formatAppointmentTime } from "@/lib/formatAppointmentTime";
 
 type Step = 1 | 2 | 3 | 4;
 type PatientAgeGroup = "adult" | "child";
 type DayPeriod = "morning" | "afternoon" | "evening";
+type AppointmentAction = "reschedule" | "cancel";
 
 type PatientInfo = {
   fullName: string;
@@ -61,11 +63,11 @@ const initialPatientInfo: PatientInfo = {
   notes: "",
 };
 
-const stepLabels = [
-  "Paciente",
-  "Sucursal",
-  "Fecha y hora",
-  "Tus datos",
+const stepLabels: Array<{ step: Step; label: string }> = [
+  { step: 1, label: "Paciente" },
+  { step: 2, label: "Sucursal" },
+  { step: 3, label: "Fecha y hora" },
+  { step: 4, label: "Tus datos" },
 ];
 
 const weekdayLabels = ["D", "L", "M", "M", "J", "V", "S"];
@@ -83,6 +85,64 @@ const monthLabels = [
   "Noviembre",
   "Diciembre",
 ];
+const phoneCountries = [
+  {
+    code: "+52",
+    country: "México",
+    shortLabel: "MX",
+    minDigits: 10,
+    maxDigits: 10,
+    placeholder: "984 177 6838",
+  },
+  {
+    code: "+1",
+    country: "Estados Unidos / Canadá",
+    shortLabel: "US/CA",
+    minDigits: 10,
+    maxDigits: 10,
+    placeholder: "305 555 0123",
+  },
+  {
+    code: "+34",
+    country: "España",
+    shortLabel: "ES",
+    minDigits: 9,
+    maxDigits: 9,
+    placeholder: "612 345 678",
+  },
+  {
+    code: "+57",
+    country: "Colombia",
+    shortLabel: "CO",
+    minDigits: 10,
+    maxDigits: 10,
+    placeholder: "300 123 4567",
+  },
+  {
+    code: "+54",
+    country: "Argentina",
+    shortLabel: "AR",
+    minDigits: 10,
+    maxDigits: 10,
+    placeholder: "11 2345 6789",
+  },
+  {
+    code: "+55",
+    country: "Brasil",
+    shortLabel: "BR",
+    minDigits: 10,
+    maxDigits: 11,
+    placeholder: "11 91234 5678",
+  },
+  {
+    code: "+44",
+    country: "Reino Unido",
+    shortLabel: "UK",
+    minDigits: 10,
+    maxDigits: 10,
+    placeholder: "7700 900123",
+  },
+] as const;
 const dayPeriods: Array<{
   id: DayPeriod;
   label: string;
@@ -191,6 +251,26 @@ function formatLongDate(value: string) {
   }).format(new Date(`${value}T12:00:00.000Z`));
 }
 
+function splitStoredPhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  const matchedCountry = [...phoneCountries]
+    .sort(
+      (first, second) =>
+        second.code.replace(/\D/g, "").length -
+        first.code.replace(/\D/g, "").length
+    )
+    .find((entry) => digits.startsWith(entry.code.replace(/\D/g, "")));
+
+  if (!matchedCountry) {
+    return { countryCode: "+52", nationalNumber: digits };
+  }
+
+  return {
+    countryCode: matchedCountry.code,
+    nationalNumber: digits.slice(matchedCountry.code.replace(/\D/g, "").length),
+  };
+}
+
 function normalizeSearch(value: string) {
   return value
     .normalize("NFD")
@@ -256,6 +336,7 @@ export default function EyeExamBooking() {
   const manageTokenFromUrl = searchParams.get("token");
   const initialLocation =
     locations.find((entry) => entry.slug === presetLocation) || null;
+  const isLocationPreset = Boolean(initialLocation);
   const currentMonth = useMemo(() => startOfMonth(new Date()), []);
   const bookingYears = useMemo(
     () =>
@@ -281,6 +362,7 @@ export default function EyeExamBooking() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [patientInfo, setPatientInfo] =
     useState<PatientInfo>(initialPatientInfo);
+  const [phoneCountryCode, setPhoneCountryCode] = useState("+52");
   const [confirmedBooking, setConfirmedBooking] =
     useState<Booking | null>(null);
   const [manageToken, setManageToken] = useState("");
@@ -290,8 +372,20 @@ export default function EyeExamBooking() {
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [pendingAppointmentAction, setPendingAppointmentAction] =
+    useState<AppointmentAction | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const visibleSteps = isLocationPreset
+    ? stepLabels.filter((entry) => entry.step !== 2)
+    : stepLabels;
+  const currentVisibleStepIndex = Math.max(
+    visibleSteps.findIndex((entry) => entry.step === step),
+    0
+  );
+  const selectedPhoneCountry =
+    phoneCountries.find((entry) => entry.code === phoneCountryCode) ||
+    phoneCountries[0];
 
   const filteredLocations = useMemo(() => {
     const query = normalizeSearch(locationSearch);
@@ -444,7 +538,7 @@ export default function EyeExamBooking() {
   function selectAgeGroup(value: PatientAgeGroup) {
     setPatientAgeGroup(value);
     setPatientInfo((current) => ({ ...current, dateOfBirth: "" }));
-    goTo(2);
+    goTo(isLocationPreset ? 3 : 2);
   }
 
   function selectLocation(entry: Location) {
@@ -473,23 +567,14 @@ export default function EyeExamBooking() {
     setTime("");
   }
 
-  function selectDirectDate(value: string) {
-    if (!value) return;
-
-    const [year, month, day] = value.split("-").map(Number);
-    const selectedDate = new Date(year, month - 1, day);
-    if (startOfDay(selectedDate) < startOfDay(new Date())) return;
-
-    setCalendarMonth(startOfMonth(selectedDate));
-    setDate(selectedDate);
-    setTime("");
-  }
-
   function canSubmitPatientInfo() {
+    const phoneDigits = patientInfo.phone.replace(/\D/g, "");
+
     return Boolean(
       patientInfo.fullName.trim() &&
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patientInfo.email.trim()) &&
-        patientInfo.phone.trim() &&
+        phoneDigits.length >= selectedPhoneCountry.minDigits &&
+        phoneDigits.length <= selectedPhoneCountry.maxDigits &&
         patientInfo.dateOfBirth
     );
   }
@@ -521,7 +606,7 @@ export default function EyeExamBooking() {
           dateOfBirth: patientInfo.dateOfBirth,
           customerName: patientInfo.fullName,
           customerEmail: patientInfo.email,
-          customerPhone: patientInfo.phone,
+          customerPhone: `${phoneCountryCode}${patientInfo.phone.replace(/\D/g, "")}`,
           patientDetails: {},
           notes: patientInfo.notes,
           reschedule:
@@ -575,12 +660,14 @@ export default function EyeExamBooking() {
       locations.find(
         (entry) => entry.slug === confirmedBooking.locationSlug
       ) || null;
+    const storedPhone = splitStoredPhone(confirmedBooking.customerPhone);
     setPatientAgeGroup(confirmedBooking.patientAgeGroup);
     setLocation(currentLocation);
+    setPhoneCountryCode(storedPhone.countryCode);
     setPatientInfo({
       fullName: confirmedBooking.customerName,
       email: confirmedBooking.customerEmail,
-      phone: confirmedBooking.customerPhone,
+      phone: storedPhone.nationalNumber,
       dateOfBirth: confirmedBooking.dateOfBirth,
       notes: confirmedBooking.notes || "",
     });
@@ -596,14 +683,6 @@ export default function EyeExamBooking() {
 
   async function cancelBooking() {
     if (!confirmedBooking || !manageToken) return;
-
-    if (
-      !window.confirm(
-        "¿Seguro que quieres cancelar esta cita? El horario se liberará."
-      )
-    ) {
-      return;
-    }
 
     try {
       setIsCancelling(true);
@@ -655,14 +734,14 @@ export default function EyeExamBooking() {
     const isCancelled = confirmedBooking.status === "cancelled";
 
     return (
-      <div className="mx-auto max-w-3xl overflow-hidden rounded-[2rem] border border-black/10 bg-white shadow-sm">
+      <div className="editorial-sharp mx-auto max-w-3xl overflow-hidden border border-black/15 bg-white shadow-[0_25px_70px_rgba(53,35,27,0.12)]">
         <div
           className={`px-8 py-10 text-center ${
             isCancelled ? "bg-[#f4f1ed]" : "bg-[#edf6ef]"
           }`}
         >
           <div
-            className={`mx-auto grid h-14 w-14 place-items-center rounded-full border-2 text-2xl ${
+            className={`mx-auto grid h-14 w-14 place-items-center border-2 text-2xl ${
               isCancelled
                 ? "border-gray-500 text-gray-600"
                 : "border-green-700 text-green-700"
@@ -673,7 +752,7 @@ export default function EyeExamBooking() {
           <p className="mt-5 text-xs font-semibold uppercase tracking-[0.24em] text-gray-600">
             {isCancelled ? "Cita cancelada" : "Reservación confirmada"}
           </p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight">
+          <h2 className="mt-3 font-luxury text-3xl sm:text-4xl">
             {isCancelled
               ? "Tu examen fue cancelado"
               : "Tu examen de la vista está confirmado"}
@@ -694,7 +773,8 @@ export default function EyeExamBooking() {
                   {formatLongDate(confirmedBooking.appointmentDate)}
                 </dd>
                 <dd className="text-gray-700">
-                  {confirmedBooking.appointmentTime} · 45 minutos
+                  {formatAppointmentTime(confirmedBooking.appointmentTime)} · 45
+                  minutos
                 </dd>
               </div>
               <div className="py-4">
@@ -725,7 +805,7 @@ export default function EyeExamBooking() {
             </dl>
           </div>
 
-          <div className="rounded-3xl bg-[#f7f3ee] p-6">
+          <div className="border-l-4 border-[var(--brand-espresso)] bg-[#f7f3ee] p-6">
             <h3 className="font-semibold">
               {isCancelled ? "¿Necesitas otra cita?" : "Administra tu cita"}
             </h3>
@@ -739,16 +819,16 @@ export default function EyeExamBooking() {
               <div className="mt-5 grid gap-2">
                 <button
                   type="button"
-                  onClick={beginReschedule}
-                  className="h-11 rounded-full bg-[var(--brand-espresso)] px-5 text-sm font-semibold text-white transition hover:bg-[#1f1511]"
+                  onClick={() => setPendingAppointmentAction("reschedule")}
+                  className="h-11 bg-[var(--brand-espresso)] px-5 text-sm font-semibold text-white transition hover:bg-[#1f1511]"
                 >
                   Reagendar examen
                 </button>
                 <button
                   type="button"
-                  onClick={cancelBooking}
+                  onClick={() => setPendingAppointmentAction("cancel")}
                   disabled={isCancelling}
-                  className="h-11 rounded-full border border-[var(--brand-espresso)] px-5 text-sm font-semibold text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white disabled:opacity-50"
+                  className="h-11 border border-[var(--brand-espresso)] px-5 text-sm font-semibold text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white disabled:opacity-50"
                 >
                   {isCancelling ? "Cancelando…" : "Cancelar examen"}
                 </button>
@@ -756,7 +836,7 @@ export default function EyeExamBooking() {
             ) : (
               <a
                 href="/eye-exam/book"
-                className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-[var(--brand-espresso)] px-5 text-sm font-semibold text-white"
+                className="mt-5 inline-flex h-11 w-full items-center justify-center bg-[var(--brand-espresso)] px-5 text-sm font-semibold text-white"
               >
                 Agendar otra cita
               </a>
@@ -776,6 +856,68 @@ export default function EyeExamBooking() {
             {error || notice}
           </div>
         )}
+
+        {pendingAppointmentAction && (
+          <div
+            className="fixed inset-0 z-[80] grid place-items-center bg-black/45 p-4"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setPendingAppointmentAction(null);
+              }
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="appointment-action-title"
+              className="w-full max-w-md border border-black/15 bg-white p-7 shadow-2xl"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+                Confirmar acción
+              </p>
+              <h3
+                id="appointment-action-title"
+                className="mt-3 font-luxury text-3xl text-[var(--brand-espresso)]"
+              >
+                {pendingAppointmentAction === "cancel"
+                  ? "¿Cancelar tu examen?"
+                  : "¿Reagendar tu examen?"}
+              </h3>
+              <p className="mt-4 text-sm leading-6 text-gray-600">
+                {pendingAppointmentAction === "cancel"
+                  ? "Tu horario quedará disponible para otra persona. Recibirás una confirmación cuando la cancelación se complete."
+                  : "Volverás al inicio para elegir una nueva sucursal, fecha u horario. Tu cita actual seguirá activa hasta confirmar el cambio."}
+              </p>
+              <div className="mt-7 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setPendingAppointmentAction(null)}
+                  className="h-11 border border-black/25 px-5 text-sm font-semibold transition hover:bg-[#f4f1ed]"
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const action = pendingAppointmentAction;
+                    setPendingAppointmentAction(null);
+                    if (action === "reschedule") {
+                      beginReschedule();
+                    } else {
+                      void cancelBooking();
+                    }
+                  }}
+                  className="h-11 bg-[var(--brand-espresso)] px-5 text-sm font-semibold text-white transition hover:bg-[#1f1511]"
+                >
+                  {pendingAppointmentAction === "cancel"
+                    ? "Sí, cancelar"
+                    : "Sí, reagendar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -786,14 +928,20 @@ export default function EyeExamBooking() {
         <div className="h-1 overflow-hidden rounded-full bg-black/10">
           <div
             className="h-full rounded-full bg-[var(--brand-espresso)] transition-all"
-            style={{ width: `${(step / 4) * 100}%` }}
+            style={{
+              width: `${((currentVisibleStepIndex + 1) / visibleSteps.length) * 100}%`,
+            }}
           />
         </div>
         <div className="mt-3 flex justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 sm:text-xs">
-          {stepLabels.map((label, index) => (
+          {visibleSteps.map(({ label }, index) => (
             <span
               key={label}
-              className={step >= index + 1 ? "text-[var(--brand-espresso)]" : ""}
+              className={
+                currentVisibleStepIndex >= index
+                  ? "text-[var(--brand-espresso)]"
+                  : ""
+              }
             >
               {index + 1}. <span className="hidden sm:inline">{label}</span>
             </span>
@@ -964,22 +1112,20 @@ export default function EyeExamBooking() {
             </p>
           </div>
 
-          <div className="mx-auto mt-9 max-w-lg rounded-[1.75rem] border border-black/10 p-4 sm:p-6">
-            <label className="mb-5 block rounded-2xl bg-[#f7f3ee] p-4">
-              <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
-                Ir directamente a una fecha
-              </span>
-              <input
-                type="date"
-                value={date ? formatDateForApi(date) : ""}
-                min={formatDateForApi(new Date())}
-                max={`${currentMonth.getFullYear() + 5}-12-31`}
-                onChange={(event) => selectDirectDate(event.target.value)}
-                className="mt-2 h-12 w-full rounded-xl border border-black/10 bg-white px-4 text-base outline-none focus:border-[var(--brand-espresso)]"
-              />
-            </label>
+          <div className="mx-auto mt-9 max-w-xl overflow-hidden border border-black/15 bg-white shadow-[0_18px_55px_rgba(53,35,27,0.08)]">
+            <div className="bg-[var(--brand-espresso)] px-5 py-5 text-white sm:px-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/65">
+                Calendario
+              </p>
+              <h3 className="mt-1 font-luxury text-2xl">
+                Selecciona una fecha
+              </h3>
+              <p className="mt-1 text-sm text-white/70">
+                Cambia de mes o año para consultar fechas futuras.
+              </p>
+            </div>
 
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 border-b border-black/10 bg-[#f7f3ee] p-4 sm:px-6">
               <button
                 type="button"
                 aria-label="Mes anterior"
@@ -987,11 +1133,11 @@ export default function EyeExamBooking() {
                 onClick={() =>
                   setCalendarMonth((current) => addMonths(current, -1))
                 }
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 text-xl transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
+                className="flex h-11 w-11 items-center justify-center border border-black/15 bg-white text-2xl transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
               >
                 ‹
               </button>
-              <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
+              <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_6.5rem] gap-2 sm:max-w-sm">
                 <label>
                   <span className="sr-only">Mes</span>
                   <select
@@ -999,7 +1145,7 @@ export default function EyeExamBooking() {
                     onChange={(event) =>
                       updateCalendarMonth(Number(event.target.value))
                     }
-                    className="h-10 w-full rounded-full border border-black/10 bg-white px-3 text-sm font-semibold outline-none focus:border-[var(--brand-espresso)]"
+                    className="h-11 w-full border border-black/15 bg-white px-3 text-sm font-semibold outline-none focus:border-[var(--brand-espresso)]"
                   >
                     {monthLabels.map((label, index) => (
                       <option
@@ -1023,7 +1169,7 @@ export default function EyeExamBooking() {
                     onChange={(event) =>
                       updateCalendarYear(Number(event.target.value))
                     }
-                    className="h-10 w-full rounded-full border border-black/10 bg-white px-3 text-sm font-semibold outline-none focus:border-[var(--brand-espresso)]"
+                    className="h-11 w-full border border-black/15 bg-white px-3 text-sm font-semibold outline-none focus:border-[var(--brand-espresso)]"
                   >
                     {bookingYears.map((year) => (
                       <option key={year} value={year}>
@@ -1039,13 +1185,13 @@ export default function EyeExamBooking() {
                 onClick={() =>
                   setCalendarMonth((current) => addMonths(current, 1))
                 }
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 text-xl transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white"
+                className="flex h-11 w-11 items-center justify-center border border-black/15 bg-white text-2xl transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white"
               >
                 ›
               </button>
             </div>
 
-            <div className="mt-5 grid grid-cols-7 gap-1 text-center">
+            <div className="grid grid-cols-7 gap-1 p-4 text-center sm:p-6">
               {weekdayLabels.map((label, index) => (
                 <span
                   key={`${label}-${index}`}
@@ -1172,7 +1318,7 @@ export default function EyeExamBooking() {
                               : "cursor-not-allowed border-black/5 bg-gray-50 text-gray-300 line-through"
                         }`}
                       >
-                        {slot.time}
+                        {formatAppointmentTime(slot.time)}
                       </button>
                     ))}
                 </div>
@@ -1183,7 +1329,7 @@ export default function EyeExamBooking() {
           <div className="mt-9 flex items-center justify-between gap-4">
             <button
               type="button"
-              onClick={() => goTo(2)}
+              onClick={() => goTo(isLocationPreset ? 1 : 2)}
               className="h-12 rounded-full border border-[var(--brand-espresso)] px-6 font-semibold text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white"
             >
               Atrás
@@ -1243,18 +1389,48 @@ export default function EyeExamBooking() {
             </label>
             <label>
               <span className="text-sm font-semibold">Teléfono *</span>
-              <input
-                type="tel"
-                value={patientInfo.phone}
-                onChange={(event) =>
-                  setPatientInfo((current) => ({
-                    ...current,
-                    phone: event.target.value,
-                  }))
-                }
-                autoComplete="tel"
-                className="mt-2 h-12 w-full rounded-xl border border-black/15 px-4 outline-none focus:border-[var(--brand-espresso)]"
-              />
+              <span className="mt-2 grid grid-cols-[8.5rem_minmax(0,1fr)]">
+                <select
+                  value={phoneCountryCode}
+                  onChange={(event) => {
+                    setPhoneCountryCode(event.target.value);
+                    setPatientInfo((current) => ({ ...current, phone: "" }));
+                  }}
+                  aria-label="País y código telefónico"
+                  className="h-12 border border-r-0 border-black/15 bg-[#f7f3ee] px-3 text-sm font-semibold outline-none focus:border-[var(--brand-espresso)]"
+                >
+                  {phoneCountries.map((entry) => (
+                    <option key={entry.code} value={entry.code}>
+                      {entry.shortLabel} {entry.code}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={patientInfo.phone}
+                  onChange={(event) => {
+                    const digits = event.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, selectedPhoneCountry.maxDigits);
+                    setPatientInfo((current) => ({
+                      ...current,
+                      phone: digits,
+                    }));
+                  }}
+                  placeholder={selectedPhoneCountry.placeholder}
+                  autoComplete="tel-national"
+                  aria-label="Número telefónico"
+                  className="h-12 min-w-0 border border-black/15 px-4 outline-none focus:border-[var(--brand-espresso)]"
+                />
+              </span>
+              <span className="mt-2 block text-xs text-gray-500">
+                {selectedPhoneCountry.country} {selectedPhoneCountry.code} ·{" "}
+                {selectedPhoneCountry.minDigits ===
+                selectedPhoneCountry.maxDigits
+                  ? `${selectedPhoneCountry.minDigits} dígitos`
+                  : `${selectedPhoneCountry.minDigits}–${selectedPhoneCountry.maxDigits} dígitos`}
+              </span>
             </label>
             <label className="sm:col-span-2">
               <span className="text-sm font-semibold">
@@ -1295,8 +1471,8 @@ export default function EyeExamBooking() {
             </p>
             <p className="mt-3 font-semibold">{location?.name}</p>
             <p className="mt-1 text-sm text-gray-600">
-              {date ? formatLongDate(formatDateForApi(date)) : ""} · {time} ·
-              45 minutos
+              {date ? formatLongDate(formatDateForApi(date)) : ""} ·{" "}
+              {formatAppointmentTime(time)} · 45 minutos
             </p>
           </div>
 

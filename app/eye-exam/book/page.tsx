@@ -14,8 +14,8 @@ export default function EyeExamBookPage() {
         </p>
         <h1 className="mt-3 text-4xl">Reserva tu cita</h1>
         <p className="mt-4 max-w-2xl text-gray-700">
-          Cuatro pasos rápidos, horarios de 45 minutos y listo. Sin pagar nada
-          por adelantado.
+          Un proceso rápido, horarios de 45 minutos y listo. Sin pagar nada por
+          adelantado.
         </p>
       </div>
 
