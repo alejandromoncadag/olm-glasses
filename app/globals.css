@@ -6,6 +6,7 @@
   --brand-dark: #2d1f1a;
   --brand-dark-hover: #3a2922;
   --brand-espresso: var(--brand-dark);
+  --font-luxury: "Bodoni MT", Didot, "Times New Roman", Georgia, serif;
 }
 
 @theme inline {
@@ -26,6 +27,17 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.font-luxury,
+.editorial-sharp :is(h1, h2, h3) {
+  font-family: var(--font-luxury);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.editorial-sharp * {
+  border-radius: 0 !important;
 }
 
 .product-carousel {

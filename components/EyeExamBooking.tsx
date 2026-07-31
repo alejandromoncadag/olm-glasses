@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 type Step = 1 | 2 | 3 | 4;
 type PatientAgeGroup = "adult" | "child";
+type DayPeriod = "morning" | "afternoon" | "evening";
 
 type PatientInfo = {
   fullName: string;
@@ -82,6 +83,48 @@ const monthLabels = [
   "Noviembre",
   "Diciembre",
 ];
+const dayPeriods: Array<{
+  id: DayPeriod;
+  label: string;
+  range: string;
+  startMinutes: number;
+  endMinutes: number;
+}> = [
+  {
+    id: "morning",
+    label: "Mañana",
+    range: "8:00 a.m. – 12:00 p.m.",
+    startMinutes: 8 * 60,
+    endMinutes: 12 * 60,
+  },
+  {
+    id: "afternoon",
+    label: "Tarde",
+    range: "12:00 p.m. – 4:00 p.m.",
+    startMinutes: 12 * 60,
+    endMinutes: 16 * 60,
+  },
+  {
+    id: "evening",
+    label: "Noche",
+    range: "4:00 p.m. – 8:00 p.m.",
+    startMinutes: 16 * 60,
+    endMinutes: 20 * 60,
+  },
+];
+
+function getDayPeriodForTime(time: string): DayPeriod {
+  const [hours, minutes] = time.split(":").map(Number);
+  const totalMinutes = hours * 60 + minutes;
+
+  return (
+    dayPeriods.find(
+      (period) =>
+        totalMinutes >= period.startMinutes &&
+        totalMinutes < period.endMinutes
+    )?.id || "evening"
+  );
+}
 
 function startOfDay(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
@@ -191,7 +234,7 @@ function ChoiceCard({
       className={`group min-h-72 overflow-hidden rounded-[1.75rem] border p-4 text-left transition ${
         selected
           ? "border-[var(--brand-espresso)] bg-[#f7f3ee] shadow-sm"
-          : "border-black/10 bg-white hover:border-[var(--brand-espresso)]"
+          : "border-black/10 bg-white hover:border-[var(--brand-espresso)] hover:bg-[#f7f3ee]"
       }`}
     >
       <div className="flex h-44 items-center justify-center overflow-hidden rounded-2xl bg-[#f7f3ee]">
@@ -230,6 +273,8 @@ export default function EyeExamBooking() {
   const [calendarMonth, setCalendarMonth] = useState(currentMonth);
   const [date, setDate] = useState<Date | null>(null);
   const [time, setTime] = useState("");
+  const [selectedDayPeriod, setSelectedDayPeriod] =
+    useState<DayPeriod>("morning");
   const [slots, setSlots] = useState<
     Array<{ time: string; available: boolean }>
   >([]);
@@ -361,6 +406,12 @@ export default function EyeExamBooking() {
             )
               ? current
               : ""
+          );
+          const firstAvailableSlot = result.slots.find(
+            (slot) => slot.available
+          );
+          setSelectedDayPeriod(
+            getDayPeriodForTime(firstAvailableSlot?.time || "10:00")
           );
         }
       } catch (slotError) {
@@ -697,7 +748,7 @@ export default function EyeExamBooking() {
                   type="button"
                   onClick={cancelBooking}
                   disabled={isCancelling}
-                  className="h-11 rounded-full border border-[var(--brand-espresso)] px-5 text-sm font-semibold text-[var(--brand-espresso)] transition hover:bg-white disabled:opacity-50"
+                  className="h-11 rounded-full border border-[var(--brand-espresso)] px-5 text-sm font-semibold text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white disabled:opacity-50"
                 >
                   {isCancelling ? "Cancelando…" : "Cancelar examen"}
                 </button>
@@ -730,7 +781,7 @@ export default function EyeExamBooking() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="editorial-sharp mx-auto max-w-4xl">
       <div className="mb-8">
         <div className="h-1 overflow-hidden rounded-full bg-black/10">
           <div
@@ -785,6 +836,7 @@ export default function EyeExamBooking() {
                     src="/images/eye-exam/adult-patient.png"
                     alt="Ilustración de una persona adulta con lentes"
                     fill
+                    loading="eager"
                     sizes="(min-width: 640px) 320px, 90vw"
                     className="object-cover object-[center_35%] transition duration-500 group-hover:scale-[1.03]"
                   />
@@ -802,6 +854,7 @@ export default function EyeExamBooking() {
                     src="/images/eye-exam/young-patient.png"
                     alt="Ilustración de un niño y una adolescente con lentes"
                     fill
+                    loading="eager"
                     sizes="(min-width: 640px) 320px, 90vw"
                     className="object-cover object-[center_35%] transition duration-500 group-hover:scale-[1.03]"
                   />
@@ -851,7 +904,7 @@ export default function EyeExamBooking() {
                 className={`overflow-hidden rounded-[1.75rem] border text-left transition ${
                   location?.slug === entry.slug
                     ? "border-[var(--brand-espresso)] shadow-sm"
-                    : "border-black/10 hover:border-[var(--brand-espresso)]"
+                    : "border-black/10 hover:border-[var(--brand-espresso)] hover:bg-[#f7f3ee]"
                 }`}
               >
                 <div className="relative h-36 bg-[#f7f3ee]">
@@ -889,7 +942,7 @@ export default function EyeExamBooking() {
             <button
               type="button"
               onClick={() => goTo(1)}
-              className="h-12 rounded-full border border-[var(--brand-espresso)] px-6 font-semibold text-[var(--brand-espresso)]"
+              className="h-12 rounded-full border border-[var(--brand-espresso)] px-6 font-semibold text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white"
             >
               Atrás
             </button>
@@ -934,7 +987,7 @@ export default function EyeExamBooking() {
                 onClick={() =>
                   setCalendarMonth((current) => addMonths(current, -1))
                 }
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 text-xl transition hover:border-[var(--brand-espresso)] disabled:cursor-not-allowed disabled:opacity-25"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 text-xl transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
               >
                 ‹
               </button>
@@ -986,7 +1039,7 @@ export default function EyeExamBooking() {
                 onClick={() =>
                   setCalendarMonth((current) => addMonths(current, 1))
                 }
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 text-xl transition hover:border-[var(--brand-espresso)]"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 text-xl transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white"
               >
                 ›
               </button>
@@ -1033,7 +1086,7 @@ export default function EyeExamBooking() {
                         ? "bg-[var(--brand-espresso)] text-white"
                         : isPast
                           ? "cursor-not-allowed text-gray-300"
-                          : "hover:bg-[#f7f3ee]"
+                          : "hover:bg-[var(--brand-espresso)] hover:text-white"
                     } ${isToday && !selected ? "ring-1 ring-[var(--brand-espresso)]" : ""}`}
                   >
                     {day.getDate()}
@@ -1053,27 +1106,76 @@ export default function EyeExamBooking() {
                 Consultando disponibilidad…
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                {slots.map((slot) => (
-                  <button
-                    type="button"
-                    key={slot.time}
-                    disabled={!slot.available}
-                    onClick={() => {
-                      setTime(slot.time);
-                      goTo(4);
-                    }}
-                    className={`h-12 rounded-xl border text-sm font-semibold transition ${
-                      time === slot.time
-                        ? "border-[var(--brand-espresso)] bg-[var(--brand-espresso)] text-white"
-                        : slot.available
-                          ? "border-black/10 hover:border-[var(--brand-espresso)]"
-                          : "cursor-not-allowed border-black/5 bg-gray-50 text-gray-300 line-through"
-                    }`}
-                  >
-                    {slot.time}
-                  </button>
-                ))}
+              <div>
+                <div
+                  className="grid border-y border-black/15 sm:grid-cols-3"
+                  aria-label="Periodo del día"
+                >
+                  {dayPeriods.map((period) => {
+                    const isActive = selectedDayPeriod === period.id;
+                    const availableCount = slots.filter(
+                      (slot) =>
+                        slot.available &&
+                        getDayPeriodForTime(slot.time) === period.id
+                    ).length;
+
+                    return (
+                      <button
+                        type="button"
+                        key={period.id}
+                        onClick={() => setSelectedDayPeriod(period.id)}
+                        aria-pressed={isActive}
+                        className={`border-b px-4 py-4 text-center transition sm:border-b-0 sm:border-r sm:last:border-r-0 ${
+                          isActive
+                            ? "border-[var(--brand-espresso)] bg-[var(--brand-espresso)] text-white"
+                            : "border-black/15 hover:bg-[#f7f3ee]"
+                        }`}
+                      >
+                        <span className="block text-sm font-semibold uppercase tracking-[0.16em]">
+                          {period.label}
+                        </span>
+                        <span
+                          className={`mt-1 block text-xs ${
+                            isActive ? "text-white/75" : "text-gray-500"
+                          }`}
+                        >
+                          {period.range}
+                        </span>
+                        <span className="sr-only">
+                          {availableCount} horarios disponibles
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                  {slots
+                    .filter(
+                      (slot) =>
+                        getDayPeriodForTime(slot.time) === selectedDayPeriod
+                    )
+                    .map((slot) => (
+                      <button
+                        type="button"
+                        key={slot.time}
+                        disabled={!slot.available}
+                        onClick={() => {
+                          setTime(slot.time);
+                          goTo(4);
+                        }}
+                        className={`h-12 border text-sm font-semibold transition ${
+                          time === slot.time
+                            ? "border-[var(--brand-espresso)] bg-[var(--brand-espresso)] text-white"
+                            : slot.available
+                              ? "border-black/15 hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white"
+                              : "cursor-not-allowed border-black/5 bg-gray-50 text-gray-300 line-through"
+                        }`}
+                      >
+                        {slot.time}
+                      </button>
+                    ))}
+                </div>
               </div>
             )}
           </div>
@@ -1082,7 +1184,7 @@ export default function EyeExamBooking() {
             <button
               type="button"
               onClick={() => goTo(2)}
-              className="h-12 rounded-full border border-[var(--brand-espresso)] px-6 font-semibold text-[var(--brand-espresso)]"
+              className="h-12 rounded-full border border-[var(--brand-espresso)] px-6 font-semibold text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white"
             >
               Atrás
             </button>
@@ -1211,7 +1313,7 @@ export default function EyeExamBooking() {
             <button
               type="button"
               onClick={() => goTo(3)}
-              className="h-12 rounded-full border border-[var(--brand-espresso)] px-6 font-semibold text-[var(--brand-espresso)]"
+              className="h-12 rounded-full border border-[var(--brand-espresso)] px-6 font-semibold text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white"
             >
               Atrás
             </button>

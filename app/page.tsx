@@ -23,11 +23,11 @@ const servicePromises = [
 ];
 
 const outlineButton =
-  "rounded-full border border-black bg-white/55 px-7 py-3 backdrop-blur-sm transition-colors duration-200 hover:bg-black hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black";
+  "border border-[var(--brand-espresso)] bg-white/55 px-7 py-3 text-[var(--brand-espresso)] backdrop-blur-sm transition-colors duration-200 hover:bg-[var(--brand-espresso)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-espresso)]";
 
 export default function Home() {
   return (
-    <main className="bg-white text-black">
+    <main className="editorial-sharp bg-white text-black">
       <section className="relative isolate min-h-[760px] overflow-hidden sm:min-h-[680px]">
         <Image
           src="/images/home-hero-eyewear.png"
@@ -47,7 +47,7 @@ export default function Home() {
             <p className="mb-5 text-sm font-semibold uppercase tracking-[0.3em]">
               Óptica OLM
             </p>
-            <h1 className="text-5xl font-bold leading-[0.94] tracking-[-0.055em] sm:text-6xl md:text-7xl">
+            <h1 className="text-5xl leading-[0.94] sm:text-6xl md:text-7xl">
               Lentes modernos para todos los días
             </h1>
             <p className="mt-7 max-w-lg text-base leading-relaxed text-gray-700 md:text-lg">
@@ -81,7 +81,7 @@ export default function Home() {
                 {promise.number}
               </span>
               <div>
-                <h2 className="text-sm font-bold uppercase tracking-[0.12em]">
+                <h2 className="font-sans text-sm font-bold uppercase tracking-[0.12em]">
                   {promise.title}
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-black/60">{promise.copy}</p>
@@ -100,16 +100,16 @@ export default function Home() {
         <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:items-center">
           <div>
             <p className="text-sm uppercase tracking-[0.3em] text-gray-600">Examen de la vista</p>
-            <h2 className="mt-3 text-4xl font-bold">Tu examen en menos de un minuto</h2>
+            <h2 className="mt-3 text-4xl">Tu examen en menos de un minuto</h2>
             <p className="mt-4 text-gray-700">
               Agenda con un optometrista certificado. Gratis si compras tu armazón el mismo día.
             </p>
-            <Link href="/eye-exam/book" className="mt-6 inline-block rounded-full border border-black bg-transparent px-6 py-3 font-medium text-black transition hover:bg-black hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
+            <Link href="/eye-exam/book" className="mt-6 inline-block border border-[var(--brand-espresso)] bg-transparent px-6 py-3 font-medium text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-espresso)]">
               Reservar mi cita
             </Link>
           </div>
 
-          <div className="relative min-h-80 overflow-hidden rounded-3xl bg-white shadow-sm md:min-h-96">
+          <div className="relative min-h-80 overflow-hidden border border-black/10 bg-white md:min-h-96">
             <video
               autoPlay
               loop
@@ -129,7 +129,7 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-6 py-20">
         <div className="max-w-2xl">
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-gray-500">Cerca de ti</p>
-          <h2 className="mt-2 text-3xl font-bold md:text-4xl">Visítanos en tienda</h2>
+          <h2 className="mt-2 text-3xl md:text-4xl">Visítanos en tienda</h2>
           <p className="mt-4 leading-relaxed text-gray-600">
             Conoce nuestros espacios, pruébate cualquier modelo y recibe atención personalizada.
           </p>

@@ -83,7 +83,7 @@ export default function HomeLocationFinder({ locations }: HomeLocationFinderProp
           <button
             type="button"
             onClick={() => selectAdjacentLocation("previous")}
-            className="grid h-10 w-10 place-items-center rounded-full border border-black/20 transition hover:border-black hover:bg-black hover:text-white"
+            className="grid h-10 w-10 place-items-center border border-black/20 transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white"
             aria-label="Ver ubicaciones anteriores"
           >
             <ArrowIcon direction="left" />
@@ -91,7 +91,7 @@ export default function HomeLocationFinder({ locations }: HomeLocationFinderProp
           <button
             type="button"
             onClick={() => selectAdjacentLocation("next")}
-            className="grid h-10 w-10 place-items-center rounded-full border border-black/20 transition hover:border-black hover:bg-black hover:text-white"
+            className="grid h-10 w-10 place-items-center border border-black/20 transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white"
             aria-label="Ver más ubicaciones"
           >
             <ArrowIcon direction="right" />
@@ -101,7 +101,7 @@ export default function HomeLocationFinder({ locations }: HomeLocationFinderProp
 
       <div
         id="selected-location"
-        className="relative mt-6 min-h-[520px] overflow-hidden rounded-[2rem] bg-[#eee9e2]"
+        className="relative mt-6 min-h-[520px] overflow-hidden border border-black/10 bg-[#eee9e2]"
         aria-live="polite"
       >
         <Image
@@ -115,11 +115,11 @@ export default function HomeLocationFinder({ locations }: HomeLocationFinderProp
         <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent" />
 
         <div className="relative flex min-h-[520px] items-end p-4 sm:p-7 md:p-9">
-          <div className="w-full max-w-xl rounded-[1.5rem] bg-white/95 p-6 shadow-xl backdrop-blur-sm sm:p-8">
+          <div className="w-full max-w-xl border border-black/10 bg-white/95 p-6 backdrop-blur-sm sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">
               {selectedLocation.city}, {selectedLocation.state}
             </p>
-            <h3 className="mt-3 text-3xl font-bold tracking-tight">
+            <h3 className="mt-3 text-3xl">
               {selectedLocation.name}
             </h3>
             <p className="mt-4 leading-relaxed text-gray-600">
@@ -147,7 +147,7 @@ export default function HomeLocationFinder({ locations }: HomeLocationFinderProp
                 )}
                 <Link
                   href={"/locations/" + selectedLocation.slug}
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-black bg-transparent px-5 text-sm font-semibold transition hover:bg-black hover:text-white"
+                  className="inline-flex h-11 items-center justify-center border border-[var(--brand-espresso)] bg-transparent px-5 text-sm font-semibold text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white"
                 >
                   Conocer tienda
                 </Link>

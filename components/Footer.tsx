@@ -86,10 +86,6 @@ export default function Footer() {
               Lentes de sol
             </Link>
 
-            <Link href="/deportivos" className={footerLinkClass}>
-              Lentes deportivos
-            </Link>
-
             <Link href="/clip-ons" className={footerLinkClass}>
               Clip-on
             </Link>

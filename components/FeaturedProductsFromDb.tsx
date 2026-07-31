@@ -73,7 +73,11 @@ export default function FeaturedProductsFromDb() {
 
         const data = await response.json();
         const newProducts: Product[] = data.products
-          .filter((product: ApiProduct) => product.isActive)
+          .filter(
+            (product: ApiProduct) =>
+              product.isActive &&
+              !product.category.toLowerCase().includes("deportiv")
+          )
           .slice(0, 8)
           .map((product: ApiProduct) => ({
             slug: product.slug,
@@ -120,7 +124,7 @@ export default function FeaturedProductsFromDb() {
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-gray-500">
             Recién llegados
           </p>
-          <h2 className="mt-2 text-3xl font-bold md:text-4xl">Lentes nuevos</h2>
+          <h2 className="mt-2 text-3xl md:text-4xl">Lentes nuevos</h2>
           <Link href="/eyeglasses" className="mt-3 inline-block text-sm font-semibold underline underline-offset-4">
             Ver todos
           </Link>
@@ -130,7 +134,7 @@ export default function FeaturedProductsFromDb() {
           <button
             type="button"
             onClick={() => moveCarousel("left")}
-            className="grid h-12 w-12 place-items-center rounded-full border border-black/20 transition hover:border-black hover:bg-black hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+            className="grid h-12 w-12 place-items-center border border-black/20 transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-espresso)]"
             aria-label="Ver lentes anteriores"
           >
             <ArrowIcon direction="left" />
@@ -138,7 +142,7 @@ export default function FeaturedProductsFromDb() {
           <button
             type="button"
             onClick={() => moveCarousel("right")}
-            className="grid h-12 w-12 place-items-center rounded-full border border-black/20 transition hover:border-black hover:bg-black hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+            className="grid h-12 w-12 place-items-center border border-black/20 transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-espresso)]"
             aria-label="Ver más lentes"
           >
             <ArrowIcon direction="right" />

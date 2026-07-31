@@ -10,7 +10,6 @@ import { useCartCount } from "@/hooks/useCartCount";
 const storeNavItems = [
   { href: "/eyeglasses", label: "Ópticos" },
   { href: "/sunglasses", label: "Sol" },
-  { href: "/deportivos", label: "Deportivos" },
   { href: "/clip-ons", label: "Clip-on" },
   { href: "/lentes-de-contacto", label: "Contactos" },
   { href: "/accessories", label: "Accesorios" },
@@ -114,7 +113,11 @@ function StoreNavbar() {
         if (!response.ok) return;
         const data = (await response.json()) as { products: SearchProduct[] };
         setSearchProducts(
-          data.products.filter((product) => product.isActive)
+          data.products.filter(
+            (product) =>
+              product.isActive &&
+              !normalizeSearchValue(product.category).includes("deportiv")
+          )
         );
       } finally {
         setSearchLoading(false);
@@ -416,7 +419,6 @@ function StoreNavbar() {
                 {[
                   ["/eyeglasses", "Lentes ópticos"],
                   ["/sunglasses", "Lentes de sol"],
-                  ["/deportivos", "Deportivos"],
                   ["/lentes-de-contacto", "Contactos"],
                   ["/accessories", "Accesorios"],
                 ].map(([href, label]) => (

@@ -17,7 +17,6 @@ type Product = {
 const siteDestinations = [
   { name: "Lentes ópticos", description: "Armazones para graduar", href: "/eyeglasses" },
   { name: "Lentes de sol", description: "Protección solar con estilo", href: "/sunglasses" },
-  { name: "Lentes deportivos", description: "Tenis, esquí, ciclismo y running", href: "/deportivos" },
   { name: "Clip-on", description: "Modelos compatibles con clip-on", href: "/clip-ons" },
   { name: "Lentes de contacto", description: "Contactos y cuidado visual", href: "/lentes-de-contacto" },
   { name: "Accesorios", description: "Estuches, limpieza y más", href: "/accessories" },
@@ -51,7 +50,13 @@ export default function SiteSearch() {
         const response = await fetch("/api/products");
         if (!response.ok) return;
         const data = (await response.json()) as { products: Product[] };
-        setProducts(data.products.filter((product) => product.isActive));
+        setProducts(
+          data.products.filter(
+            (product) =>
+              product.isActive &&
+              !normalize(product.category).includes("deportiv")
+          )
+        );
       } finally {
         setLoading(false);
       }
@@ -161,7 +166,7 @@ export default function SiteSearch() {
               <div className="mt-5 rounded-3xl bg-[#f7f3ee] p-8">
                 <p className="font-medium">Busca por nombre o categoría</p>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  Por ejemplo: “deportivos”, “sol”, “estuche” o el nombre de un
+                  Por ejemplo: “sol”, “estuche”, “contactos” o el nombre de un
                   modelo.
                 </p>
               </div>
