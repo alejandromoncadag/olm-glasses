@@ -7,7 +7,7 @@ export default function EyeglassesPage() {
       title="Lentes ópticos"
       description="Explora nuestra colección de armazones modernos para todos los días."
       filterLayout="sidebar"
-      actionLabel="Seleccionar modelo"
+      actionLabel="Agregar al carrito"
       showNewBadge
       heroImage="/images/home-hero-eyewear.png"
       heroImagePosition="center"

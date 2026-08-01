@@ -37,7 +37,7 @@ function formatMoney(amount: number) {
   return `$${amount.toLocaleString("es-MX")} MXN`;
 }
 
-export default function CartItems() {
+export default function CartItems({ returnTo = "/eyeglasses" }: { returnTo?: string }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -221,8 +221,17 @@ export default function CartItems() {
   }
 
   return (
-    <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_380px]">
-      <div className="space-y-4">
+    <div className="mt-8">
+      <a
+        href={returnTo}
+        className="mb-7 inline-flex items-center gap-2 text-sm font-medium text-gray-600 transition hover:text-black"
+      >
+        <span aria-hidden="true">←</span>
+        Volver a donde estabas
+      </a>
+
+      <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
+        <div className="space-y-4">
         {cartItems.map((item) => {
           const product = getProductFromCartItem(item, products);
           const productStock = product?.stock ?? 0;
@@ -332,7 +341,7 @@ export default function CartItems() {
         })}
 
         <div className="flex flex-col justify-between gap-3 sm:flex-row">
-          <a href="/eyeglasses" className="text-sm text-gray-600 underline">
+          <a href={returnTo} className="text-sm text-gray-600 underline">
             Continuar comprando
           </a>
 
@@ -346,7 +355,7 @@ export default function CartItems() {
         </div>
       </div>
 
-      <aside className="h-fit rounded-2xl border p-6">
+        <aside className="h-fit rounded-2xl border p-6">
         <h2 className="text-2xl font-semibold">Resumen</h2>
 
         <p className="mt-2 text-sm text-gray-500">
@@ -399,7 +408,8 @@ export default function CartItems() {
         <p className="mt-4 text-center text-xs text-gray-500">
           Pago en pesos mexicanos. Tu pedido se confirmará antes del pago final.
         </p>
-      </aside>
+        </aside>
+      </div>
     </div>
   );
 }

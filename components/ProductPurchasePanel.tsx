@@ -222,7 +222,8 @@ export default function ProductPurchasePanel({
     }
 
     writeCart(updatedCart);
-    window.location.href = "/cart";
+    const returnTo = `/product/${encodeURIComponent(product.slug)}`;
+    window.location.href = `/cart?returnTo=${encodeURIComponent(returnTo)}`;
   }
 
   return (

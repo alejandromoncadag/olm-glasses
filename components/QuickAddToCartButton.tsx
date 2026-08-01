@@ -8,7 +8,7 @@ type ApiProduct = {
   name: string;
   price: number;
   stock: number;
-  type: "accessory" | "contact_lenses";
+  type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
   isActive: boolean;
 };
 
@@ -38,13 +38,7 @@ export default function QuickAddToCartButton({
       const data = (await response.json()) as { product?: ApiProduct };
       const product = data.product;
 
-      if (
-        !product ||
-        !product.isActive ||
-        product.stock <= 0 ||
-        (product.type !== "accessory" &&
-          product.type !== "contact_lenses")
-      ) {
+      if (!product || !product.isActive || product.stock <= 0) {
         alert("Este producto no está disponible.");
         return;
       }
@@ -54,7 +48,8 @@ export default function QuickAddToCartButton({
         return;
       }
 
-      window.location.href = "/cart";
+      const returnTo = `${window.location.pathname}${window.location.search}`;
+      window.location.href = `/cart?returnTo=${encodeURIComponent(returnTo)}`;
     } catch (error) {
       console.error(error);
       alert("No pudimos agregar el producto. Intenta de nuevo.");

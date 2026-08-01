@@ -478,7 +478,7 @@ export default function PublicProductCatalog({
   title,
   description,
   filterLayout = "top",
-  actionLabel = "Ver modelo",
+  actionLabel = "Agregar al carrito",
   showNewBadge = false,
   heroImage,
   heroImagePosition = "center",

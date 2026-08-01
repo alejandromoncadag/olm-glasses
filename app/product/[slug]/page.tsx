@@ -4,7 +4,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import LikeButton from "@/components/LikeButton";
-import ProductPurchasePanel from "@/components/ProductPurchasePanel";
 import QuickAddToCartButton from "@/components/QuickAddToCartButton";
 import { createWhatsAppLink } from "@/lib/whatsapp";
 
@@ -358,28 +357,21 @@ export default function ProductPage() {
                 </p>
               </div>
             ) : isEyewear ? (
-              <ProductPurchasePanel
-                product={{
-                  slug: product.slug,
-                  name: product.name,
-                  price: product.price,
-                  stock: product.stock,
-                }}
-              />
+              <div className="mt-8 border-y border-black/15 py-7">
+                <p className="max-w-lg text-sm leading-6 text-gray-600">
+                  Elige tus micas, tratamiento y revisa el precio final en un
+                  proceso separado para este modelo.
+                </p>
+                <a
+                  href={`/product/${product.slug}/configurar`}
+                  className="mt-5 inline-flex h-12 w-full items-center justify-center bg-[var(--brand-espresso)] px-6 text-sm font-semibold text-white transition hover:bg-[#1f1511]"
+                >
+                  Seleccionar micas y tratamientos
+                </a>
+              </div>
             ) : (
-              <div className="mt-8 rounded-3xl bg-[#f4f3f0] p-5 sm:p-6">
-                <div className="flex items-end justify-between gap-4 border-b border-black/10 pb-4">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                      Total
-                    </p>
-                    <p className="mt-1 text-2xl font-semibold tracking-tight">
-                      ${product.price.toLocaleString("es-MX")} MXN
-                    </p>
-                  </div>
-                </div>
-
-                <p className="mt-4 text-sm leading-6 text-gray-600">
+              <div className="mt-8 bg-[#f4f3f0] p-5 sm:p-6">
+                <p className="text-sm leading-6 text-gray-600">
                   {product.type === "contact_lenses"
                     ? "Agrega el producto y revisa tu carrito. Confirmaremos tu graduación antes de procesar el pedido."
                     : "Agrega el producto y revisa tu carrito antes de continuar al checkout."}

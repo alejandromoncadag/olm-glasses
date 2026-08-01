@@ -22,7 +22,7 @@ export type SimpleCartProduct = {
   name: string;
   price: number;
   stock: number;
-  type: "accessory" | "contact_lenses";
+  type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
 };
 
 let activeCartStorageKey = CART_STORAGE_KEY;
@@ -147,14 +147,20 @@ export function addSimpleProductToCart(product: SimpleCartProduct) {
     return false;
   }
 
+  const isEyewear =
+    product.type === "eyeglasses" || product.type === "sunglasses";
   const lensOption =
     product.type === "contact_lenses"
       ? "Lentes de contacto"
-      : "Accesorio";
+      : product.type === "accessory"
+        ? "Accesorio"
+        : "Armazón";
   const prescriptionMethod =
     product.type === "contact_lenses"
       ? "Graduación por confirmar"
-      : "No aplica";
+      : isEyewear
+        ? "Micas y tratamiento por seleccionar"
+        : "No aplica";
 
   const updatedCart = existingItem
     ? currentCart.map((item) =>

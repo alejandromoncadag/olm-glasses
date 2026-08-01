@@ -1,4 +1,5 @@
 import LikeButton from "@/components/LikeButton";
+import QuickAddToCartButton from "@/components/QuickAddToCartButton";
 import Image from "next/image";
 
 type ProductCardProps = {
@@ -19,13 +20,12 @@ export default function ProductCard({
   slug,
   name,
   price,
-  category,
   color,
   href,
   stock,
   imageUrl,
   imageAltText,
-  actionLabel = "Ver modelo",
+  actionLabel = "Agregar al carrito",
   isNew = false,
 }: ProductCardProps) {
   const isOutOfStock = stock <= 0;
@@ -77,30 +77,25 @@ export default function ProductCard({
       </div>
 
       <div className="flex flex-1 flex-col px-2 pb-2 pt-5">
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-gray-500">
-          {category}
-        </p>
-
-        <div className="mt-2 flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-2">
           <a href={href} className="min-w-0">
             <h2 className="text-xl font-semibold tracking-[-0.02em] transition group-hover:underline group-hover:underline-offset-4">
               {name}
             </h2>
           </a>
 
-          <p className="shrink-0 text-lg font-semibold tracking-[-0.02em]">
+          <p className="text-lg font-semibold tracking-[-0.02em]">
             ${price.toLocaleString("es-MX")}{" "}
             <span className="text-xs font-medium text-gray-500">MXN</span>
           </p>
         </div>
 
-        <div className="mt-auto flex items-center justify-end gap-4 pt-6">
-          <a
-            href={href}
-            className="rounded-full border border-black/20 px-4 py-2 text-sm font-medium transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white"
-          >
-            {actionLabel}
-          </a>
+        <div className="mt-auto pt-6">
+          <QuickAddToCartButton
+            slug={slug}
+            label={actionLabel}
+            className="w-full"
+          />
         </div>
       </div>
     </article>

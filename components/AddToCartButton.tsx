@@ -44,7 +44,8 @@ export default function AddToCartButton({ product }: AddToCartButtonProps) {
     writeCart(updatedCart);
 
     setAdded(true);
-    window.location.href = "/cart";
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    window.location.href = `/cart?returnTo=${encodeURIComponent(returnTo)}`;
   }
 
   return (

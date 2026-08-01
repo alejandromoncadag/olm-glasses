@@ -62,6 +62,7 @@ export default function FeaturedProductsFromDb() {
   const [error, setError] = useState("");
   const carouselRef = useRef<HTMLDivElement>(null);
   const carouselPausedRef = useRef(false);
+  const loopReadyRef = useRef(false);
 
   useEffect(() => {
     async function fetchProducts() {
@@ -108,24 +109,43 @@ export default function FeaturedProductsFromDb() {
     fetchProducts();
   }, []);
 
+  const repeatedProducts =
+    products.length > 1 ? [...products, ...products, ...products] : products;
+
+  const normalizeCarouselPosition = useCallback(() => {
+    const carousel = carouselRef.current;
+    if (!carousel || products.length < 2) return;
+
+    const segmentWidth = carousel.scrollWidth / 3;
+
+    if (!loopReadyRef.current) {
+      carousel.scrollLeft = segmentWidth;
+      loopReadyRef.current = true;
+      return;
+    }
+
+    if (carousel.scrollLeft >= segmentWidth * 2) {
+      carousel.scrollLeft -= segmentWidth;
+    } else if (carousel.scrollLeft <= 1) {
+      carousel.scrollLeft += segmentWidth;
+    }
+  }, [products.length]);
+
+  useEffect(() => {
+    loopReadyRef.current = false;
+    const frameId = window.requestAnimationFrame(normalizeCarouselPosition);
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [normalizeCarouselPosition, products]);
+
   const moveCarousel = useCallback((direction: "left" | "right") => {
     const carousel = carouselRef.current;
     if (!carousel) return;
 
     const distance = carousel.clientWidth * 0.85;
-    const maxScrollLeft = carousel.scrollWidth - carousel.clientWidth;
-    const reachedEnd = carousel.scrollLeft >= maxScrollLeft - 8;
-    const reachedStart = carousel.scrollLeft <= 8;
 
-    carousel.scrollTo({
-      left:
-        direction === "right"
-          ? reachedEnd
-            ? 0
-            : Math.min(carousel.scrollLeft + distance, maxScrollLeft)
-          : reachedStart
-            ? maxScrollLeft
-            : Math.max(carousel.scrollLeft - distance, 0),
+    carousel.scrollBy({
+      left: direction === "right" ? distance : -distance,
       behavior: "smooth",
     });
   }, []);
@@ -180,6 +200,7 @@ export default function FeaturedProductsFromDb() {
       {!loading && !error && (
         <div
           ref={carouselRef}
+          onScroll={normalizeCarouselPosition}
           onMouseEnter={() => {
             carouselPausedRef.current = true;
           }}
@@ -197,8 +218,8 @@ export default function FeaturedProductsFromDb() {
           className="product-carousel mt-10 grid snap-x snap-mandatory grid-flow-col auto-cols-[86%] gap-4 overflow-x-auto pb-5 sm:auto-cols-[48%] sm:gap-5 lg:auto-cols-[calc((100%-3.75rem)/4)]"
           aria-label="Productos nuevos. El carrusel avanza automáticamente cada cinco segundos."
         >
-          {products.map((product) => (
-            <div key={product.slug} className="snap-start">
+          {repeatedProducts.map((product, index) => (
+            <div key={`${product.slug}-${index}`} className="snap-start">
               <ProductCard
                 slug={product.slug}
                 name={product.name}
@@ -209,6 +230,7 @@ export default function FeaturedProductsFromDb() {
                 stock={product.stock}
                 imageUrl={product.mainImage?.imageUrl}
                 imageAltText={product.mainImage?.altText}
+                actionLabel="Agregar al carrito"
               />
             </div>
           ))}

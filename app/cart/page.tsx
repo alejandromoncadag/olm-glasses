@@ -1,6 +1,27 @@
 import CartItems from "@/components/CartItems";
 
-export default function CartPage() {
+type CartPageProps = {
+  searchParams: Promise<{
+    returnTo?: string;
+  }>;
+};
+
+function getSafeReturnTo(returnTo?: string) {
+  if (
+    returnTo &&
+    returnTo.startsWith("/") &&
+    !returnTo.startsWith("//") &&
+    !returnTo.startsWith("/cart")
+  ) {
+    return returnTo;
+  }
+
+  return "/eyeglasses";
+}
+
+export default async function CartPage({ searchParams }: CartPageProps) {
+  const { returnTo } = await searchParams;
+
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-black">
       <section className="mx-auto max-w-6xl">
@@ -10,7 +31,7 @@ export default function CartPage() {
           Revisa tus productos antes de continuar al pago.
         </p>
 
-        <CartItems />
+        <CartItems returnTo={getSafeReturnTo(returnTo)} />
       </section>
     </main>
   );
