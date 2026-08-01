@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
+import { loginAdmin } from "@/lib/auth";
 
 function getSafeRedirectUrl() {
   const requestedUrl = new URLSearchParams(window.location.search).get(
@@ -79,6 +80,16 @@ export default function CustomerAuthScreen({
       const data = (await response.json()) as { error?: string };
 
       if (!response.ok) {
+        if (!isSignup && response.status === 401) {
+          const adminResult = await loginAdmin(email, password);
+
+          if (!("error" in adminResult)) {
+            window.dispatchEvent(new Event("olm-auth-change"));
+            window.location.assign("/admin");
+            return;
+          }
+        }
+
         setError(data.error || "No pudimos completar el acceso.");
         setSubmitting(false);
         return;

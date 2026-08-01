@@ -6,14 +6,54 @@
   --brand-dark: #2d1f1a;
   --brand-dark-hover: #3a2922;
   --brand-espresso: var(--brand-dark);
-  --font-luxury: "Bodoni MT", Didot, "Times New Roman", Georgia, serif;
+
+  /*
+   * OLM FONT SWITCHBOARD
+   * ------------------------------------------------------------------
+   * Change the four "choice" variables below to restyle typography
+   * across the website without editing every page or component.
+   *
+   * --font-body-choice
+   *   Normal text, navbar, buttons, forms, product descriptions,
+   *   filters, checkout and all admin text.
+   *
+   * --font-heading-choice
+   *   Customer-facing h1, h2 and h3 elements, homepage hero titles,
+   *   page titles and section headings. Admin headings are deliberately
+   *   reset to the body font in app/admin/layout.tsx.
+   *
+   * --font-logo-choice
+   *   The ÓPTICA OLM wordmark and special brand labels.
+   *
+   * --font-mono-choice
+   *   Order numbers, appointment folios, tracking codes and technical IDs.
+   *
+   * Examples:
+   * - Homepage: hero title = heading; buttons = body.
+   * - Product pages: product title = heading; price/buttons = body.
+   * - Eye exam: main title = heading; forms = body; folio = mono.
+   * - Facturación: title = heading; RFC/order information = body or mono.
+   * - Admin: body font only; avoid the luxury serif for readability.
+   *
+   * Active OLM pairing:
+   *   Body/interface = Geist
+   *   Customer headings/logo = Cormorant Garamond
+   *   Technical identifiers = Geist Mono
+   */
+  --font-body-choice: var(--font-geist-sans);
+  --font-heading-choice: var(--font-cormorant);
+  --font-logo-choice: var(--font-cormorant);
+  --font-mono-choice: var(--font-geist-mono);
+
+  /* Backwards-compatible alias for existing components. */
+  --font-luxury: var(--font-heading-choice);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body-choice);
+  --font-mono: var(--font-mono-choice);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -26,14 +66,57 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body-choice), Arial, Helvetica, sans-serif;
 }
 
+/* Use for normal copy, navigation, buttons, forms and interface controls. */
+.font-olm-body {
+  font-family: var(--font-body-choice), Arial, Helvetica, sans-serif;
+}
+
+/* Use for customer-facing page, hero and section headings. */
+.font-olm-heading,
 .font-luxury,
+body :is(h1, h2, h3),
 .editorial-sharp :is(h1, h2, h3) {
-  font-family: var(--font-luxury);
+  font-family: var(--font-heading-choice), Georgia, serif;
   font-weight: 500;
   letter-spacing: -0.025em;
+}
+
+/* Use only for the ÓPTICA OLM wordmark and special brand labels. */
+.font-olm-logo {
+  font-family: var(--font-logo-choice), Georgia, serif;
+}
+
+/* Use for order numbers, appointment folios, tracking codes and IDs. */
+.font-olm-mono {
+  font-family: var(--font-mono-choice), "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Buttons and form controls always remain readable in the body font. */
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-body-choice), Arial, Helvetica, sans-serif;
+}
+
+/* Admin is an operational tool: keep every role on local Geist, even when the
+ * customer site uses custom Google Fonts saved from /admin/typography. */
+.font-olm-admin {
+  --font-body-choice: var(--font-geist-sans);
+  --font-heading-choice: var(--font-geist-sans);
+  --font-logo-choice: var(--font-geist-sans);
+  --font-mono-choice: var(--font-geist-mono);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.font-olm-admin :is(h1, h2, h3),
+.font-olm-admin :is(button, input, select, textarea) {
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  letter-spacing: normal;
 }
 
 .editorial-sharp * {

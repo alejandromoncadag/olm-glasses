@@ -252,7 +252,9 @@ export default function InvoiceRequestFlow() {
           <p className="text-xs uppercase tracking-[0.18em] text-gray-500">
             Folio de solicitud
           </p>
-          <p className="mt-2 text-xl font-semibold">{success.requestNumber}</p>
+          <p className="font-olm-mono mt-2 text-xl font-semibold">
+            {success.requestNumber}
+          </p>
         </div>
         <p className="mt-6 text-sm leading-6 text-gray-500">
           Este proceso todavía es manual. Te enviaremos los archivos XML y PDF
@@ -427,7 +429,7 @@ export default function InvoiceRequestFlow() {
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/60">
                 Compra encontrada
               </p>
-              <h1 className="mt-4 text-3xl font-semibold">
+              <h1 className="font-olm-mono mt-4 text-3xl font-semibold">
                 {order.orderNumber}
               </h1>
               <dl className="mt-7 space-y-5 text-sm">

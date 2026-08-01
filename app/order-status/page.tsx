@@ -334,7 +334,9 @@ export default function OrderStatusPage() {
                   <p className="text-sm text-gray-500">Pedido</p>
 
                   <div className="mt-2 flex flex-wrap items-center gap-3">
-                    <h2 className="text-3xl font-bold">{order.orderNumber}</h2>
+                    <h2 className="font-olm-mono text-3xl font-bold">
+                      {order.orderNumber}
+                    </h2>
 
                     <button
                       type="button"

@@ -67,7 +67,9 @@ export default function Footer() {
     <footer className="border-t border-black/10 bg-[#f7f3ee] px-6 py-12 text-black">
       <div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-[1.35fr_repeat(4,minmax(0,1fr))]">
         <div>
-          <h2 className="text-xl font-bold">Óptica OLM</h2>
+          <h2 className="font-olm-logo text-xl font-semibold uppercase tracking-[0.12em]">
+            Óptica OLM
+          </h2>
 
           <p className="mt-3 max-w-xs text-sm leading-6 text-gray-600">
             Lentes ópticos y de sol para México, con estilo y precios justos.

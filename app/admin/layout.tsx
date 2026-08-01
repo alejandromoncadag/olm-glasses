@@ -6,6 +6,10 @@ type AdminLayoutProps = {
 };
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  return <AdminGuard>{children}</AdminGuard>;
+  return (
+    <div className="font-olm-admin">
+      <AdminGuard>{children}</AdminGuard>
+    </div>
+  );
 }
 

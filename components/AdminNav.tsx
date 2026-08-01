@@ -54,6 +54,11 @@ const navItems = [
     href: "/admin/inventory/movements",
     number: "10",
   },
+  {
+    label: "Tipografía",
+    href: "/admin/typography",
+    number: "11",
+  },
 ];
 
 function isActivePath(pathname: string, href: string) {

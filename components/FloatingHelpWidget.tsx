@@ -179,7 +179,9 @@ export default function FloatingHelpWidget() {
         <header className="flex items-center justify-between bg-[var(--brand-espresso)] px-5 py-4 text-white">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/65">
-              Óptica OLM
+              <span className="font-olm-logo uppercase tracking-[0.12em]">
+                Óptica OLM
+              </span>
             </p>
             <h2 className="mt-1 font-semibold">¿Cómo podemos ayudarte?</h2>
           </div>

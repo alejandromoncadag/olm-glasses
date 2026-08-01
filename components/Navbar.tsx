@@ -69,7 +69,7 @@ function QuizHeader() {
 
         <Link
           href="/"
-          className="text-lg font-bold tracking-[-0.04em] sm:text-xl"
+          className="font-olm-logo text-lg font-semibold uppercase tracking-[0.16em] sm:text-xl"
         >
           Óptica OLM
         </Link>
@@ -156,7 +156,7 @@ function StoreNavbar() {
           </p>
           <Link
             href="/"
-            className="justify-self-center whitespace-nowrap text-sm font-bold uppercase tracking-[0.28em] sm:tracking-[0.3em]"
+            className="font-olm-logo justify-self-center whitespace-nowrap text-base font-semibold uppercase tracking-[0.2em] sm:tracking-[0.24em]"
             aria-label="Óptica OLM, inicio"
           >
             Óptica OLM

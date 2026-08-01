@@ -757,7 +757,7 @@ export default function EyeExamBooking() {
               ? "Tu examen fue cancelado"
               : "Tu examen de la vista está confirmado"}
           </h2>
-          <p className="mt-3 text-sm text-gray-600">
+          <p className="font-olm-mono mt-3 text-sm text-gray-600">
             Folio {confirmedBooking.bookingNumber}
           </p>
         </div>

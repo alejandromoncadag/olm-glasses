@@ -299,7 +299,9 @@ export default function OrderSuccessDetails() {
           <p className="text-sm text-gray-500">Número de pedido</p>
 
           <div className="mt-2 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <p className="text-2xl font-bold">{order.orderNumber}</p>
+            <p className="font-olm-mono text-2xl font-bold">
+              {order.orderNumber}
+            </p>
 
             <button
               type="button"
