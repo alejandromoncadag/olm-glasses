@@ -6,9 +6,9 @@ export type Product = {
   type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
   color: string;
   description: string;
-  gender: "hombre" | "mujer" | "unisex";
-  shape: "redondo" | "cuadrado" | "rectangular" | "aviador";
-  frameColor: "negro" | "transparente" | "cafe" | "dorado";
+  gender: "hombre" | "mujer" | "unisex" | null;
+  shape: "redondo" | "cuadrado" | "rectangular" | "aviador" | null;
+  frameColor: "negro" | "transparente" | "cafe" | "dorado" | null;
   frameSize?: "extra_small" | "small" | "medium" | "large" | "extra_large";
   frameMaterial?:
     | "acetate_stainless_steel"
@@ -22,6 +22,9 @@ export type Product = {
   clipOnCompatible?: boolean;
   stock: number;
   isActive: boolean;
+  isAvailable?: boolean;
+  purchasableOnline?: boolean;
+  favoritable?: boolean;
   mainImage?: {
     imageUrl: string;
     altText?: string | null;

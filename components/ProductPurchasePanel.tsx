@@ -34,6 +34,10 @@ type ProductPurchasePanelProps = {
     price: number;
     stock: number;
   };
+  initialLensId?: string | null;
+  initialTreatmentId?: string | null;
+  editCartSlug?: string | null;
+  returnTo?: string;
 };
 
 const steps: Array<{ id: PurchaseStep; label: string }> = [
@@ -77,19 +81,19 @@ const lensOptions: LensOption[] = [
 
 const treatmentOptions: TreatmentOption[] = [
   {
-    id: "essential",
-    label: "Tratamiento esencial",
-    description: "Una opción clara y resistente para todos los días.",
-    highlights: ["Protección UV", "Capa antirreflejante"],
+    id: "none",
+    label: "Sin tratamiento",
+    description: "Micas sin tratamiento adicional.",
+    highlights: ["Costo adicional $0"],
     extraPrice: 0,
     visual: "essential",
   },
   {
-    id: "digital",
-    label: "Protección digital",
-    description: "Mayor comodidad para pantallas y luz artificial.",
-    highlights: ["Filtro de luz azul", "Capa antirreflejante"],
-    extraPrice: 350,
+    id: "anti-reflective",
+    label: "Antirreflejante",
+    description: "Reduce reflejos y mejora la claridad de tus micas.",
+    highlights: ["Menos reflejos", "Mayor claridad visual"],
+    extraPrice: 1000,
     badge: "Recomendado",
     visual: "digital",
   },
@@ -109,12 +113,28 @@ function formatMoney(amount: number) {
 
 export default function ProductPurchasePanel({
   product,
+  initialLensId,
+  initialTreatmentId,
+  editCartSlug,
+  returnTo,
 }: ProductPurchasePanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [currentStep, setCurrentStep] = useState<PurchaseStep>("lenses");
-  const [selectedLens, setSelectedLens] = useState<LensOption | null>(null);
+  const initialLens =
+    lensOptions.find((option) => option.id === initialLensId) || null;
+  const initialTreatment =
+    treatmentOptions.find((option) => option.id === initialTreatmentId) || null;
+  const [currentStep, setCurrentStep] = useState<PurchaseStep>(
+    initialLens && initialTreatment
+      ? "review"
+      : initialLens
+        ? "treatment"
+        : "lenses"
+  );
+  const [selectedLens, setSelectedLens] = useState<LensOption | null>(
+    initialLens
+  );
   const [selectedTreatment, setSelectedTreatment] =
-    useState<TreatmentOption | null>(null);
+    useState<TreatmentOption | null>(initialTreatment);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
   const isOutOfStock = product.stock <= 0;
@@ -182,48 +202,64 @@ export default function ProductPurchasePanel({
 
     const currentCart = readCart();
     const cartSlug = `${product.slug}-${selectedLens.id}-${selectedTreatment.id}`;
+    const itemBeingEdited = editCartSlug
+      ? currentCart.find((item) => item.slug === editCartSlug)
+      : null;
     const totalQuantityForProduct = currentCart
       .filter(
         (item) =>
-          item.slug === product.slug ||
-          item.slug.startsWith(`${product.slug}-`)
+          item.slug !== editCartSlug &&
+          (item.slug === product.slug ||
+            item.slug.startsWith(`${product.slug}-`))
       )
       .reduce((sum, item) => sum + item.quantity, 0);
 
-    if (totalQuantityForProduct >= product.stock) {
+    if (
+      totalQuantityForProduct + (itemBeingEdited?.quantity ?? 1) >
+      product.stock
+    ) {
       window.alert("No hay más piezas disponibles de este producto.");
       return;
     }
 
-    const existingItem = currentCart.find((item) => item.slug === cartSlug);
     const prescriptionMethod = selectedLens.requiresPrescription
       ? "Receta por confirmar después de la compra"
       : "No requiere receta";
-    let updatedCart: CartItem[];
-
-    if (existingItem) {
-      updatedCart = currentCart.map((item) =>
-        item.slug === cartSlug
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      );
-    } else {
-      updatedCart = [
-        ...currentCart,
-        {
-          slug: cartSlug,
-          name: product.name,
-          price: finalPrice,
-          quantity: 1,
-          lensOption: `${selectedLens.label} · ${selectedTreatment.label}`,
-          prescriptionMethod,
-        },
-      ];
-    }
+    const existingTarget = currentCart.find(
+      (item) => item.slug === cartSlug && item.slug !== editCartSlug
+    );
+    const configuredItem: CartItem = {
+      slug: cartSlug,
+      productSlug: product.slug,
+      name: product.name,
+      price: finalPrice,
+      quantity:
+        (itemBeingEdited?.quantity ?? 1) + (existingTarget?.quantity ?? 0),
+      lensOption: `${selectedLens.label} · ${selectedTreatment.label}`,
+      prescriptionMethod,
+      lensOptionId: selectedLens.id,
+      treatmentOptionId: selectedTreatment.id,
+      lensLabel: selectedLens.label,
+      treatmentLabel: selectedTreatment.label,
+      basePrice: product.price,
+      lensPrice,
+      treatmentPrice,
+    };
+    const updatedCart = [
+      ...currentCart.filter(
+        (item) => item.slug !== editCartSlug && item.slug !== cartSlug
+      ),
+      configuredItem,
+    ];
 
     writeCart(updatedCart);
-    const returnTo = `/product/${encodeURIComponent(product.slug)}`;
-    window.location.href = `/cart?returnTo=${encodeURIComponent(returnTo)}`;
+    if (returnTo?.startsWith("/") && !returnTo.startsWith("//")) {
+      window.location.href = returnTo;
+      return;
+    }
+
+    const productReturnTo = `/product/${encodeURIComponent(product.slug)}`;
+    window.location.href = `/cart?returnTo=${encodeURIComponent(productReturnTo)}`;
   }
 
   return (
@@ -359,6 +395,7 @@ export default function ProductPurchasePanel({
                   highlights={option.highlights}
                   price={option.extraPrice}
                   badge={option.badge}
+                  zeroPriceLabel="$0 MXN"
                 />
               ))}
             </div>
@@ -372,6 +409,7 @@ export default function ProductPurchasePanel({
             selectedTreatment={selectedTreatment}
             finalPrice={finalPrice}
             isOutOfStock={isOutOfStock}
+            isEditing={Boolean(editCartSlug)}
             onEdit={goToStep}
             onAddToCart={handleAddToCart}
           />
@@ -416,6 +454,7 @@ function OptionCard({
   highlights,
   price,
   badge,
+  zeroPriceLabel = "Incluido",
 }: {
   selected: boolean;
   disabled: boolean;
@@ -427,6 +466,7 @@ function OptionCard({
   highlights: string[];
   price: number;
   badge?: string;
+  zeroPriceLabel?: string;
 }) {
   return (
     <button
@@ -474,7 +514,7 @@ function OptionCard({
 
       <span className="col-start-2 flex items-center justify-between gap-4 text-[12px] font-medium sm:col-start-auto sm:justify-end sm:self-end">
         <span className="whitespace-nowrap">
-          {price > 0 ? `+${formatMoney(price)}` : "Incluido"}
+          {price > 0 ? `+${formatMoney(price)}` : zeroPriceLabel}
         </span>
         <span className="grid h-9 w-9 place-items-center rounded-full border border-black/20 transition duration-300 group-hover:border-[#2d1f1a] group-hover:bg-[#2d1f1a] group-hover:text-white">
           <ArrowRightIcon />
@@ -490,6 +530,7 @@ function ReviewStep({
   selectedTreatment,
   finalPrice,
   isOutOfStock,
+  isEditing,
   onEdit,
   onAddToCart,
 }: {
@@ -498,6 +539,7 @@ function ReviewStep({
   selectedTreatment: TreatmentOption;
   finalPrice: number;
   isOutOfStock: boolean;
+  isEditing: boolean;
   onEdit: (step: PurchaseStep) => void;
   onAddToCart: () => void;
 }) {
@@ -531,6 +573,7 @@ function ReviewStep({
           value={selectedTreatment.label}
           secondary={selectedTreatment.highlights.join(" · ")}
           price={selectedTreatment.extraPrice}
+          zeroPriceLabel="$0 MXN"
           onEdit={() => onEdit("treatment")}
         />
       </div>
@@ -556,7 +599,11 @@ function ReviewStep({
           disabled={isOutOfStock}
           className="mt-7 flex h-14 w-full items-center justify-center gap-3 bg-[#2d1f1a] px-8 text-xs font-medium uppercase tracking-[0.15em] text-white transition duration-300 hover:bg-[#4b3027] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2d1f1a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f7f3ee] disabled:cursor-not-allowed disabled:bg-gray-300"
         >
-          {isOutOfStock ? "Producto agotado" : "Añadir al carrito"}
+          {isOutOfStock
+            ? "Producto agotado"
+            : isEditing
+              ? "Guardar cambios"
+              : "Añadir al carrito"}
           {!isOutOfStock && <ArrowRightIcon />}
         </button>
 
@@ -576,12 +623,14 @@ function ReviewRow({
   secondary,
   price,
   onEdit,
+  zeroPriceLabel = "Incluido",
 }: {
   label: string;
   value: string;
   secondary?: string;
   price: number;
   onEdit?: () => void;
+  zeroPriceLabel?: string;
 }) {
   return (
     <div className="grid gap-3 py-5 sm:grid-cols-[110px_1fr_auto] sm:items-start sm:px-2 sm:py-6">
@@ -608,7 +657,7 @@ function ReviewRow({
         )}
       </span>
       <span className="text-sm font-medium">
-        {price > 0 ? `+${formatMoney(price)}` : "Incluido"}
+        {price > 0 ? `+${formatMoney(price)}` : zeroPriceLabel}
       </span>
     </div>
   );

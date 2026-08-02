@@ -32,14 +32,17 @@ type Product = {
   price: number;
   category: string;
   type: ProductType;
-  gender: string;
-  shape: string;
-  frameColor: string;
-  frameSize: FrameSize;
-  frameMaterial: FrameMaterial;
-  clipOnCompatible: boolean;
+  gender: string | null;
+  shape: string | null;
+  frameColor: string | null;
+  frameSize: FrameSize | null;
+  frameMaterial: FrameMaterial | null;
+  clipOnCompatible: boolean | null;
   stock: number;
+  isAvailable: boolean;
   isActive: boolean;
+  purchasableOnline: boolean;
+  favoritable: boolean;
   createdAt: string;
   mainImage: {
     imageUrl: string;
@@ -125,8 +128,8 @@ const materialOptions: Array<{ value: FrameMaterial; label: string }> = [
   { value: "reform", label: "ReForm" },
 ];
 
-function getCardColor(frameColor: string) {
-  const color = frameColor.toLowerCase();
+function getCardColor(frameColor: string | null) {
+  const color = (frameColor || "").toLowerCase();
 
   if (color.includes("cafe") || color.includes("café")) return "#f1e9e2";
   if (color.includes("dorado")) return "#f2ead7";
@@ -504,7 +507,7 @@ export default function PublicProductCatalog({
         setLoading(true);
         setError("");
 
-        const response = await fetch("/api/products");
+        const response = await fetch("/api/catalog/products", { cache: "no-store" });
 
         if (!response.ok) {
           throw new Error("Failed to fetch products");
@@ -534,7 +537,7 @@ export default function PublicProductCatalog({
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
   const colorOptions = Array.from(
     new Set(products.map((product) => product.frameColor).filter(Boolean))
-  ).sort((firstColor, secondColor) =>
+  ).filter((color): color is string => Boolean(color)).sort((firstColor, secondColor) =>
     firstColor.localeCompare(secondColor, "es")
   );
 
@@ -734,6 +737,9 @@ export default function PublicProductCatalog({
           color={getCardColor(product.frameColor)}
           href={`/product/${product.slug}`}
           stock={product.stock}
+          availableOnline={product.isAvailable}
+          purchasableOnline={product.purchasableOnline}
+          favoritable={product.favoritable}
           imageUrl={product.mainImage?.imageUrl}
           imageAltText={product.mainImage?.altText}
           actionLabel={actionLabel}

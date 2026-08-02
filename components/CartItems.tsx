@@ -16,6 +16,7 @@ type ApiProduct = {
   category: string;
   stock: number;
   isActive: boolean;
+  type?: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
   mainImage?: {
     imageUrl: string;
     altText?: string | null;
@@ -29,7 +30,9 @@ function getProductFromCartItem(item: CartItem, products: ApiProduct[]) {
 
   return sortedProducts.find(
     (product) =>
-      item.slug === product.slug || item.slug.startsWith(`${product.slug}-`)
+      item.productSlug === product.slug ||
+      item.slug === product.slug ||
+      item.slug.startsWith(`${product.slug}-`)
   );
 }
 
@@ -238,6 +241,12 @@ export default function CartItems({ returnTo = "/eyeglasses" }: { returnTo?: str
           const isUnavailable =
             !product || !product.isActive || productStock <= 0;
           const lineTotal = item.price * item.quantity;
+          const canConfigure =
+            product?.type === "eyeglasses" || product?.type === "sunglasses";
+          const cartReturnTo = `/cart?returnTo=${encodeURIComponent(returnTo)}`;
+          const editHref = product
+            ? `/product/${encodeURIComponent(product.slug)}/configurar?edit=${encodeURIComponent(item.slug)}&returnTo=${encodeURIComponent(cartReturnTo)}`
+            : "#";
 
           return (
             <div key={item.slug} className="rounded-2xl border p-5">
@@ -278,6 +287,17 @@ export default function CartItems({ returnTo = "/eyeglasses" }: { returnTo?: str
                     <p className="text-sm text-gray-600">
                       {item.prescriptionMethod}
                     </p>
+                  )}
+
+                  {canConfigure && (
+                    <a
+                      href={editHref}
+                      className="mt-3 inline-flex border-b border-black/40 pb-0.5 text-xs font-semibold uppercase tracking-[0.1em] transition hover:border-black"
+                    >
+                      {item.lensOptionId
+                        ? "Editar micas y tratamiento"
+                        : "Seleccionar micas y tratamiento"}
+                    </a>
                   )}
 
                   <p className="mt-3 text-sm text-gray-500">

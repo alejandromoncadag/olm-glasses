@@ -2,8 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import ProductPurchasePanel from "@/components/ProductPurchasePanel";
+import { readCart } from "@/lib/cart";
 
 type ConfigurableProduct = {
   slug: string;
@@ -21,6 +22,7 @@ type ConfigurableProduct = {
 
 export default function ConfigureProductPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const slugParam = params.slug;
   const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam;
   const [product, setProduct] = useState<ConfigurableProduct | null>(null);
@@ -88,17 +90,27 @@ export default function ConfigureProductPage() {
   }
 
   const mainImage = product.images?.[0];
+  const editCartSlug = searchParams.get("edit");
+  const requestedReturnTo = searchParams.get("returnTo");
+  const safeReturnTo =
+    requestedReturnTo?.startsWith("/") && !requestedReturnTo.startsWith("//")
+      ? requestedReturnTo
+      : null;
+  const editItem = editCartSlug
+    ? readCart().find((item) => item.slug === editCartSlug) || null
+    : null;
+  const backHref = safeReturnTo || `/product/${product.slug}`;
 
   return (
     <main className="min-h-screen bg-white text-black">
       <section className="mx-auto grid min-h-[calc(100vh-140px)] max-w-[1600px] lg:grid-cols-[minmax(420px,0.95fr)_minmax(520px,1.05fr)]">
         <div className="relative border-b border-black/10 bg-[#f5f5f3] p-6 lg:sticky lg:top-0 lg:h-[calc(100vh-140px)] lg:border-b-0 lg:border-r lg:p-10">
           <a
-            href={`/product/${product.slug}`}
+            href={backHref}
             className="relative z-10 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-gray-600 transition hover:text-black"
           >
             <span aria-hidden="true">←</span>
-            Volver al producto
+            {safeReturnTo ? "Volver al pedido" : "Volver al producto"}
           </a>
 
           <div className="mt-8 flex h-[calc(100%-60px)] min-h-[360px] items-center justify-center">
@@ -129,6 +141,10 @@ export default function ConfigureProductPage() {
               price: product.price,
               stock: product.stock,
             }}
+            initialLensId={editItem?.lensOptionId}
+            initialTreatmentId={editItem?.treatmentOptionId}
+            editCartSlug={editItem?.slug}
+            returnTo={safeReturnTo || undefined}
           />
         </div>
       </section>

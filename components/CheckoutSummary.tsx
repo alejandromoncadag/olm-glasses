@@ -28,6 +28,7 @@ type ProductFromApi = {
   slug: string;
   stock: number;
   isActive: boolean;
+  type?: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
   mainImage?: {
     imageUrl: string;
     altText?: string | null;
@@ -115,7 +116,9 @@ function findProductFromCartItem(item: CartItem, products: ProductFromApi[]) {
 
   return sortedProducts.find(
     (product) =>
-      item.slug === product.slug || item.slug.startsWith(`${product.slug}-`)
+      item.productSlug === product.slug ||
+      item.slug === product.slug ||
+      item.slug.startsWith(`${product.slug}-`)
   );
 }
 
@@ -224,8 +227,6 @@ export default function CheckoutSummary() {
     ? checkoutCustomer.deliveryMethod
     : undefined;
 
-  const customerNotes = String(checkoutCustomer.customerNotes || "").trim();
-
   async function handlePlaceOrder() {
     try {
       setIsPlacingOrder(true);
@@ -242,7 +243,7 @@ export default function CheckoutSummary() {
         ? customer.deliveryMethod
         : null;
 
-      const latestCustomerNotes = String(customer.customerNotes || "").trim();
+      const latestCustomerNotes = "";
 
       if (latestCartItems.length === 0) {
         window.location.href = "/cart";
@@ -422,6 +423,11 @@ export default function CheckoutSummary() {
       <div className="mt-6 space-y-4">
         {cartItems.map((item) => {
           const product = findProductFromCartItem(item, products);
+          const canConfigure =
+            product?.type === "eyeglasses" || product?.type === "sunglasses";
+          const editHref = product
+            ? `/product/${encodeURIComponent(product.slug)}/configurar?edit=${encodeURIComponent(item.slug)}&returnTo=${encodeURIComponent("/checkout")}`
+            : "#";
 
           return (
             <div key={item.slug} className="border-b pb-4">
@@ -449,9 +455,25 @@ export default function CheckoutSummary() {
                     </p>
                   </div>
 
-                  <p className="mt-1 text-sm text-gray-600">
-                    {item.lensOption}
-                  </p>
+                  {item.lensLabel || item.treatmentLabel ? (
+                    <div className="mt-2 space-y-1 text-sm text-gray-600">
+                      <p>Micas: {item.lensLabel || "Por seleccionar"}</p>
+                      <p>
+                        Tratamiento: {item.treatmentLabel || "Por seleccionar"}
+                        {typeof item.treatmentPrice === "number" && (
+                          <span className="text-gray-500">
+                            {item.treatmentPrice > 0
+                              ? ` · +${formatMoney(item.treatmentPrice)}`
+                              : " · $0 MXN"}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-600">
+                      {item.lensOption}
+                    </p>
+                  )}
 
                   {item.prescriptionMethod !== "No aplica" && (
                     <p className="text-sm text-gray-600">
@@ -462,6 +484,17 @@ export default function CheckoutSummary() {
                   <p className="mt-1 text-sm text-gray-500">
                     Cantidad: {item.quantity}
                   </p>
+
+                  {canConfigure && (
+                    <a
+                      href={editHref}
+                      className="mt-3 inline-flex border-b border-black/40 pb-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] transition hover:border-black"
+                    >
+                      {item.lensOptionId
+                        ? "Editar micas y tratamiento"
+                        : "Seleccionar micas y tratamiento"}
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -496,13 +529,6 @@ export default function CheckoutSummary() {
           </span>
         </div>
       </div>
-
-      {customerNotes && (
-        <div className="mt-6 rounded-2xl bg-gray-50 p-4">
-          <p className="text-sm font-medium">Nota del pedido</p>
-          <p className="mt-2 text-sm text-gray-600">{customerNotes}</p>
-        </div>
-      )}
 
       <div className="mt-6 border-t pt-6">
         <div className="flex justify-between text-lg font-semibold">

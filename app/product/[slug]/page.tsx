@@ -10,7 +10,7 @@ import { createWhatsAppLink } from "@/lib/whatsapp";
 type ProductImage = {
   id: string;
   imageUrl: string;
-  altText: string;
+  altText: string | null;
   displayOrder: number;
   isMain: boolean;
 };
@@ -24,19 +24,32 @@ type Product = {
   priceCents: number;
   currency: string;
   category: string;
-  type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
-  gender: string;
-  shape: string;
-  frameColor: string;
-  frameSize: string;
-  frameMaterial: string;
-  clipOnCompatible: boolean;
+  type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses" | "service";
+  gender: string | null;
+  shape: string | null;
+  frameColor: string | null;
+  frameSize: string | null;
+  frameMaterial: string | null;
+  clipOnCompatible: boolean | null;
   stock: number;
+  isAvailable: boolean;
   isActive: boolean;
+  purchasableOnline: boolean;
+  favoritable: boolean;
+  source: "legacy" | "opticaolm";
+  availability: {
+    mode: "branch_stock" | "not_stock_controlled";
+    availableOnline: boolean;
+    branches: Array<{
+      branchId: string;
+      branchName: string;
+      availableQuantity: number;
+    }>;
+  };
   images: ProductImage[];
 };
 
-function formatProductValue(value: string) {
+function formatProductValue(value: string | null) {
   if (!value) return "Por confirmar";
   const labels: Record<string, string> = {
     extra_small: "Extra chico",
@@ -96,7 +109,9 @@ export default function ProductPage() {
         setLoading(true);
         setError("");
 
-        const response = await fetch(`/api/products/${slug}`);
+        const response = await fetch(`/api/catalog/products/${slug}`, {
+          cache: "no-store",
+        });
 
         if (!response.ok) {
           throw new Error("Product not found");
@@ -218,13 +233,17 @@ export default function ProductPage() {
         ? "/accessories"
         : product.type === "contact_lenses"
           ? "/lentes-de-contacto"
-          : "/eyeglasses";
+          : product.type === "service"
+            ? "/eye-exam"
+            : "/eyeglasses";
   const productDescription = getProductDescription(product);
   const productTypeLabel =
     product.type === "sunglasses"
       ? "Lentes de sol"
       : product.type === "accessory"
         ? "Accesorio"
+        : product.type === "service"
+          ? "Servicio"
         : product.type === "contact_lenses"
           ? "Lentes de contacto"
           : "Lentes ópticos";
@@ -343,18 +362,48 @@ export default function ProductPage() {
                 {productDescription}
               </p>
 
-              <div className="mt-5">
-                <LikeButton slug={product.slug} variant="full" />
-              </div>
+              {product.favoritable && (
+                <div className="mt-5">
+                  <LikeButton slug={product.slug} variant="full" />
+                </div>
+              )}
             </div>
 
-            {!product.isActive || product.stock === 0 ? (
+            {!product.isActive || !product.isAvailable ? (
               <div className="mt-8 rounded-3xl border border-gray-200 bg-[#faf9f7] p-6">
                 <h2 className="text-xl font-semibold">Producto no disponible</h2>
 
                 <p className="mt-2 text-gray-600">
                   Este producto está agotado o inactivo.
                 </p>
+              </div>
+            ) : !product.purchasableOnline ? (
+              <div className="mt-8 rounded-3xl border border-black/10 bg-[#f7f3ee] p-6">
+                <h2 className="text-xl font-semibold">
+                  Disponible próximamente en línea
+                </h2>
+                <p className="mt-2 leading-6 text-gray-600">
+                  Puedes consultar el precio, las imágenes y la disponibilidad por
+                  sucursal. La compra en línea todavía no está habilitada para este
+                  producto.
+                </p>
+                {product.availability.branches.length > 0 && (
+                  <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                    {product.availability.branches.map((branch) => (
+                      <div
+                        key={branch.branchId}
+                        className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm"
+                      >
+                        <span>{branch.branchName}</span>
+                        <span className="font-semibold">
+                          {branch.availableQuantity > 0
+                            ? `${branch.availableQuantity} disponibles`
+                            : "Agotado"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : isEyewear ? (
               <div className="mt-8 border-y border-black/15 py-7">

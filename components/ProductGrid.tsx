@@ -15,11 +15,14 @@ export default function ProductGrid({ products }: ProductGridProps) {
           name={product.name}
           price={product.price}
           category={product.category}
-          color={product.color}
+          color={product.color || "#f7f3ee"}
           href={`/product/${product.slug}`}
           stock={product.stock}
           imageUrl={product.mainImage?.imageUrl}
           imageAltText={product.mainImage?.altText}
+          availableOnline={product.isAvailable}
+          purchasableOnline={product.purchasableOnline}
+          favoritable={product.favoritable}
         />
       ))}
     </div>

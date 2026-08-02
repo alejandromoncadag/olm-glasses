@@ -19,6 +19,12 @@ const storeNavItems = [
   { href: "/order-status", label: "Pedido" },
 ];
 
+const storeAnnouncements = [
+  "Envío gratis en compras desde $1,500 MXN",
+  "Examen incluido al comprar tu armazón en tienda",
+  "30 días para decidir: cambia o devuelve sin complicaciones",
+];
+
 type SearchProduct = {
   slug: string;
   name: string;
@@ -101,7 +107,7 @@ function StoreNavbar() {
   const isAdmin = user?.role === "admin";
   const isAdminArea = pathname.startsWith("/admin");
   const utilityControlClass =
-    "group relative flex h-11 items-center gap-2 whitespace-nowrap rounded-full px-2 text-[13px] font-medium text-[#2d1f1a] transition duration-200 hover:bg-[#f4efe9] hover:text-[var(--brand-espresso)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-espresso)] sm:px-2.5";
+    "group relative flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-1.5 text-[13px] font-medium text-[#2d1f1a] transition duration-200 hover:bg-[#f4efe9] hover:text-[var(--brand-espresso)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-espresso)] sm:px-2 2xl:gap-2 2xl:px-2.5";
 
   useEffect(() => {
     if (!searchOpen || searchProducts.length > 0 || searchLoading) return;
@@ -109,7 +115,7 @@ function StoreNavbar() {
     async function loadSearchProducts() {
       try {
         setSearchLoading(true);
-        const response = await fetch("/api/products");
+        const response = await fetch("/api/catalog/products", { cache: "no-store" });
         if (!response.ok) return;
         const data = (await response.json()) as { products: SearchProduct[] };
         setSearchProducts(
@@ -149,44 +155,47 @@ function StoreNavbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-black/10 bg-white/95 text-black backdrop-blur">
-      <div className="bg-[#2d1f1a] text-white">
-        <div className="mx-auto grid h-10 max-w-7xl grid-cols-1 items-center gap-2 px-4 sm:grid-cols-[1fr_auto_1fr] sm:px-6">
-          <p className="hidden truncate text-xs font-medium uppercase tracking-[0.12em] sm:block">
-            Diseño premium, precios justos
-          </p>
-          <Link
-            href="/"
-            className="font-olm-logo justify-self-center whitespace-nowrap text-base font-semibold uppercase tracking-[0.2em] sm:tracking-[0.24em]"
-            aria-label="Óptica OLM, inicio"
-          >
-            Óptica OLM
-          </Link>
-          <p className="hidden justify-self-end whitespace-nowrap text-xs font-semibold uppercase tracking-[0.12em] sm:block">
-            20% en tu primera compra
-          </p>
-        </div>
-      </div>
-
-      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:px-6">
-        <div
-          className={
-            isAdminArea
-              ? "hidden"
-              : "hidden items-center gap-0 whitespace-nowrap text-[11px] font-medium text-gray-700 lg:flex xl:gap-1 xl:text-xs"
-          }
-        >
-          {storeNavItems.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="whitespace-nowrap rounded-full px-2 py-2 transition hover:bg-gray-100 hover:text-black xl:px-2.5"
+      {isAdminArea ? (
+        <div className="bg-[#2d1f1a] text-white">
+          <div className="mx-auto flex h-10 max-w-7xl items-center justify-center px-4">
+            <Link
+              href="/admin"
+              className="font-olm-logo whitespace-nowrap text-base font-semibold uppercase tracking-[0.22em]"
             >
-              {item.label}
-            </a>
-          ))}
+              Óptica OLM
+            </Link>
+          </div>
         </div>
+      ) : (
+        <AnnouncementRotator />
+      )}
 
-        <div className="ml-auto flex items-center gap-0.5 text-sm font-medium sm:gap-1">
+      <nav className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 sm:px-6 xl:gap-6">
+        {!isAdminArea && (
+          <div className="flex min-w-0 items-center gap-5 xl:gap-7">
+            <Link
+              href="/"
+              className="font-olm-logo shrink-0 whitespace-nowrap text-sm font-semibold uppercase tracking-[0.18em] sm:text-base xl:text-lg"
+              aria-label="Óptica OLM, inicio"
+            >
+              Óptica OLM
+            </Link>
+
+            <div className="hidden items-center gap-0 whitespace-nowrap text-[11px] font-medium text-gray-700 xl:flex 2xl:gap-1 2xl:text-xs">
+              {storeNavItems.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="whitespace-nowrap px-1.5 py-2 transition hover:text-[var(--brand-espresso)] 2xl:px-2.5"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="ml-auto flex shrink-0 items-center gap-1 text-sm font-medium sm:gap-1.5">
           <button
             type="button"
             onClick={() => {
@@ -199,8 +208,8 @@ function StoreNavbar() {
             aria-expanded={searchOpen}
             aria-controls="navbar-search-panel"
           >
-            <SearchIcon />
-            <span className="hidden xl:inline">Buscar</span>
+            <MaterialIcon name="search" />
+            <span className="hidden 2xl:inline">Buscar</span>
           </button>
 
           <a
@@ -213,15 +222,15 @@ function StoreNavbar() {
             }
           >
             <span className="relative flex h-6 w-6 shrink-0 items-center justify-center">
-              <HeartIcon filled={false} />
+              <MaterialIcon name="favorite" filled={likes.length > 0} />
 
               {likes.length > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--brand-espresso)] px-1 text-[9px] font-semibold leading-none text-white ring-2 ring-white">
+                <span className="absolute -right-1.5 -top-1.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-white bg-[var(--brand-espresso)] px-1 text-[10px] font-bold leading-none text-white shadow-sm">
                   {likes.length > 99 ? "99+" : likes.length}
                 </span>
               )}
             </span>
-            <span className="hidden xl:inline">Favoritos</span>
+            <span className="hidden 2xl:inline">Favoritos</span>
           </a>
 
           <a
@@ -234,15 +243,15 @@ function StoreNavbar() {
             }
           >
             <span className="relative flex h-6 w-6 shrink-0 items-center justify-center">
-              <BagIcon />
+              <MaterialIcon name="shopping_bag" filled={cartCount > 0} />
 
               {cartCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--brand-espresso)] px-1 text-[9px] font-semibold leading-none text-white ring-2 ring-white">
+                <span className="absolute -right-1.5 -top-1.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-white bg-[var(--brand-espresso)] px-1 text-[10px] font-bold leading-none text-white shadow-sm">
                   {cartCount > 99 ? "99+" : cartCount}
                 </span>
               )}
             </span>
-            <span className="hidden xl:inline">Carrito</span>
+            <span className="hidden 2xl:inline">Carrito</span>
           </a>
 
           {loading ? (
@@ -250,8 +259,8 @@ function StoreNavbar() {
               className={`${utilityControlClass} text-gray-400`}
               aria-label="Comprobando sesión"
             >
-              <AccountIcon />
-              <span className="hidden xl:inline">Cuenta</span>
+              <MaterialIcon name="account_circle" />
+              <span className="hidden 2xl:inline">Cuenta</span>
             </span>
           ) : user ? (
             <div className="relative">
@@ -265,8 +274,8 @@ function StoreNavbar() {
                 aria-label="Abrir menú de cuenta"
                 aria-expanded={menuOpen}
               >
-                <AccountIcon />
-                <span className="hidden xl:inline">
+                <MaterialIcon name="account_circle" />
+                <span className="hidden 2xl:inline">
                   {user.fullName.split(" ")[0]}
                 </span>
                 <ChevronDownIcon />
@@ -326,8 +335,8 @@ function StoreNavbar() {
               className={utilityControlClass}
               aria-label="Iniciar sesión"
             >
-              <AccountIcon />
-              <span className="hidden xl:inline">Cuenta</span>
+              <MaterialIcon name="account_circle" />
+              <span className="hidden 2xl:inline">Cuenta</span>
             </Link>
           )}
 
@@ -338,7 +347,7 @@ function StoreNavbar() {
               setMenuOpen(false);
               setSearchOpen(false);
             }}
-            className="flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-gray-100 lg:hidden"
+            className="flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-gray-100 xl:hidden"
             aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-navigation"
@@ -359,7 +368,7 @@ function StoreNavbar() {
                 Buscar productos
               </label>
               <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
-                <SearchIcon />
+                <MaterialIcon name="search" />
               </span>
               <input
                 id="navbar-product-search"
@@ -440,7 +449,7 @@ function StoreNavbar() {
       {mobileMenuOpen && (
         <div
           id="mobile-navigation"
-          className="border-t border-black/10 bg-white px-4 py-3 lg:hidden sm:px-6"
+          className="border-t border-black/10 bg-white px-4 py-3 xl:hidden sm:px-6"
         >
           <div className="mx-auto grid max-w-7xl grid-cols-2 gap-1 sm:grid-cols-4">
             {storeNavItems.map((item) => (
@@ -461,23 +470,60 @@ function StoreNavbar() {
   );
 }
 
-function AccountIcon() {
+function AnnouncementRotator() {
+  const [announcementIndex, setAnnouncementIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    let transitionTimeout: number | undefined;
+    const intervalId = window.setInterval(() => {
+      setVisible(false);
+      transitionTimeout = window.setTimeout(() => {
+        setAnnouncementIndex(
+          (currentIndex) => (currentIndex + 1) % storeAnnouncements.length
+        );
+        setVisible(true);
+      }, 350);
+    }, 5000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      if (transitionTimeout) window.clearTimeout(transitionTimeout);
+    };
+  }, []);
+
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width="21"
-      height="21"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+    <div className="bg-[#2d1f1a] text-white" aria-live="polite">
+      <div className="mx-auto flex h-9 max-w-7xl items-center justify-center px-4 text-center">
+        <p
+          className={`truncate text-[10px] font-semibold uppercase tracking-[0.14em] transition-opacity duration-300 sm:text-xs ${
+            visible ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          {storeAnnouncements[announcementIndex]}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function MaterialIcon({
+  name,
+  filled = false,
+}: {
+  name: "account_circle" | "favorite" | "search" | "shopping_bag";
+  filled?: boolean;
+}) {
+  return (
+    <span
+      className="material-symbols-outlined select-none text-[22px] leading-none"
+      style={{
+        fontVariationSettings: `'FILL' ${filled ? 1 : 0}, 'wght' 300, 'GRAD' 0, 'opsz' 24`,
+      }}
       aria-hidden
     >
-      <circle cx="12" cy="12" r="9.25" />
-      <circle cx="12" cy="9" r="3" />
-      <path d="M6.8 19.1c.9-2.8 2.7-4.2 5.2-4.2s4.3 1.4 5.2 4.2" />
-    </svg>
+      {name}
+    </span>
   );
 }
 
@@ -503,63 +549,6 @@ function MenuIcon({ open }: { open: boolean }) {
   );
 }
 
-function BagIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="21"
-      height="21"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M5.4 8.2h13.2l.8 12H4.6l.8-12Z" />
-      <path d="M8.5 9V6.7a3.5 3.5 0 0 1 7 0V9" />
-    </svg>
-  );
-}
-
-function HeartIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="21"
-      height="21"
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M12 20.4 4.8 13.5a5 5 0 0 1-.6-6.4A4.7 4.7 0 0 1 12 8a4.7 4.7 0 0 1 7.8-.9 5 5 0 0 1-.6 6.4L12 20.4Z" />
-    </svg>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="19"
-      height="19"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <circle cx="10.7" cy="10.7" r="6.7" />
-      <path d="m16 16 4 4" />
-    </svg>
-  );
-}
-
 function ChevronDownIcon() {
   return (
     <svg
@@ -571,7 +560,7 @@ function ChevronDownIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="hidden xl:block"
+      className="hidden 2xl:block"
       aria-hidden
     >
       <path d="m7 10 5 5 5-5" />

@@ -10,11 +10,19 @@ type CartStorageOwner =
 
 export type CartItem = {
   slug: string;
+  productSlug?: string;
   name: string;
   price: number;
   quantity: number;
   lensOption: string;
   prescriptionMethod: string;
+  lensOptionId?: string;
+  treatmentOptionId?: string;
+  lensLabel?: string;
+  treatmentLabel?: string;
+  basePrice?: number;
+  lensPrice?: number;
+  treatmentPrice?: number;
 };
 
 export type SimpleCartProduct = {
@@ -172,6 +180,7 @@ export function addSimpleProductToCart(product: SimpleCartProduct) {
         ...currentCart,
         {
           slug: product.slug,
+          productSlug: product.slug,
           name: product.name,
           price: product.price,
           quantity: 1,

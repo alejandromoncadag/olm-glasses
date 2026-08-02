@@ -20,6 +20,9 @@ type Product = {
   stock: number;
   isActive: boolean;
   mainImage: { imageUrl: string; altText: string | null } | null;
+  isAvailable: boolean;
+  purchasableOnline: boolean;
+  favoritable: boolean;
 };
 
 const filterButton =
@@ -36,7 +39,7 @@ export default function SportsCatalog() {
   useEffect(() => {
     async function loadProducts() {
       try {
-        const response = await fetch("/api/products");
+        const response = await fetch("/api/catalog/products", { cache: "no-store" });
 
         if (!response.ok) throw new Error("No se pudieron cargar los productos");
 
@@ -267,6 +270,9 @@ export default function SportsCatalog() {
                         imageAltText={product.mainImage?.altText}
                         actionLabel="Seleccionar modelo"
                         isNew
+                        availableOnline={product.isAvailable}
+                        purchasableOnline={product.purchasableOnline}
+                        favoritable={product.favoritable}
                       />
                       <p className="px-5 pt-3 text-sm leading-6 text-gray-600">
                         {details?.performanceNote}

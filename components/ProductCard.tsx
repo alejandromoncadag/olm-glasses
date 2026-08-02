@@ -14,6 +14,9 @@ type ProductCardProps = {
   imageAltText?: string | null;
   actionLabel?: string;
   isNew?: boolean;
+  availableOnline?: boolean;
+  purchasableOnline?: boolean;
+  favoritable?: boolean;
 };
 
 export default function ProductCard({
@@ -27,15 +30,20 @@ export default function ProductCard({
   imageAltText,
   actionLabel = "Agregar al carrito",
   isNew = false,
+  availableOnline,
+  purchasableOnline = true,
+  favoritable = true,
 }: ProductCardProps) {
-  const isOutOfStock = stock <= 0;
+  const isOutOfStock = availableOnline === undefined ? stock <= 0 : !availableOnline;
 
   return (
     <article className="group flex h-full flex-col rounded-[28px] border border-black/10 bg-white p-3 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
       <div className="relative">
-        <div className="absolute right-4 top-4 z-10">
-          <LikeButton slug={slug} size="md" />
-        </div>
+        {favoritable && (
+          <div className="absolute right-4 top-4 z-10">
+            <LikeButton slug={slug} size="md" />
+          </div>
+        )}
 
         {(isNew || isOutOfStock) && (
           <div className="absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
@@ -63,6 +71,7 @@ export default function ProductCard({
                 src={imageUrl}
                 alt={imageAltText || name}
                 fill
+                unoptimized={imageUrl.startsWith("http://") || imageUrl.startsWith("https://")}
                 sizes="(min-width: 1280px) 30vw, (min-width: 640px) 50vw, 100vw"
                 className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
               />
@@ -91,11 +100,21 @@ export default function ProductCard({
         </div>
 
         <div className="mt-auto pt-6">
-          <QuickAddToCartButton
-            slug={slug}
-            label={actionLabel}
-            className="w-full"
-          />
+          {isOutOfStock ? (
+            <div className="flex min-h-11 w-full items-center justify-center rounded-full border border-black/15 bg-[#f7f3ee] px-4 text-sm font-semibold text-gray-600">
+              Agotado
+            </div>
+          ) : purchasableOnline ? (
+            <QuickAddToCartButton
+              slug={slug}
+              label={actionLabel}
+              className="w-full"
+            />
+          ) : (
+            <div className="flex min-h-11 w-full items-center justify-center rounded-full border border-black/15 bg-[#f7f3ee] px-4 text-center text-sm font-semibold text-[var(--brand-espresso)]">
+              Disponible próximamente en línea
+            </div>
+          )}
         </div>
       </div>
     </article>

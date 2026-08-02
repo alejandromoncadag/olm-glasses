@@ -4,31 +4,13 @@ import FeaturedProductsFromDb from "@/components/FeaturedProductsFromDb";
 import HomeLocationFinder from "@/components/HomeLocationFinder";
 import { locations } from "@/data/locations";
 
-const servicePromises = [
-  {
-    number: "01",
-    title: "Envío gratis",
-    copy: "En compras desde $1,500 MXN.",
-  },
-  {
-    number: "02",
-    title: "Examen incluido",
-    copy: "Al comprar tu armazón en tienda.",
-  },
-  {
-    number: "03",
-    title: "30 días para decidir",
-    copy: "Cambia o devuelve sin complicaciones.",
-  },
-];
-
 const outlineButton =
   "border border-[var(--brand-espresso)] bg-white/55 px-7 py-3 text-[var(--brand-espresso)] backdrop-blur-sm transition-colors duration-200 hover:bg-[var(--brand-espresso)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-espresso)]";
 
 export default function Home() {
   return (
     <main className="editorial-sharp bg-white text-black">
-      <section className="relative isolate min-h-[760px] overflow-hidden sm:min-h-[680px]">
+      <section className="relative isolate min-h-[680px] overflow-hidden">
         <Image
           src="/images/home-hero-eyewear.png"
           alt="Armazones ópticos OLM en tonos oliva y carey"
@@ -40,9 +22,9 @@ export default function Home() {
         />
 
         <div className="absolute inset-0 z-10 bg-[linear-gradient(90deg,rgba(247,243,238,0.95)_0%,rgba(247,243,238,0.76)_35%,rgba(247,243,238,0.12)_64%,rgba(247,243,238,0)_100%)]" />
-        <div className="absolute inset-x-0 bottom-0 z-10 h-52 bg-gradient-to-t from-[#f7f3ee]/90 via-[#f7f3ee]/35 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 z-10 h-40 bg-gradient-to-t from-[#f7f3ee]/75 via-[#f7f3ee]/20 to-transparent" />
 
-        <div className="relative z-20 mx-auto flex min-h-[760px] max-w-7xl items-center px-5 pb-44 pt-16 sm:min-h-[680px] sm:px-8 sm:pb-40 sm:pt-20">
+        <div className="relative z-20 mx-auto flex min-h-[680px] max-w-7xl items-center px-5 py-20 sm:px-8">
           <div className="max-w-xl text-left">
             <p className="mb-5 text-sm font-semibold uppercase tracking-[0.3em]">
               Óptica OLM
@@ -67,29 +49,6 @@ export default function Home() {
           </div>
         </div>
 
-        <div
-          className="absolute inset-x-0 bottom-0 z-20"
-          aria-label="Beneficios de comprar en Óptica OLM"
-        >
-          <div className="mx-auto grid max-w-7xl divide-y divide-black/15 border-t border-black/20 px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-8">
-          {servicePromises.map((promise) => (
-            <article
-              key={promise.number}
-              className="flex gap-4 py-5 sm:px-6 sm:py-6 lg:px-9"
-            >
-              <span className="text-xs font-semibold tracking-[0.16em] text-black/40">
-                {promise.number}
-              </span>
-              <div>
-                <h2 className="font-sans text-sm font-bold uppercase tracking-[0.12em]">
-                  {promise.title}
-                </h2>
-                <p className="mt-1 text-sm leading-6 text-black/60">{promise.copy}</p>
-              </div>
-            </article>
-          ))}
-          </div>
-        </div>
       </section>
 
       <section className="mx-auto max-w-7xl px-5 py-14 sm:px-6 sm:py-16">

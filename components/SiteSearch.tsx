@@ -47,7 +47,7 @@ export default function SiteSearch() {
 
     async function loadProducts() {
       try {
-        const response = await fetch("/api/products");
+        const response = await fetch("/api/catalog/products", { cache: "no-store" });
         if (!response.ok) return;
         const data = (await response.json()) as { products: Product[] };
         setProducts(
@@ -192,6 +192,10 @@ export default function SiteSearch() {
                           alt={product.mainImage.altText || product.name}
                           width={640}
                           height={480}
+                          unoptimized={
+                            product.mainImage.imageUrl.startsWith("http://") ||
+                            product.mainImage.imageUrl.startsWith("https://")
+                          }
                           className="h-full w-full object-cover"
                         />
                       ) : null}

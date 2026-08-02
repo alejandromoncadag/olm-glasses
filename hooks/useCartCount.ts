@@ -13,7 +13,15 @@ export function useCartCount() {
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
-    function syncCartCount() {
+    function syncCartCount(event?: Event) {
+      const authoritativeCount =
+        event instanceof CustomEvent && event.detail?.authoritative === true
+          ? Number(event.detail.count)
+          : null;
+      if (authoritativeCount !== null && Number.isFinite(authoritativeCount)) {
+        setCartCount(loading || user?.role === "admin" ? 0 : authoritativeCount);
+        return;
+      }
       setCartCount(
         loading || user?.role === "admin" ? 0 : getCartCount()
       );

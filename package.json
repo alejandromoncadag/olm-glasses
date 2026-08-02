@@ -6,16 +6,19 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "verify:phase1fa": "node scripts/verify-phase1fa-commerce.mjs"
   },
   "dependencies": {
     "@auth/pg-adapter": "^1.11.3",
+    "material-symbols": "^0.45.10",
     "next": "16.2.11",
     "next-auth": "^5.0.0-beta.32",
     "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-easy-crop": "^6.0.2",
+    "react-phone-number-input": "^3.4.17",
     "stripe": "^22.3.2"
   },
   "devDependencies": {

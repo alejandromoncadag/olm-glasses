@@ -6,7 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 
 import ProductGrid from "@/components/ProductGrid";
-import { products as fallbackProducts } from "@/data/products";
 import type { Product } from "@/types/product";
 
 type QuestionId =
@@ -489,7 +488,10 @@ function scoreProduct(product: Product, answers: QuizAnswers) {
   }
 
   if (answers.material === "acetate") {
-    if (["negro", "cafe", "transparente"].includes(product.frameColor)) {
+    if (
+      product.frameColor &&
+      ["negro", "cafe", "transparente"].includes(product.frameColor)
+    ) {
       score += 1;
     }
   }
@@ -578,7 +580,7 @@ export default function StyleQuiz() {
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<QuizAnswers>({});
   const [showResults, setShowResults] = useState(false);
-  const [catalog, setCatalog] = useState<Product[]>(fallbackProducts);
+  const [catalog, setCatalog] = useState<Product[]>([]);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isResetting, setIsResetting] = useState(false);
   const [resetError, setResetError] = useState("");
@@ -599,7 +601,7 @@ export default function StyleQuiz() {
 
     async function loadQuizData() {
       const [productsResponse, quizResponse] = await Promise.allSettled([
-        fetch("/api/products", { cache: "no-store" }),
+        fetch("/api/catalog/products", { cache: "no-store" }),
         fetch("/api/style-quiz", { cache: "no-store" }),
       ]);
 
@@ -613,9 +615,7 @@ export default function StyleQuiz() {
           products?: Product[];
         };
 
-        if (productData.products?.length) {
-          setCatalog(productData.products);
-        }
+        setCatalog(productData.products || []);
       }
 
       if (quizResponse.status === "fulfilled" && quizResponse.value.ok) {

@@ -14,14 +14,23 @@ type ApiProduct = {
   description: string;
   gender: "hombre" | "mujer" | "unisex";
   shape: "redondo" | "cuadrado" | "rectangular" | "aviador";
-  frameColor: string;
+  frameColor: string | null;
   stock: number;
+  isAvailable: boolean;
   isActive: boolean;
+  purchasableOnline: boolean;
+  favoritable: boolean;
   mainImage: { imageUrl: string; altText: string | null } | null;
 };
 
-function getCardColor(frameColor: string) {
-  const color = frameColor.toLowerCase();
+type FeaturedProduct = Product & {
+  isAvailable: boolean;
+  purchasableOnline: boolean;
+  favoritable: boolean;
+};
+
+function getCardColor(frameColor: string | null) {
+  const color = (frameColor || "").toLowerCase();
 
   if (color.includes("transparente")) return "#f3f4f6";
   if (color.includes("cafe") || color.includes("café")) return "#8b5e3c";
@@ -57,7 +66,7 @@ function ArrowIcon({ direction }: { direction: "left" | "right" }) {
 }
 
 export default function FeaturedProductsFromDb() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<FeaturedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -70,11 +79,11 @@ export default function FeaturedProductsFromDb() {
         setLoading(true);
         setError("");
 
-        const response = await fetch("/api/products");
+        const response = await fetch("/api/catalog/products", { cache: "no-store" });
         if (!response.ok) throw new Error("Failed to fetch products");
 
         const data = await response.json();
-        const newProducts: Product[] = data.products
+        const newProducts: FeaturedProduct[] = data.products
           .filter(
             (product: ApiProduct) =>
               product.isActive &&
@@ -91,9 +100,12 @@ export default function FeaturedProductsFromDb() {
             description: product.description,
             gender: product.gender,
             shape: product.shape,
-            frameColor: normalizeFrameColor(product.frameColor),
+            frameColor: normalizeFrameColor(product.frameColor || ""),
             stock: product.stock,
+            isAvailable: product.isAvailable,
             isActive: product.isActive,
+            purchasableOnline: product.purchasableOnline,
+            favoritable: product.favoritable,
             mainImage: product.mainImage,
           }));
 
@@ -228,6 +240,9 @@ export default function FeaturedProductsFromDb() {
                 color={product.color}
                 href={"/product/" + product.slug}
                 stock={product.stock}
+                availableOnline={product.isAvailable}
+                purchasableOnline={product.purchasableOnline}
+                favoritable={product.favoritable}
                 imageUrl={product.mainImage?.imageUrl}
                 imageAltText={product.mainImage?.altText}
                 actionLabel="Agregar al carrito"

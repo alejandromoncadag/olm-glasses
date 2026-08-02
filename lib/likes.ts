@@ -3,6 +3,17 @@
 export type LikedItem = {
   slug: string;
   likedAt: string;
+  source?: "legacy" | "opticaolm";
+  productId?: string;
+  sku?: string;
+  name?: string;
+  available?: boolean;
+  unavailableReason?: string | null;
+  description?: string | null;
+  category?: string | null;
+  price?: string | null;
+  currency?: string | null;
+  image?: { url: string; altText: string } | null;
 };
 
 const STORAGE_KEY = "olm-likes";

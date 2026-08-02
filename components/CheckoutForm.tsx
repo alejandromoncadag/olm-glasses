@@ -1,14 +1,26 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  getCountries,
+  getCountryCallingCode,
+  parsePhoneNumber,
+  type Country,
+} from "react-phone-number-input";
 import { useAuth } from "@/hooks/useAuth";
 
 type PaymentMethod = "stripe" | "store_payment";
 type DeliveryMethod = "shipping" | "pickup";
 
 type CheckoutCustomer = {
+  firstName: string;
+  middleName: string;
+  paternalLastName: string;
+  maternalLastName: string;
   fullName: string;
   email: string;
+  phoneCountry: string;
+  phoneNational: string;
   phone: string;
   address: string;
   city: string;
@@ -22,8 +34,14 @@ type CheckoutCustomer = {
 type FormErrors = Partial<Record<keyof CheckoutCustomer, string>>;
 
 const emptyCustomer: CheckoutCustomer = {
+  firstName: "",
+  middleName: "",
+  paternalLastName: "",
+  maternalLastName: "",
   fullName: "",
   email: "",
+  phoneCountry: "MX",
+  phoneNational: "",
   phone: "",
   address: "",
   city: "",
@@ -34,28 +52,16 @@ const emptyCustomer: CheckoutCustomer = {
   paymentMethod: "stripe",
 };
 
-const deliveryOptions: {
-  value: DeliveryMethod;
-  label: string;
-  description: string;
-}[] = [
-  {
-    value: "shipping",
-    label: "Envío a domicilio",
-    description: "Enviaremos tu pedido a la dirección que escribas.",
-  },
-  {
-    value: "pickup",
-    label: "Recoger en tienda",
-    description: "Te avisaremos cuando tu pedido esté listo para recoger.",
-  },
+const deliveryOptions: Array<{ value: DeliveryMethod; label: string }> = [
+  { value: "shipping", label: "Envío a domicilio" },
+  { value: "pickup", label: "Recoger en tienda" },
 ];
 
-const paymentOptions: {
+const paymentOptions: Array<{
   value: PaymentMethod;
   label: string;
   description: string;
-}[] = [
+}> = [
   {
     value: "stripe",
     label: "Pago en línea seguro",
@@ -77,11 +83,113 @@ function isDeliveryMethod(value: unknown): value is DeliveryMethod {
   return value === "shipping" || value === "pickup";
 }
 
+function getFlagEmoji(country: string) {
+  return country
+    .toUpperCase()
+    .replace(/./g, (character) =>
+      String.fromCodePoint(127397 + character.charCodeAt(0))
+    );
+}
+
+function splitFullName(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) return {};
+  if (parts.length === 1) return { firstName: parts[0] };
+  if (parts.length === 2) {
+    return { firstName: parts[0], paternalLastName: parts[1] };
+  }
+  if (parts.length === 3) {
+    return {
+      firstName: parts[0],
+      paternalLastName: parts[1],
+      maternalLastName: parts[2],
+    };
+  }
+
+  return {
+    firstName: parts[0],
+    middleName: parts.slice(1, -2).join(" "),
+    paternalLastName: parts[parts.length - 2],
+    maternalLastName: parts[parts.length - 1],
+  };
+}
+
+function buildFullName(customer: Partial<CheckoutCustomer>) {
+  return [
+    customer.firstName,
+    customer.middleName,
+    customer.paternalLastName,
+    customer.maternalLastName,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function buildInternationalPhone(country: string, nationalNumber: string) {
+  const safeCountry = (country || "MX") as Country;
+  const digits = nationalNumber.replace(/\D/g, "");
+  if (!digits) return "";
+
+  try {
+    return `+${getCountryCallingCode(safeCountry)}${digits}`;
+  } catch {
+    return digits;
+  }
+}
+
+function normalizeCustomer(value: Partial<CheckoutCustomer>) {
+  const inferredNames =
+    value.firstName || value.paternalLastName
+      ? {}
+      : splitFullName(String(value.fullName || ""));
+  let phoneCountry = String(value.phoneCountry || "MX");
+  let phoneNational = String(value.phoneNational || "");
+
+  if (!phoneNational && value.phone) {
+    try {
+      const parsedPhone = parsePhoneNumber(String(value.phone));
+      phoneCountry = parsedPhone?.country || phoneCountry;
+      phoneNational = parsedPhone?.nationalNumber || String(value.phone);
+    } catch {
+      phoneNational = String(value.phone);
+    }
+  }
+
+  const normalized: CheckoutCustomer = {
+    ...emptyCustomer,
+    ...value,
+    ...inferredNames,
+    phoneCountry,
+    phoneNational,
+    customerNotes: "",
+    deliveryMethod: isDeliveryMethod(value.deliveryMethod)
+      ? value.deliveryMethod
+      : "shipping",
+    paymentMethod: isPaymentMethod(value.paymentMethod)
+      ? value.paymentMethod
+      : "stripe",
+  };
+
+  normalized.fullName = buildFullName(normalized);
+  normalized.phone = buildInternationalPhone(
+    normalized.phoneCountry,
+    normalized.phoneNational
+  );
+
+  return normalized;
+}
+
 function validateCustomer(customer: CheckoutCustomer) {
   const errors: FormErrors = {};
 
-  if (!customer.fullName.trim()) {
-    errors.fullName = "El nombre completo es obligatorio.";
+  if (!customer.firstName.trim()) {
+    errors.firstName = "El primer nombre es obligatorio.";
+  }
+
+  if (!customer.paternalLastName.trim()) {
+    errors.paternalLastName = "El primer apellido es obligatorio.";
   }
 
   if (!customer.email.trim()) {
@@ -90,38 +198,23 @@ function validateCustomer(customer: CheckoutCustomer) {
     errors.email = "Escribe un correo electrónico válido.";
   }
 
-  if (!customer.phone.trim()) {
-    errors.phone = "El teléfono es obligatorio.";
-  }
-
-  if (!customer.deliveryMethod) {
-    errors.deliveryMethod = "Selecciona una forma de entrega.";
+  if (!customer.phoneNational.replace(/\D/g, "")) {
+    errors.phoneNational = "El teléfono es obligatorio.";
   }
 
   if (customer.deliveryMethod === "shipping") {
     if (!customer.address.trim()) {
       errors.address = "La dirección es obligatoria para envío a domicilio.";
     }
-
     if (!customer.city.trim()) {
       errors.city = "La ciudad es obligatoria para envío a domicilio.";
     }
-
     if (!customer.state.trim()) {
       errors.state = "El estado es obligatorio para envío a domicilio.";
     }
-
     if (!customer.zipCode.trim()) {
       errors.zipCode = "El código postal es obligatorio para envío a domicilio.";
     }
-  }
-
-  if (customer.customerNotes.length > 500) {
-    errors.customerNotes = "La nota no puede tener más de 500 caracteres.";
-  }
-
-  if (!customer.paymentMethod) {
-    errors.paymentMethod = "Selecciona una forma de pago.";
   }
 
   return errors;
@@ -133,6 +226,21 @@ export default function CheckoutForm() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [saved, setSaved] = useState(false);
   const customerUserId = user?.role === "customer" ? user.id : null;
+  const countryNames = useMemo(
+    () => new Intl.DisplayNames(["es"], { type: "region" }),
+    []
+  );
+  const countries = useMemo(
+    () =>
+      getCountries()
+        .map((country) => ({
+          code: country,
+          name: countryNames.of(country) || country,
+          callingCode: getCountryCallingCode(country),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "es")),
+    [countryNames]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -143,21 +251,7 @@ export default function CheckoutForm() {
 
       if (savedCustomer) {
         try {
-          const parsedCustomer = JSON.parse(
-            savedCustomer
-          ) as Partial<CheckoutCustomer>;
-
-          nextCustomer = {
-            ...emptyCustomer,
-            ...parsedCustomer,
-            customerNotes: parsedCustomer.customerNotes || "",
-            deliveryMethod: isDeliveryMethod(parsedCustomer.deliveryMethod)
-              ? parsedCustomer.deliveryMethod
-              : "shipping",
-            paymentMethod: isPaymentMethod(parsedCustomer.paymentMethod)
-              ? parsedCustomer.paymentMethod
-              : "stripe",
-          };
+          nextCustomer = normalizeCustomer(JSON.parse(savedCustomer));
         } catch (error) {
           console.error("Could not read checkout customer:", error);
           localStorage.removeItem("olm-checkout-customer");
@@ -175,7 +269,7 @@ export default function CheckoutForm() {
               ) || account.addresses[0]
             : null;
 
-          nextCustomer = {
+          nextCustomer = normalizeCustomer({
             ...nextCustomer,
             fullName:
               nextCustomer.fullName || String(account.profile?.fullName || ""),
@@ -184,13 +278,12 @@ export default function CheckoutForm() {
               nextCustomer.phone ||
               String(defaultAddress?.phone || account.profile?.phone || ""),
             address:
-              nextCustomer.address ||
-              String(defaultAddress?.addressLine1 || ""),
+              nextCustomer.address || String(defaultAddress?.addressLine1 || ""),
             city: nextCustomer.city || String(defaultAddress?.city || ""),
             state: nextCustomer.state || String(defaultAddress?.state || ""),
             zipCode:
               nextCustomer.zipCode || String(defaultAddress?.postalCode || ""),
-          };
+          });
         }
       }
 
@@ -211,21 +304,19 @@ export default function CheckoutForm() {
       "olm-checkout-customer",
       JSON.stringify(updatedCustomer)
     );
-
     window.dispatchEvent(new Event("olm-checkout-customer-updated"));
   }
 
   function updateCustomer(field: keyof CheckoutCustomer, value: string) {
-    const updatedCustomer = {
+    const updatedCustomer = normalizeCustomer({
       ...customer,
       [field]: value,
       ...(field === "deliveryMethod" && value === "shipping"
         ? { paymentMethod: "stripe" as PaymentMethod }
         : {}),
-    } as CheckoutCustomer;
+    });
 
     setCustomer(updatedCustomer);
-
     setErrors((currentErrors) => ({
       ...currentErrors,
       [field]: undefined,
@@ -238,14 +329,12 @@ export default function CheckoutForm() {
           }
         : {}),
     }));
-
     setSaved(false);
     saveCustomerToStorage(updatedCustomer);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const validationErrors = validateCustomer(customer);
     setErrors(validationErrors);
 
@@ -258,93 +347,121 @@ export default function CheckoutForm() {
     setSaved(true);
   }
 
+  const inputClass =
+    "mt-2 w-full border border-black/20 bg-white px-4 py-3 outline-none transition focus:border-[var(--brand-espresso)]";
+
   return (
-    <form onSubmit={handleSubmit} className="rounded-2xl border p-6">
+    <form onSubmit={handleSubmit} className="border border-black/15 p-6 sm:p-8">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div>
-          <h2 className="text-2xl font-semibold">Datos del pedido</h2>
-
+          <h2 className="text-2xl">Datos del pedido</h2>
           <p className="mt-2 text-sm text-gray-600">
             Usaremos estos datos para preparar y dar seguimiento a tu pedido.
           </p>
         </div>
-
         {saved && (
-          <span className="rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-700">
+          <span className="bg-green-100 px-4 py-2 text-sm font-medium text-green-700">
             Datos guardados
           </span>
         )}
       </div>
 
-      <div className="mt-6 grid gap-5">
-        <label className="block">
-          <span className="text-sm font-medium">Nombre completo</span>
-          <input
-            value={customer.fullName}
-            onChange={(event) => updateCustomer("fullName", event.target.value)}
+      <div className="mt-7 grid gap-5">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <TextField
+            label="Primer nombre"
+            value={customer.firstName}
+            onChange={(value) => updateCustomer("firstName", value)}
+            error={errors.firstName}
+            autoComplete="given-name"
             required
-            className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-            placeholder="Alejandro Moncada"
           />
-          {errors.fullName && (
-            <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
+          <TextField
+            label="Segundo nombre"
+            value={customer.middleName}
+            onChange={(value) => updateCustomer("middleName", value)}
+            autoComplete="additional-name"
+          />
+          <TextField
+            label="Primer apellido"
+            value={customer.paternalLastName}
+            onChange={(value) => updateCustomer("paternalLastName", value)}
+            error={errors.paternalLastName}
+            autoComplete="family-name"
+            required
+          />
+          <TextField
+            label="Segundo apellido"
+            value={customer.maternalLastName}
+            onChange={(value) => updateCustomer("maternalLastName", value)}
+            autoComplete="family-name"
+          />
+        </div>
+
+        <label className="block">
+          <span className="text-sm font-medium">Correo electrónico</span>
+          <input
+            type="email"
+            value={customer.email}
+            onChange={(event) => updateCustomer("email", event.target.value)}
+            readOnly={Boolean(customerUserId)}
+            required
+            autoComplete="email"
+            className={`${inputClass} read-only:bg-gray-50 read-only:text-gray-600`}
+            placeholder="correo@email.com"
+          />
+          {errors.email && (
+            <p className="mt-1 text-sm text-red-600">{errors.email}</p>
           )}
         </label>
 
-        <div className="grid gap-5 md:grid-cols-2">
-          <label className="block">
-            <span className="text-sm font-medium">Correo electrónico</span>
-            <input
-              type="email"
-              value={customer.email}
-              onChange={(event) => updateCustomer("email", event.target.value)}
-              readOnly={Boolean(customerUserId)}
-              required
-              className="mt-2 w-full rounded-xl border px-4 py-3 outline-none read-only:bg-gray-50 read-only:text-gray-600 focus:border-black"
-              placeholder="correo@email.com"
-            />
-            {customerUserId && (
-              <p className="mt-1 text-xs text-gray-500">
-                Correo verificado de tu cuenta OLM.
-              </p>
-            )}
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-            )}
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium">Teléfono</span>
+        <div>
+          <span className="text-sm font-medium">Teléfono</span>
+          <div className="mt-2 grid grid-cols-[minmax(155px,0.7fr)_minmax(0,1.3fr)]">
+            <select
+              value={customer.phoneCountry}
+              onChange={(event) =>
+                updateCustomer("phoneCountry", event.target.value)
+              }
+              aria-label="País y código telefónico"
+              className="min-w-0 border border-r-0 border-black/20 bg-[#f7f3ee] px-3 py-3 outline-none focus:border-[var(--brand-espresso)]"
+            >
+              {countries.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {getFlagEmoji(country.code)} {country.name} +{country.callingCode}
+                </option>
+              ))}
+            </select>
             <input
               type="tel"
-              value={customer.phone}
-              onChange={(event) => updateCustomer("phone", event.target.value)}
+              value={customer.phoneNational}
+              onChange={(event) =>
+                updateCustomer("phoneNational", event.target.value)
+              }
               required
-              className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
+              autoComplete="tel-national"
+              className="min-w-0 border border-black/20 px-4 py-3 outline-none focus:border-[var(--brand-espresso)]"
               placeholder="55 1234 5678"
             />
-            {errors.phone && (
-              <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
-            )}
-          </label>
+          </div>
+          {errors.phoneNational && (
+            <p className="mt-1 text-sm text-red-600">{errors.phoneNational}</p>
+          )}
         </div>
 
-        <div className="rounded-2xl bg-gray-50 p-5">
-          <h3 className="text-xl font-semibold">Forma de entrega</h3>
-
-          <p className="mt-2 text-sm text-gray-600">
-            Elige si quieres recibir tu pedido en casa o recogerlo en tienda.
-          </p>
-
-          <div className="mt-5 grid gap-3">
+        <div className="border border-black/10 bg-[#faf8f5] p-5">
+          <h3 className="text-xl">Forma de entrega</h3>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {deliveryOptions.map((option) => (
               <label
                 key={option.value}
-                className={`block cursor-pointer rounded-2xl border bg-white p-4 ${
-                  customer.deliveryMethod === option.value ? "border-black" : ""
+                className={`cursor-pointer border bg-white p-4 transition ${
+                  customer.deliveryMethod === option.value
+                    ? "border-[var(--brand-espresso)]"
+                    : "border-black/15 hover:border-black/40"
                 }`}
               >
-                <div className="flex items-start gap-3">
+                <span className="flex items-center gap-3">
                   <input
                     type="radio"
                     name="deliveryMethod"
@@ -352,144 +469,69 @@ export default function CheckoutForm() {
                     onChange={() =>
                       updateCustomer("deliveryMethod", option.value)
                     }
-                    className="mt-1"
                   />
-
-                  <div>
-                    <p className="font-medium">{option.label}</p>
-                    <p className="mt-1 text-sm text-gray-600">
-                      {option.description}
-                    </p>
-                  </div>
-                </div>
+                  <span className="font-medium">{option.label}</span>
+                </span>
               </label>
             ))}
           </div>
-
-          {errors.deliveryMethod && (
-            <p className="mt-3 text-sm text-red-600">
-              {errors.deliveryMethod}
-            </p>
-          )}
         </div>
 
-        {customer.deliveryMethod === "shipping" ? (
-          <>
+        {customer.deliveryMethod === "shipping" && (
+          <div className="grid gap-5 border-t border-black/10 pt-6">
             <label className="block">
-              <span className="text-sm font-medium">Dirección</span>
+              <span className="text-sm font-medium">Buscar o escribir dirección</span>
               <input
                 value={customer.address}
                 onChange={(event) =>
                   updateCustomer("address", event.target.value)
                 }
                 required
-                className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                placeholder="Calle, número, colonia"
+                autoComplete="street-address"
+                className={inputClass}
+                placeholder="Calle, número y colonia"
               />
+              <p className="mt-2 text-xs leading-5 text-gray-500">
+                El autollenado guardado de tu navegador está habilitado. La búsqueda
+                inteligente completa con mapas se activará al conectar un proveedor de direcciones.
+              </p>
               {errors.address && (
                 <p className="mt-1 text-sm text-red-600">{errors.address}</p>
               )}
             </label>
 
             <div className="grid gap-5 md:grid-cols-3">
-              <label className="block">
-                <span className="text-sm font-medium">Ciudad</span>
-                <input
-                  value={customer.city}
-                  onChange={(event) =>
-                    updateCustomer("city", event.target.value)
-                  }
-                  required
-                  className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                  placeholder="Ciudad"
-                />
-                {errors.city && (
-                  <p className="mt-1 text-sm text-red-600">{errors.city}</p>
-                )}
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium">Estado</span>
-                <input
-                  value={customer.state}
-                  onChange={(event) =>
-                    updateCustomer("state", event.target.value)
-                  }
-                  required
-                  className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                  placeholder="Estado"
-                />
-                {errors.state && (
-                  <p className="mt-1 text-sm text-red-600">{errors.state}</p>
-                )}
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium">Código postal</span>
-                <input
-                  value={customer.zipCode}
-                  onChange={(event) =>
-                    updateCustomer("zipCode", event.target.value)
-                  }
-                  required
-                  className="mt-2 w-full rounded-xl border px-4 py-3 outline-none focus:border-black"
-                  placeholder="00000"
-                />
-                {errors.zipCode && (
-                  <p className="mt-1 text-sm text-red-600">{errors.zipCode}</p>
-                )}
-              </label>
+              <TextField
+                label="Ciudad"
+                value={customer.city}
+                onChange={(value) => updateCustomer("city", value)}
+                error={errors.city}
+                autoComplete="address-level2"
+                required
+              />
+              <TextField
+                label="Estado"
+                value={customer.state}
+                onChange={(value) => updateCustomer("state", value)}
+                error={errors.state}
+                autoComplete="address-level1"
+                required
+              />
+              <TextField
+                label="Código postal"
+                value={customer.zipCode}
+                onChange={(value) => updateCustomer("zipCode", value)}
+                error={errors.zipCode}
+                autoComplete="postal-code"
+                required
+              />
             </div>
-          </>
-        ) : (
-          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
-            <h3 className="font-semibold text-blue-950">Recoger en tienda</h3>
-
-            <p className="mt-2 text-sm text-blue-900">
-              No necesitas escribir dirección. Te contactaremos cuando el pedido
-              esté listo para recoger en la óptica.
-            </p>
           </div>
         )}
-
-        <label className="block rounded-2xl bg-gray-50 p-5">
-          <span className="text-xl font-semibold">Notas para tu pedido</span>
-
-          <p className="mt-2 text-sm text-gray-600">
-            Puedes agregar instrucciones sobre tu graduación, envío o cualquier
-            detalle importante.
-          </p>
-
-          <textarea
-            value={customer.customerNotes}
-            onChange={(event) =>
-              updateCustomer("customerNotes", event.target.value)
-            }
-            rows={4}
-            maxLength={500}
-            className="mt-4 w-full rounded-xl border bg-white px-4 py-3 outline-none focus:border-black"
-            placeholder="Ejemplo: Voy a enviar mi receta por WhatsApp. Por favor llámenme antes de enviar."
-          />
-
-          <div className="mt-2 flex justify-between gap-3 text-xs text-gray-500">
-            <span>Opcional</span>
-            <span>{customer.customerNotes.length}/500</span>
-          </div>
-
-          {errors.customerNotes && (
-            <p className="mt-2 text-sm text-red-600">{errors.customerNotes}</p>
-          )}
-        </label>
       </div>
 
-      <div className="mt-8 rounded-2xl bg-gray-50 p-5">
-        <h3 className="text-xl font-semibold">Forma de pago</h3>
-
-        <p className="mt-2 text-sm text-gray-600">
-          Stripe protege tus datos de pago. Óptica OLM nunca recibe ni guarda el
-          número completo de tu tarjeta.
-        </p>
-
+      <div className="mt-8 border border-black/10 bg-[#faf8f5] p-5">
+        <h3 className="text-xl">Forma de pago</h3>
         <div className="mt-5 grid gap-3">
           {paymentOptions
             .filter(
@@ -498,58 +540,72 @@ export default function CheckoutForm() {
                 customer.deliveryMethod === "pickup"
             )
             .map((option) => (
-            <label
-              key={option.value}
-              className={`block cursor-pointer rounded-2xl border bg-white p-4 ${
-                customer.paymentMethod === option.value ? "border-black" : ""
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  checked={customer.paymentMethod === option.value}
-                  onChange={() => updateCustomer("paymentMethod", option.value)}
-                  className="mt-1"
-                />
-
-                <div>
-                  <p className="font-medium">{option.label}</p>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {option.description}
-                  </p>
-                </div>
-              </div>
-            </label>
+              <label
+                key={option.value}
+                className={`cursor-pointer border bg-white p-4 ${
+                  customer.paymentMethod === option.value
+                    ? "border-[var(--brand-espresso)]"
+                    : "border-black/15"
+                }`}
+              >
+                <span className="flex items-start gap-3">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    checked={customer.paymentMethod === option.value}
+                    onChange={() =>
+                      updateCustomer("paymentMethod", option.value)
+                    }
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block font-medium">{option.label}</span>
+                    <span className="mt-1 block text-sm text-gray-600">
+                      {option.description}
+                    </span>
+                  </span>
+                </span>
+              </label>
             ))}
         </div>
-
-        {customer.paymentMethod === "stripe" && (
-          <div className="mt-4 rounded-2xl border border-[#d9cfc8] bg-white p-4 text-sm text-gray-600">
-            Visa, Mastercard, American Express, OXXO y SPEI. Apple Pay o Google
-            Pay pueden aparecer cuando estén disponibles en tu dispositivo y en
-            tu cuenta de Stripe.
-          </div>
-        )}
-
-        {errors.paymentMethod && (
-          <p className="mt-3 text-sm text-red-600">{errors.paymentMethod}</p>
-        )}
       </div>
 
       <button
         type="submit"
-        className="mt-6 rounded-full bg-[var(--brand-espresso)] px-6 py-3 text-white transition hover:bg-[#2a1710]"
+        className="mt-6 bg-[var(--brand-espresso)] px-6 py-3 text-white transition hover:bg-[#2a1710]"
       >
         Guardar datos del pedido
       </button>
-
-      <p className="mt-3 text-xs text-gray-500">
-        Después de guardar, revisa el resumen y continúa al pago seguro.
-      </p>
     </form>
   );
 }
 
-
-
+function TextField({
+  label,
+  value,
+  onChange,
+  error,
+  autoComplete,
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  autoComplete?: string;
+  required?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="text-sm font-medium">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required={required}
+        autoComplete={autoComplete}
+        className="mt-2 w-full border border-black/20 px-4 py-3 outline-none transition focus:border-[var(--brand-espresso)]"
+      />
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+    </label>
+  );
+}

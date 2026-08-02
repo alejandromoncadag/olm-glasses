@@ -48,7 +48,62 @@ function getCardColor(frameColor: string) {
   return "#f3f4f6";
 }
 
-export default function LikesGrid() {
+function AuthoritativeLikesGrid() {
+  const { likes, loaded, clearLikes, removeLike } = useLikes();
+
+  if (!loaded) return <p className="mt-8 text-gray-600">Cargando favoritos…</p>;
+  if (likes.length === 0) {
+    return (
+      <div className="mt-12 rounded-3xl border bg-white p-12 text-center">
+        <h2 className="text-2xl font-semibold">Aún no tienes favoritos</h2>
+        <p className="mt-3 text-gray-600">Toca el corazón en cualquier producto publicado para guardarlo aquí.</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+        <p className="text-sm text-gray-600">{likes.length} {likes.length === 1 ? "producto guardado" : "productos guardados"}</p>
+        <button type="button" onClick={() => { if (confirm("¿Quitar todos los favoritos?")) void clearLikes(); }} className="rounded-full border border-black px-5 py-2 text-sm">Vaciar lista</button>
+      </div>
+      <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {likes.map((favorite) => (
+          favorite.available ? (
+            <article key={favorite.productId} className="overflow-hidden rounded-2xl border bg-white">
+              <a href={`/product/${favorite.slug}`} className="block">
+                <div className="relative flex h-52 items-center justify-center overflow-hidden bg-gray-100">
+                  {favorite.image?.url ? (
+                    <Image src={favorite.image.url} alt={favorite.image.altText || favorite.name || "Producto"} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" unoptimized className="h-full w-full object-cover" />
+                  ) : <span className="text-sm text-gray-500">Imagen del producto</span>}
+                </div>
+              </a>
+              <div className="p-5">
+                <p className="text-xs uppercase tracking-widest text-gray-500">{favorite.category?.replaceAll("_", " ")}</p>
+                <h3 className="mt-1 text-lg font-semibold">{favorite.name}</h3>
+                {favorite.price && <p className="mt-1 text-gray-700">{new Intl.NumberFormat("es-MX", { style: "currency", currency: favorite.currency || "MXN" }).format(Number(favorite.price))}</p>}
+                <p className="mt-2 text-xs text-gray-500">Guardado el {formatDate(favorite.likedAt)}</p>
+                <div className="mt-4 flex gap-2">
+                  <a href={`/product/${favorite.slug}`} className="flex-1 rounded-full bg-black px-4 py-2 text-center text-sm text-white">Ver detalle</a>
+                  <button type="button" onClick={() => void removeLike(favorite.slug)} className="rounded-full border px-4 py-2 text-sm hover:border-black">Quitar</button>
+                </div>
+              </div>
+            </article>
+          ) : (
+            <article key={favorite.productId} className="rounded-2xl border border-dashed bg-gray-50 p-5 text-gray-600">
+              <p className="text-xs font-semibold uppercase tracking-widest">No disponible</p>
+              <h3 className="mt-2 text-lg font-semibold text-gray-800">{favorite.name}</h3>
+              <p className="mt-2 text-sm">{favorite.unavailableReason || "Este producto ya no está disponible en el catálogo público."}</p>
+              <button type="button" onClick={() => void removeLike(favorite.slug)} className="mt-4 text-sm underline">Quitar de favoritos</button>
+            </article>
+          )
+        ))}
+      </div>
+    </>
+  );
+}
+
+function LegacyLikesGrid() {
   const { likes, loaded, clearLikes, removeLike } = useLikes();
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -301,5 +356,10 @@ export default function LikesGrid() {
       </div>
     </>
   );
+}
+
+export default function LikesGrid() {
+  const { mode } = useLikes();
+  return mode === "optica" ? <AuthoritativeLikesGrid /> : <LegacyLikesGrid />;
 }
 

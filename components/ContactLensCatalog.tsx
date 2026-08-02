@@ -1,11 +1,31 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import StorefrontProductCard from "@/components/StorefrontProductCard";
 import type { ContactLensProduct } from "@/data/secondaryCatalog";
 
-type ContactLensCatalogProps = {
-  products: ContactLensProduct[];
+type DisplayContactLensProduct = Omit<
+  ContactLensProduct,
+  "replacement" | "lensType"
+> & {
+  replacement: string;
+  lensType: string;
+  availableOnline: boolean;
+  purchasableOnline: boolean;
+  favoritable: boolean;
+};
+
+type ApiProduct = {
+  slug: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  type: string;
+  isAvailable: boolean;
+  purchasableOnline: boolean;
+  favoritable: boolean;
+  mainImage: { imageUrl: string; altText: string | null } | null;
 };
 
 const MAX_PRICE = 2000;
@@ -35,17 +55,62 @@ function FilterButton({
   );
 }
 
-export default function ContactLensCatalog({
-  products,
-}: ContactLensCatalogProps) {
+export default function ContactLensCatalog() {
+  const [products, setProducts] = useState<DisplayContactLensProduct[]>([]);
   const [search, setSearch] = useState("");
   const [brand, setBrand] = useState("all");
   const [replacement, setReplacement] = useState("all");
   const [lensType, setLensType] = useState("all");
   const [maxPrice, setMaxPrice] = useState(MAX_PRICE);
 
-  const brands = Array.from(new Set(products.map((product) => product.brand)));
+  const brands = Array.from(
+    new Set(products.map((product) => product.brand).filter(Boolean))
+  );
   const normalizedSearch = search.trim().toLowerCase();
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const response = await fetch(
+          "/api/catalog/products?category=lentes_de_contacto",
+          { cache: "no-store" }
+        );
+        if (!response.ok) {
+          setProducts([]);
+          return;
+        }
+        const payload = (await response.json()) as {
+          products: ApiProduct[];
+          source: "legacy" | "opticaolm";
+        };
+        const matches: DisplayContactLensProduct[] = payload.products
+          .filter(
+            (product) =>
+              product.type === "contact_lenses" ||
+              product.category === "lentes_de_contacto"
+          )
+          .map((product) => ({
+            slug: product.slug,
+            name: product.name,
+            brand: "",
+            replacement: "",
+            lensType: "",
+            packSize: "",
+            description: product.description,
+            price: product.price,
+            image: product.mainImage?.imageUrl || "",
+            availableOnline: product.isAvailable,
+            purchasableOnline: product.purchasableOnline,
+            favoritable: product.favoritable,
+          }));
+        setProducts(matches);
+      } catch {
+        // Provider mode owns every fallback decision. Never mix in client data.
+        setProducts([]);
+      }
+    }
+    void load();
+  }, []);
 
   const visibleProducts = useMemo(
     () =>
@@ -242,6 +307,9 @@ export default function ContactLensCatalog({
                   ]}
                   actionLabel="Agregar al carrito"
                   priority={index === 0}
+                  availableOnline={product.availableOnline}
+                  purchasableOnline={product.purchasableOnline}
+                  favoritable={product.favoritable}
                 />
               ))}
             </div>

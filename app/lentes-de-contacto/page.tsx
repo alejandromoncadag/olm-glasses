@@ -1,5 +1,4 @@
 import ContactLensCatalog from "@/components/ContactLensCatalog";
-import { contactLensProducts } from "@/data/secondaryCatalog";
 
 export const metadata = {
   title: "Lentes de contacto · Óptica OLM",
@@ -25,7 +24,7 @@ export default function ContactLensesPage() {
         </div>
       </section>
 
-      <ContactLensCatalog products={contactLensProducts} />
+      <ContactLensCatalog />
     </main>
   );
 }

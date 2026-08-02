@@ -1,4 +1,4 @@
-import CartItems from "@/components/CartItems";
+import CommerceCartItems from "@/components/CommerceCartItems";
 
 type CartPageProps = {
   searchParams: Promise<{
@@ -28,10 +28,10 @@ export default async function CartPage({ searchParams }: CartPageProps) {
         <h1 className="text-4xl font-bold">Carrito</h1>
 
         <p className="mt-4 text-gray-600">
-          Revisa tus productos antes de continuar al pago.
+          Revisa los productos y cantidades guardados en tu carrito.
         </p>
 
-        <CartItems returnTo={getSafeReturnTo(returnTo)} />
+        <CommerceCartItems returnTo={getSafeReturnTo(returnTo)} />
       </section>
     </main>
   );

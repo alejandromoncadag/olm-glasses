@@ -8,10 +8,13 @@ type StorefrontProductCardProps = {
   eyebrow: string;
   description: string;
   price: number;
-  image: string;
+  image?: string | null;
   details?: string[];
   actionLabel?: string;
   priority?: boolean;
+  availableOnline?: boolean;
+  purchasableOnline?: boolean;
+  favoritable?: boolean;
 };
 
 export default function StorefrontProductCard({
@@ -21,6 +24,9 @@ export default function StorefrontProductCard({
   image,
   actionLabel = "Agregar al carrito",
   priority = false,
+  availableOnline = true,
+  purchasableOnline = true,
+  favoritable = true,
 }: StorefrontProductCardProps) {
   const productHref = `/product/${slug}`;
 
@@ -32,19 +38,28 @@ export default function StorefrontProductCard({
           aria-label={`Ver ${name}`}
           className="relative block h-full w-full"
         >
-          <Image
-            src={image}
-            alt={name}
-            fill
-            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-            loading={priority ? "eager" : "lazy"}
-            className="object-cover transition duration-500 group-hover:scale-[1.025]"
-          />
+          {image ? (
+            <Image
+              src={image}
+              alt={name}
+              fill
+              unoptimized={image.startsWith("http://") || image.startsWith("https://")}
+              sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+              loading={priority ? "eager" : "lazy"}
+              className="object-cover transition duration-500 group-hover:scale-[1.025]"
+            />
+          ) : (
+            <span className="flex h-full items-center justify-center text-sm text-gray-500">
+              Imagen próximamente
+            </span>
+          )}
         </a>
 
-        <div className="absolute right-4 top-4 z-10">
-          <LikeButton slug={slug} size="md" />
-        </div>
+        {favoritable && (
+          <div className="absolute right-4 top-4 z-10">
+            <LikeButton slug={slug} size="md" />
+          </div>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col p-5 sm:p-6">
@@ -61,11 +76,21 @@ export default function StorefrontProductCard({
         </div>
 
         <div className="mt-auto pt-6">
-          <QuickAddToCartButton
-            slug={slug}
-            label={actionLabel}
-            className="w-full"
-          />
+          {!availableOnline ? (
+            <div className="flex min-h-11 w-full items-center justify-center rounded-full border border-black/15 bg-[#f7f3ee] px-4 text-sm font-semibold text-gray-600">
+              Agotado
+            </div>
+          ) : purchasableOnline ? (
+            <QuickAddToCartButton
+              slug={slug}
+              label={actionLabel}
+              className="w-full"
+            />
+          ) : (
+            <div className="flex min-h-11 w-full items-center justify-center rounded-full border border-black/15 bg-[#f7f3ee] px-4 text-center text-sm font-semibold text-[var(--brand-espresso)]">
+              Disponible próximamente en línea
+            </div>
+          )}
         </div>
       </div>
     </article>

@@ -1,5 +1,4 @@
-import StorefrontProductCard from "@/components/StorefrontProductCard";
-import { accessoryProducts } from "@/data/secondaryCatalog";
+import CatalogAccessoryGrid from "@/components/CatalogAccessoryGrid";
 
 export const metadata = {
   title: "Accesorios · Óptica OLM",
@@ -25,31 +24,7 @@ export default function AccessoriesPage() {
       </section>
 
       <section className="mx-auto max-w-7xl px-5 py-12 sm:px-6 md:py-16">
-        <div className="mb-8 flex items-end justify-between gap-5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">
-              Colección inicial
-            </p>
-            <h2 className="mt-2 text-3xl font-bold">Nuestros accesorios</h2>
-          </div>
-          <p className="text-sm text-gray-500">3 productos</p>
-        </div>
-
-        <div className="grid items-stretch gap-6 md:grid-cols-3">
-          {accessoryProducts.map((product, index) => (
-            <StorefrontProductCard
-              key={product.slug}
-              slug={product.slug}
-              name={product.name}
-              eyebrow={product.eyebrow}
-              description={product.description}
-              price={product.price}
-              image={product.image}
-              actionLabel="Agregar al carrito"
-              priority={index === 0}
-            />
-          ))}
-        </div>
+        <CatalogAccessoryGrid />
       </section>
     </main>
   );
