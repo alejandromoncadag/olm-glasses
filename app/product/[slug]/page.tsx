@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import LikeButton from "@/components/LikeButton";
 import QuickAddToCartButton from "@/components/QuickAddToCartButton";
+import { requiresOpticalConfiguration } from "@/lib/catalog/purchaseFlow.mjs";
 import { createWhatsAppLink } from "@/lib/whatsapp";
 
 type ProductImage = {
@@ -85,10 +86,11 @@ function getProductDescription(product: Product) {
     return "Lentes de contacto para una visión cómoda y clara. Confirma tu graduación antes de finalizar la compra.";
   }
 
-  const use =
-    product.type === "sunglasses" ? "para días de sol" : "para uso diario";
+  if (product.type === "sunglasses") {
+    return "Lentes de sol cómodos y versátiles, listos para acompañarte y proteger tu vista todos los días.";
+  }
 
-  return `Un armazón cómodo y versátil, pensado ${use} y listo para personalizarse con la opción de lente que mejor se adapte a ti.`;
+  return "Un armazón cómodo y versátil, pensado para uso diario y listo para personalizarse con la opción de lente que mejor se adapte a ti.";
 }
 
 export default function ProductPage() {
@@ -249,6 +251,8 @@ export default function ProductPage() {
           : "Lentes ópticos";
   const isEyewear =
     product.type === "eyeglasses" || product.type === "sunglasses";
+  const needsOpticalConfiguration = requiresOpticalConfiguration(product);
+  const isAvailable = product.isActive && product.isAvailable;
 
   return (
     <main className="min-h-screen bg-white text-black">
@@ -362,6 +366,21 @@ export default function ProductPage() {
                 {productDescription}
               </p>
 
+              <p
+                className={`mt-4 inline-flex items-center gap-2 text-sm font-semibold ${
+                  isAvailable ? "text-emerald-700" : "text-gray-500"
+                }`}
+                aria-live="polite"
+              >
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    isAvailable ? "bg-emerald-600" : "bg-gray-400"
+                  }`}
+                  aria-hidden="true"
+                />
+                {isAvailable ? "Disponible" : "No disponible"}
+              </p>
+
               {product.favoritable && (
                 <div className="mt-5">
                   <LikeButton slug={product.slug} variant="full" />
@@ -369,7 +388,7 @@ export default function ProductPage() {
               )}
             </div>
 
-            {!product.isActive || !product.isAvailable ? (
+            {!isAvailable ? (
               <div className="mt-8 rounded-3xl border border-gray-200 bg-[#faf9f7] p-6">
                 <h2 className="text-xl font-semibold">Producto no disponible</h2>
 
@@ -387,25 +406,8 @@ export default function ProductPage() {
                   sucursal. La compra en línea todavía no está habilitada para este
                   producto.
                 </p>
-                {product.availability.branches.length > 0 && (
-                  <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                    {product.availability.branches.map((branch) => (
-                      <div
-                        key={branch.branchId}
-                        className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm"
-                      >
-                        <span>{branch.branchName}</span>
-                        <span className="font-semibold">
-                          {branch.availableQuantity > 0
-                            ? `${branch.availableQuantity} disponibles`
-                            : "Agotado"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-            ) : isEyewear ? (
+            ) : needsOpticalConfiguration ? (
               <div className="mt-8 border-y border-black/15 py-7">
                 <p className="max-w-lg text-sm leading-6 text-gray-600">
                   Elige tus micas, tratamiento y revisa el precio final en un
@@ -428,7 +430,7 @@ export default function ProductPage() {
 
                 <QuickAddToCartButton
                   slug={product.slug}
-                  label="Agregar al carrito y continuar"
+                  label="Agregar al carrito"
                   className="mt-5 h-12 w-full"
                 />
               </div>
@@ -446,6 +448,12 @@ export default function ProductPage() {
                       "Entrega a domicilio o recolección",
                       "Atención en tiendas Óptica OLM",
                     ]
+                  : product.type === "sunglasses"
+                    ? [
+                        "Pago seguro en pesos mexicanos",
+                        "Entrega a domicilio o recolección",
+                        "Ajuste de armazón en tienda",
+                      ]
                   : product.type === "contact_lenses"
                     ? [
                         "Confirmación de graduación",
@@ -496,7 +504,7 @@ export default function ProductPage() {
               </h2>
               <p className="mt-5 max-w-xl leading-7 text-gray-600">
                 {productDescription}{" "}
-                {isEyewear
+                {needsOpticalConfiguration
                   ? "Puedes elegir el tipo de lente y su tratamiento antes de revisar la selección y agregarla al carrito."
                   : "Puedes agregarlo al carrito, revisar tu selección y después continuar al checkout."}
               </p>
@@ -558,7 +566,7 @@ export default function ProductPage() {
               <div>
                 <h3 className="text-lg font-semibold">Tu compra, a tu manera</h3>
                 <ul className="mt-5 space-y-4 text-sm leading-6 text-gray-600">
-                  {(isEyewear
+                  {(needsOpticalConfiguration
                     ? [
                         "Elige entre graduación sencilla, mica transparente o lentes de sol.",
                         "Envía tu receta después o solicita apoyo por WhatsApp.",

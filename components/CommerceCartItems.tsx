@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 
 import CartItems from "@/components/CartItems";
+import ShippingRequestFlow from "@/components/ShippingRequestFlow";
 import { CART_UPDATED_EVENT } from "@/lib/cart";
 import type {
   AuthoritativeCart,
@@ -166,8 +167,12 @@ export default function CommerceCartItems({ returnTo }: { returnTo: string }) {
           <h2 className="text-2xl font-semibold">Resumen</h2>
           <p className="mt-2 text-sm text-gray-500">{cart.itemCount} {cart.itemCount === 1 ? "producto" : "productos"}</p>
           <div className="mt-6 flex justify-between border-t pt-5 text-lg font-semibold"><span>Subtotal actual</span><span>{money(cart.subtotal, cart.currency)}</span></div>
-          <button type="button" disabled className="mt-6 w-full cursor-not-allowed rounded-full bg-gray-300 px-6 py-3 text-white">Checkout disponible en una fase posterior</button>
-          <p className="mt-3 text-sm text-gray-600">{cart.availabilityNotice || "La sucursal y disponibilidad final se confirmarán más adelante."}</p>
+          {!cart.readyForFutureCheckout ? (
+            <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">Revisa los avisos del carrito antes de solicitar entrega o recolección.</div>
+          ) : (
+            <ShippingRequestFlow />
+          )}
+          <p className="mt-5 text-sm text-gray-600">La óptica valida una sola sucursal para todo el carrito. En esta fase no se cobra, no se crea una orden y no se reserva inventario.</p>
         </aside>
       </div>
     </div>

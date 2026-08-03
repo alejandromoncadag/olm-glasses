@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  DIRECTLY_PURCHASABLE_CATEGORIES,
+  requiresOpticalConfiguration,
+} from "../lib/catalog/purchaseFlow.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => readFileSync(path.join(root, file), "utf8");
@@ -34,11 +38,40 @@ assert(client.includes('import "server-only"'), "Commerce client is not server-o
 const quickAdd = read("components/QuickAddToCartButton.tsx");
 assert(quickAdd.includes('product.source === "opticaolm"'), "Authoritative quick-add is not isolated");
 assert(quickAdd.includes('fetch("/api/commerce/cart"'), "Authoritative quick-add bypasses the BFF");
+assert(quickAdd.includes("!product.isAvailable"), "Authoritative quick-add ignores catalog availability");
+
+const expectedDirectCategories = [
+  "lentes_de_sol",
+  "lentes_de_contacto",
+  "accesorios_y_refacciones",
+  "soluciones_y_cuidado",
+];
+assert(
+  JSON.stringify(DIRECTLY_PURCHASABLE_CATEGORIES) ===
+    JSON.stringify(expectedDirectCategories),
+  "Direct-purchase categories drifted from the authoritative backend"
+);
+for (const category of expectedDirectCategories) {
+  assert(
+    !requiresOpticalConfiguration({ category, type: "eyeglasses" }),
+    `${category} was incorrectly routed to optical configuration`
+  );
+}
+assert(
+  requiresOpticalConfiguration({ category: "lentes_opticos", type: "eyeglasses" }),
+  "Prescription eyeglasses no longer reach optical configuration"
+);
+
+const productDetail = read("app/product/[slug]/page.tsx");
+assert(productDetail.includes("requiresOpticalConfiguration(product)"), "Product detail ignores the purchase-flow rule");
+assert(productDetail.includes('label="Agregar al carrito"'), "Direct purchase does not expose add-to-cart");
+assert(productDetail.includes('isAvailable ? "Disponible" : "No disponible"'), "Product detail lacks authoritative availability status");
+assert(!productDetail.includes("branch.availableQuantity"), "Product detail exposes exact branch availability");
 
 const cartPage = read("app/cart/page.tsx");
 const cartUi = read("components/CommerceCartItems.tsx");
 assert(cartPage.includes("CommerceCartItems"), "Cart page does not select the authoritative UI");
-assert(cartUi.includes("Checkout disponible en una fase posterior"), "Phase 1F-B checkout boundary is missing");
+assert(cartUi.includes("no se crea una orden"), "The no-order boundary is missing from the authoritative cart");
 assert(!cartUi.includes('href="/checkout"'), "Authoritative cart can reach legacy checkout");
 
 const favorites = read("hooks/useLikes.tsx");

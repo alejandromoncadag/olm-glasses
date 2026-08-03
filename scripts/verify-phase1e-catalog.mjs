@@ -205,6 +205,9 @@ async function trackedCounts() {
       counts[table] = Number(result.rows[0].count);
     }
     return counts;
+  } catch (error) {
+    if (error?.code === "42P01") return null;
+    throw error;
   } finally {
     await pool.end();
   }

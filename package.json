@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "verify:phase1fa": "node scripts/verify-phase1fa-commerce.mjs"
+    "verify:phase1fa": "node scripts/verify-phase1fa-commerce.mjs",
+    "verify:phase1fb1": "node scripts/verify-phase1fb1-fulfillment.mjs"
   },
   "dependencies": {
     "@auth/pg-adapter": "^1.11.3",

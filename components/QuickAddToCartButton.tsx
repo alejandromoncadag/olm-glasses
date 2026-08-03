@@ -10,6 +10,7 @@ type ApiProduct = {
   stock: number;
   type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
   isActive: boolean;
+  isAvailable: boolean;
   productId?: string | null;
   source?: "legacy" | "opticaolm";
   purchasableOnline?: boolean;
@@ -41,7 +42,7 @@ export default function QuickAddToCartButton({
       const data = (await response.json()) as { product?: ApiProduct };
       const product = data.product;
 
-      if (!product || !product.isActive || product.stock <= 0) {
+      if (!product || !product.isActive || !product.isAvailable) {
         alert("Este producto no está disponible.");
         return;
       }
