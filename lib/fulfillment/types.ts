@@ -29,8 +29,38 @@ export type FulfillmentRequest = {
     fastestOptionId: string;
     recommendedOptionId: string;
   } | null;
+  reservation: Reservation | null;
   expiresAt: string;
   createdAt: string;
+};
+
+export type Reservation = {
+  schemaVersion: "1.0";
+  reservationId: string;
+  requestId: string;
+  selectedOptionId: string;
+  branchId: string;
+  branchName: string;
+  status: "active" | "released" | "expired" | "cancelled";
+  createdAt: string;
+  expiresAt: string;
+  releasedAt: string | null;
+  lifetimeMinutes: number;
+  lines: Array<{
+    lineId: string;
+    productId: string;
+    branchId: string;
+    cartItemId: string | null;
+    configurationHash: string;
+    sku: string;
+    name: string;
+    quantity: number;
+  }>;
+  stockReserved: true;
+  orderCreated: false;
+  paymentCreated: false;
+  saleCreated: false;
+  shipmentCreated: false;
 };
 
 export type CheckoutPreview = {

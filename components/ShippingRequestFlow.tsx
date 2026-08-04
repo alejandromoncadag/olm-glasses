@@ -7,6 +7,7 @@ import type {
   FulfillmentOption,
   FulfillmentRequest,
   PickupBranch,
+  Reservation,
 } from "@/lib/fulfillment/types";
 
 function money(value: string, currency = "MXN") {
@@ -115,7 +116,19 @@ async function fetchPreview(requestId: string) {
   return payload;
 }
 
-function CheckoutPreviewPanel({ preview }: { preview: CheckoutPreview }) {
+function CheckoutPreviewPanel({
+  preview,
+  reservation,
+  reservationBusy,
+  onReserve,
+  onRelease,
+}: {
+  preview: CheckoutPreview;
+  reservation: Reservation | null;
+  reservationBusy: boolean;
+  onReserve: () => void;
+  onRelease: () => void;
+}) {
   const option = preview.fulfillment;
   return (
     <section className="mt-6 overflow-hidden rounded-3xl border border-emerald-300 bg-emerald-50">
@@ -155,9 +168,42 @@ function CheckoutPreviewPanel({ preview }: { preview: CheckoutPreview }) {
         </div>
       </dl>
 
-      <div className="space-y-1 bg-white/70 px-5 py-4 text-sm text-emerald-950 sm:px-6">
-        <p className="font-semibold">Inventory is not reserved.</p>
+      <div className="space-y-3 bg-white/70 px-5 py-4 text-sm text-emerald-950 sm:px-6">
+        {reservation?.status === "active" ? (
+          <div className="rounded-2xl border border-emerald-300 bg-emerald-100 p-4">
+            <p className="font-semibold">Inventario reservado temporalmente.</p>
+            <p className="mt-1 text-emerald-900">
+              Esta reserva vence el {dateTime(reservation.expiresAt)}. La reserva
+              no es una orden ni un pago.
+            </p>
+            <button
+              type="button"
+              disabled={reservationBusy}
+              onClick={onRelease}
+              className="mt-3 rounded-full border border-emerald-900 px-4 py-2 font-semibold disabled:opacity-50"
+            >
+              {reservationBusy ? "Liberando…" : "Liberar reserva"}
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+            <p className="font-semibold">Inventory is not reserved.</p>
+            <p className="mt-1 text-amber-900">
+              Puedes reservar el inventario por 20 minutos para continuar con
+              este checkout preview.
+            </p>
+            <button
+              type="button"
+              disabled={reservationBusy}
+              onClick={onReserve}
+              className="mt-3 rounded-full bg-black px-4 py-2 font-semibold text-white disabled:bg-stone-300"
+            >
+              {reservationBusy ? "Reservando…" : "Reservar inventario por 20 minutos"}
+            </button>
+          </div>
+        )}
         <p className="font-semibold">No order or payment has been created.</p>
+        <p className="font-semibold">No sale or shipment has been created.</p>
         <p className="pt-2 text-emerald-800">
           Puedes elegir otra cotización mientras siga activa. El checkout final
           estará disponible en una fase posterior.
@@ -180,11 +226,19 @@ export function FulfillmentRequestCard({
 }) {
   const [busy, setBusy] = useState("");
   const [previewBusy, setPreviewBusy] = useState(false);
+  const [reservationBusy, setReservationBusy] = useState(false);
   const [error, setError] = useState("");
   const [selectedOptionId, setSelectedOptionId] = useState(
     request.selectedOptionId || ""
   );
   const [preview, setPreview] = useState<CheckoutPreview | null>(null);
+  const [reservation, setReservation] = useState<Reservation | null>(
+    request.reservation
+  );
+
+  useEffect(() => {
+    setReservation(request.reservation);
+  }, [request.reservation]);
 
   useEffect(() => {
     if (request.status !== "selected") return;
@@ -215,6 +269,10 @@ export function FulfillmentRequestCard({
   }, [request.requestId, request.status]);
 
   async function select(optionId: string) {
+    if (reservation?.status === "active") {
+      setError("Libera la reserva activa antes de elegir otra opción.");
+      return;
+    }
     setBusy(optionId);
     setError("");
     try {
@@ -254,6 +312,56 @@ export function FulfillmentRequestCard({
       );
     } finally {
       setBusy("");
+    }
+  }
+
+  async function reserve() {
+    setReservationBusy(true);
+    setError("");
+    try {
+      const response = await fetch(
+        `/api/fulfillment/requests/${encodeURIComponent(request.requestId)}/reservation`,
+        { method: "POST" }
+      );
+      const payload = (await responsePayload(
+        response,
+        "No pudimos reservar el inventario."
+      )) as Reservation;
+      setReservation(payload);
+    } catch (reason) {
+      diagnostic("create_reservation", request.requestId, reason);
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No pudimos reservar el inventario."
+      );
+    } finally {
+      setReservationBusy(false);
+    }
+  }
+
+  async function release() {
+    setReservationBusy(true);
+    setError("");
+    try {
+      const response = await fetch(
+        `/api/fulfillment/requests/${encodeURIComponent(request.requestId)}/reservation/release`,
+        { method: "POST" }
+      );
+      const payload = (await responsePayload(
+        response,
+        "No pudimos liberar la reserva."
+      )) as Reservation;
+      setReservation(payload);
+    } catch (reason) {
+      diagnostic("release_reservation", request.requestId, reason);
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No pudimos liberar la reserva."
+      );
+    } finally {
+      setReservationBusy(false);
     }
   }
 
@@ -336,7 +444,7 @@ export function FulfillmentRequestCard({
                     </p>
                     <button
                       type="button"
-                      disabled={Boolean(busy) || selected}
+                      disabled={Boolean(busy) || selected || reservation?.status === "active"}
                       onClick={() => void select(option.optionId)}
                       className="mt-2 rounded-full bg-black px-4 py-2 text-sm font-semibold text-white disabled:bg-stone-300"
                     >
@@ -344,6 +452,8 @@ export function FulfillmentRequestCard({
                         ? "Validando…"
                         : selected
                           ? "Seleccionada"
+                          : reservation?.status === "active"
+                            ? "Reserva activa"
                           : "Elegir"}
                     </button>
                   </div>
@@ -364,7 +474,15 @@ export function FulfillmentRequestCard({
           {error}
         </p>
       )}
-      {preview && <CheckoutPreviewPanel preview={preview} />}
+      {preview && (
+        <CheckoutPreviewPanel
+          preview={preview}
+          reservation={reservation}
+          reservationBusy={reservationBusy}
+          onReserve={() => void reserve()}
+          onRelease={() => void release()}
+        />
+      )}
     </article>
   );
 }
