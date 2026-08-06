@@ -63,6 +63,42 @@ export type Reservation = {
   shipmentCreated: false;
 };
 
+export type OnlineOrder = {
+  schemaVersion: "1.0";
+  orderId: string;
+  requestId: string;
+  reservationId: string;
+  status: "pending_payment";
+  fulfillmentMethod: "shipping" | "pickup";
+  branchId: string;
+  branch: Record<string, unknown>;
+  contact: Record<string, unknown>;
+  address: Record<string, unknown> | null;
+  shippingQuote: Record<string, unknown> | null;
+  lines: Array<{
+    lineId: string;
+    productId: string;
+    branchId: string;
+    cartItemId: string | null;
+    configurationHash: string;
+    sku: string;
+    name: string;
+    quantity: number;
+    unitPrice: string;
+    lineTotal: string;
+  }>;
+  subtotal: string;
+  shipping: string;
+  total: string;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+  paymentCreated: false;
+  saleCreated: false;
+  shipmentCreated: false;
+  inventoryDeducted: false;
+};
+
 export type CheckoutPreview = {
   schemaVersion: "1.0";
   previewId: string;

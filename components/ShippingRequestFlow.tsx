@@ -1,12 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import type {
   CheckoutPreview,
   FulfillmentOption,
   FulfillmentRequest,
   PickupBranch,
+  OnlineOrder,
   Reservation,
 } from "@/lib/fulfillment/types";
 
@@ -122,12 +124,14 @@ function CheckoutPreviewPanel({
   reservationBusy,
   onReserve,
   onRelease,
+  onCreateOrder,
 }: {
   preview: CheckoutPreview;
   reservation: Reservation | null;
   reservationBusy: boolean;
   onReserve: () => void;
   onRelease: () => void;
+  onCreateOrder: () => void;
 }) {
   const option = preview.fulfillment;
   return (
@@ -184,6 +188,14 @@ function CheckoutPreviewPanel({
             >
               {reservationBusy ? "Liberando…" : "Liberar reserva"}
             </button>
+            <button
+              type="button"
+              disabled={reservationBusy}
+              onClick={onCreateOrder}
+              className="mt-3 ml-2 rounded-full bg-black px-4 py-2 font-semibold text-white disabled:bg-stone-300"
+            >
+              {reservationBusy ? "Creando orden…" : "Continuar a pago"}
+            </button>
           </div>
         ) : (
           <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
@@ -235,6 +247,7 @@ export function FulfillmentRequestCard({
   const [reservation, setReservation] = useState<Reservation | null>(
     request.reservation
   );
+  const router = useRouter();
 
   useEffect(() => {
     setReservation(request.reservation);
@@ -365,6 +378,31 @@ export function FulfillmentRequestCard({
     }
   }
 
+  async function createOrder() {
+    setReservationBusy(true);
+    setError("");
+    try {
+      const response = await fetch(
+        `/api/fulfillment/requests/${encodeURIComponent(request.requestId)}/order`,
+        { method: "POST" }
+      );
+      const payload = (await responsePayload(
+        response,
+        "No pudimos crear la orden pendiente de pago."
+      )) as OnlineOrder;
+      router.push(`/order-pending/${encodeURIComponent(payload.requestId)}`);
+    } catch (reason) {
+      diagnostic("create_order", request.requestId, reason);
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No pudimos crear la orden pendiente de pago."
+      );
+    } finally {
+      setReservationBusy(false);
+    }
+  }
+
   const displayStatus = selectedOptionId ? "selected" : request.status;
 
   return (
@@ -481,6 +519,7 @@ export function FulfillmentRequestCard({
           reservationBusy={reservationBusy}
           onReserve={() => void reserve()}
           onRelease={() => void release()}
+          onCreateOrder={() => void createOrder()}
         />
       )}
     </article>
