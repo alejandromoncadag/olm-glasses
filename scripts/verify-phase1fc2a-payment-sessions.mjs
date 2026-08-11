@@ -1,10 +1,16 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const backend = readFileSync(resolve(process.cwd(), "../../opticaolm/backend/online_fulfillment.py"), "utf8");
-const route = readFileSync("app/api/fulfillment/requests/[requestId]/payment-session/route.ts", "utf8");
-const page = readFileSync("app/order-pending/[orderId]/page.tsx", "utf8");
-const types = readFileSync("lib/fulfillment/types.ts", "utf8");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const opticaRoot = process.env.OPTICAOLM_REPO_DIR
+  ? path.resolve(process.env.OPTICAOLM_REPO_DIR)
+  : path.resolve(repoRoot, "..", "opticaolm");
+const read = (file) => readFileSync(path.join(repoRoot, file), "utf8");
+const backend = readFileSync(path.join(opticaRoot, "backend", "online_fulfillment.py"), "utf8");
+const route = read("app/api/fulfillment/requests/[requestId]/payment-session/route.ts");
+const page = read("app/order-pending/[orderId]/page.tsx");
+const types = read("lib/fulfillment/types.ts");
 
 for (const token of ["PHASE_1FC2A_ENABLED", "fulfillment_payment_session_create", "paymentSessionsEnabled", "conekta", "payment_session_created"]) {
   if (!backend.toLowerCase().includes(token.toLowerCase())) throw new Error(`Missing backend C2-A token: ${token}`);
