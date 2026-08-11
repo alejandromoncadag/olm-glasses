@@ -99,6 +99,26 @@ export type OnlineOrder = {
   inventoryDeducted: false;
 };
 
+export type PaymentSession = {
+  schemaVersion: "1.0";
+  paymentSessionId: string;
+  orderId: string;
+  requestId: string;
+  provider: "conekta" | string;
+  status: "pending" | "checkout_created" | "failed" | "canceled" | "expired" | "paid";
+  amount: string;
+  currency: string;
+  providerSessionRef: string | null;
+  checkoutUrl: string | null;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+  attempts: Array<Record<string, unknown>>;
+  paymentCreated: false;
+  chargeCreated: false;
+  orderMarkedPaid: false;
+};
+
 export type CheckoutPreview = {
   schemaVersion: "1.0";
   previewId: string;
