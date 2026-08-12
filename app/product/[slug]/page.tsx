@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import LikeButton from "@/components/LikeButton";
 import QuickAddToCartButton from "@/components/QuickAddToCartButton";
-import { requiresOpticalConfiguration } from "@/lib/catalog/purchaseFlow.mjs";
+import {
+  requiresOpticalConfiguration,
+  supportsDirectFramePurchase,
+} from "@/lib/catalog/purchaseFlow.mjs";
 import { createWhatsAppLink } from "@/lib/whatsapp";
 
 type ProductImage = {
@@ -25,6 +28,7 @@ type Product = {
   priceCents: number;
   currency: string;
   category: string;
+  subcategory: string | null;
   type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses" | "service";
   gender: string | null;
   shape: string | null;
@@ -252,6 +256,7 @@ export default function ProductPage() {
   const isEyewear =
     product.type === "eyeglasses" || product.type === "sunglasses";
   const needsOpticalConfiguration = requiresOpticalConfiguration(product);
+  const supportsFrameOnlyPurchase = supportsDirectFramePurchase(product);
   const isAvailable = product.isActive && product.isAvailable;
 
   return (
@@ -407,7 +412,7 @@ export default function ProductPage() {
                   producto.
                 </p>
               </div>
-            ) : needsOpticalConfiguration ? (
+            ) : needsOpticalConfiguration && !supportsFrameOnlyPurchase ? (
               <div className="mt-8 border-y border-black/15 py-7">
                 <p className="max-w-lg text-sm leading-6 text-gray-600">
                   Elige tus micas, tratamiento y revisa el precio final en un
@@ -419,6 +424,30 @@ export default function ProductPage() {
                 >
                   Seleccionar micas y tratamientos
                 </a>
+              </div>
+            ) : supportsFrameOnlyPurchase ? (
+              <div className="mt-8 space-y-4 border-y border-black/15 py-7">
+                <div>
+                  <p className="text-sm leading-6 text-gray-600">
+                    Armazón sin micas ni graduación. Color y modelo según las imágenes y descripción.
+                  </p>
+                  <QuickAddToCartButton
+                    slug={product.slug}
+                    label="Agregar al carrito"
+                    className="mt-5 h-12 w-full"
+                  />
+                </div>
+                <div className="border-t border-black/10 pt-4">
+                  <p className="text-sm leading-6 text-gray-600">
+                    ¿Quieres comprarlo con micas? Configura la graduación y los tratamientos por separado.
+                  </p>
+                  <a
+                    href={`/product/${product.slug}/configurar`}
+                    className="mt-4 inline-flex h-12 w-full items-center justify-center border border-[var(--brand-espresso)] px-6 text-sm font-semibold text-[var(--brand-espresso)] transition hover:bg-[#f7f3ee]"
+                  >
+                    Configurar micas
+                  </a>
+                </div>
               </div>
             ) : (
               <div className="mt-8 bg-[#f4f3f0] p-5 sm:p-6">

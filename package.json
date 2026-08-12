@@ -11,7 +11,9 @@
     "verify:phase1fb1": "node scripts/verify-phase1fb1-fulfillment.mjs",
     "verify:phase1fb2": "node scripts/verify-phase1fb2-reservations.mjs",
     "verify:phase1fc1": "node scripts/verify-phase1fc1-online-orders.mjs",
-    "verify:phase1fc2a": "node scripts/verify-phase1fc2a-payment-sessions.mjs"
+    "verify:phase1fc2a": "node scripts/verify-phase1fc2a-payment-sessions.mjs",
+    "verify:phase1gb": "node scripts/verify-phase1gb-optical-preview.mjs",
+    "verify:phase1gc": "node scripts/verify-phase1gc-optical-drafts.mjs"
   },
   "dependencies": {
     "@auth/pg-adapter": "^1.11.3",

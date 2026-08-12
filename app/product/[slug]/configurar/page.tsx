@@ -2,16 +2,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import ProductPurchasePanel from "@/components/ProductPurchasePanel";
-import { readCart } from "@/lib/cart";
 
 type ConfigurableProduct = {
+  productId: string | null;
   slug: string;
   name: string;
   price: number;
   stock: number;
+  availability: {
+    branches: Array<{
+      branchId: string;
+      branchCode: string;
+      branchName: string;
+      availableQuantity: number;
+    }>;
+  };
   isActive: boolean;
+  source: "legacy" | "opticaolm";
   type: "eyeglasses" | "sunglasses" | "accessory" | "contact_lenses";
   images: Array<{
     id: string;
@@ -22,7 +31,6 @@ type ConfigurableProduct = {
 
 export default function ConfigureProductPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const slugParam = params.slug;
   const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam;
   const [product, setProduct] = useState<ConfigurableProduct | null>(null);
@@ -35,7 +43,7 @@ export default function ConfigureProductPage() {
         setLoading(true);
         setError("");
 
-        const response = await fetch(`/api/products/${encodeURIComponent(slug || "")}`);
+        const response = await fetch(`/api/catalog/products/${encodeURIComponent(slug || "")}`);
         if (!response.ok) throw new Error("Product not found");
 
         const data = (await response.json()) as {
@@ -45,6 +53,8 @@ export default function ConfigureProductPage() {
 
         if (
           !nextProduct ||
+          nextProduct.source !== "opticaolm" ||
+          !nextProduct.productId ||
           !nextProduct.isActive ||
           (nextProduct.type !== "eyeglasses" &&
             nextProduct.type !== "sunglasses")
@@ -90,16 +100,7 @@ export default function ConfigureProductPage() {
   }
 
   const mainImage = product.images?.[0];
-  const editCartSlug = searchParams.get("edit");
-  const requestedReturnTo = searchParams.get("returnTo");
-  const safeReturnTo =
-    requestedReturnTo?.startsWith("/") && !requestedReturnTo.startsWith("//")
-      ? requestedReturnTo
-      : null;
-  const editItem = editCartSlug
-    ? readCart().find((item) => item.slug === editCartSlug) || null
-    : null;
-  const backHref = safeReturnTo || `/product/${product.slug}`;
+  const backHref = `/product/${product.slug}`;
 
   return (
     <main className="min-h-screen bg-white text-black">
@@ -110,7 +111,7 @@ export default function ConfigureProductPage() {
             className="relative z-10 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-gray-600 transition hover:text-black"
           >
             <span aria-hidden="true">←</span>
-            {safeReturnTo ? "Volver al pedido" : "Volver al producto"}
+            Volver al producto
           </a>
 
           <div className="mt-8 flex h-[calc(100%-60px)] min-h-[360px] items-center justify-center">
@@ -136,15 +137,13 @@ export default function ConfigureProductPage() {
 
           <ProductPurchasePanel
             product={{
+              productId: product.productId!,
               slug: product.slug,
               name: product.name,
               price: product.price,
               stock: product.stock,
+              branches: product.availability.branches,
             }}
-            initialLensId={editItem?.lensOptionId}
-            initialTreatmentId={editItem?.treatmentOptionId}
-            editCartSlug={editItem?.slug}
-            returnTo={safeReturnTo || undefined}
           />
         </div>
       </section>

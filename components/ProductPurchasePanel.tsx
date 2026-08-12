@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { readCart, writeCart, type CartItem } from "@/lib/cart";
+import AuthoritativeOpticalPreviewPanel from "@/components/AuthoritativeOpticalPreviewPanel";
 
 type PurchaseStep = "lenses" | "treatment" | "review";
 
@@ -29,10 +30,17 @@ type TreatmentOption = {
 
 type ProductPurchasePanelProps = {
   product: {
+    productId: string;
     slug: string;
     name: string;
     price: number;
     stock: number;
+    branches: Array<{
+      branchId: string;
+      branchCode: string;
+      branchName: string;
+      availableQuantity: number;
+    }>;
   };
   initialLensId?: string | null;
   initialTreatmentId?: string | null;
@@ -111,7 +119,11 @@ function formatMoney(amount: number) {
   return `$${amount.toLocaleString("es-MX")} MXN`;
 }
 
-export default function ProductPurchasePanel({
+export default function ProductPurchasePanel(props: ProductPurchasePanelProps) {
+  return <AuthoritativeOpticalPreviewPanel product={props.product} />;
+}
+
+export function LegacyProductPurchasePanel({
   product,
   initialLensId,
   initialTreatmentId,
