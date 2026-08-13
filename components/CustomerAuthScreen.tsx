@@ -77,7 +77,7 @@ export default function CustomerAuthScreen({
           }),
         }
       );
-      const data = (await response.json()) as { error?: string };
+      const data = (await response.json()) as { error?: string; verificationRequired?: boolean; devVerificationUrl?: string };
 
       if (!response.ok) {
         if (!isSignup && response.status === 401) {
@@ -95,6 +95,10 @@ export default function CustomerAuthScreen({
         return;
       }
 
+      if (isSignup && data.verificationRequired) {
+        window.location.assign(data.devVerificationUrl || "/verify-email?sent=1");
+        return;
+      }
       window.location.assign(getSafeRedirectUrl());
     } catch {
       setError("No pudimos conectar con el servidor. Intenta de nuevo.");

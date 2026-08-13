@@ -11,6 +11,7 @@ import {
   validateCustomerPassword,
 } from "@/lib/customerPasswordAuth";
 import { pool } from "@/lib/db";
+import { createVerificationRequest } from "@/lib/emailVerification";
 
 export const runtime = "nodejs";
 
@@ -121,7 +122,23 @@ export async function POST(request: Request) {
     const session = await createDatabaseCustomerSession(client, userId);
     await client.query("COMMIT");
 
-    const response = NextResponse.json({ success: true }, { status: 201 });
+    let verification: { devVerificationUrl: string | null } = { devVerificationUrl: null };
+    try {
+      verification = await createVerificationRequest(userId, email, fullName);
+    } catch {
+      // The account remains valid and unverified; the customer can request a new link.
+    }
+
+    const response = NextResponse.json(
+      {
+        success: true,
+        verificationRequired: true,
+        ...(verification.devVerificationUrl
+          ? { devVerificationUrl: verification.devVerificationUrl }
+          : {}),
+      },
+      { status: 201 }
+    );
     const cookie = getCustomerSessionCookie(
       request.url,
       session.sessionToken,

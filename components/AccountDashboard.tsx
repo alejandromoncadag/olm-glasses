@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { useAuth } from "@/hooks/useAuth";
+import PatientIdentityPanel from "@/components/PatientIdentityPanel";
 
 type Address = {
   id: string;
@@ -28,6 +29,7 @@ type AccountOverview = {
     email: string;
     phone: string;
     avatarUrl: string | null;
+    emailVerified: string | null;
   };
   counts: {
     orders: number;
@@ -400,6 +402,11 @@ export default function AccountDashboard() {
           {error}
         </p>
       )}
+
+      <PatientIdentityPanel
+        emailVerified={Boolean(overview.profile.emailVerified)}
+        hasPhone={Boolean(overview.profile.phone)}
+      />
 
       <div className="mt-10 grid gap-5 md:grid-cols-3">
         <AccountStat

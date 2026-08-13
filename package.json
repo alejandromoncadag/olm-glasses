@@ -13,7 +13,10 @@
     "verify:phase1fc1": "node scripts/verify-phase1fc1-online-orders.mjs",
     "verify:phase1fc2a": "node scripts/verify-phase1fc2a-payment-sessions.mjs",
     "verify:phase1gb": "node scripts/verify-phase1gb-optical-preview.mjs",
-    "verify:phase1gc": "node scripts/verify-phase1gc-optical-drafts.mjs"
+    "verify:phase1gc": "node scripts/verify-phase1gc-optical-drafts.mjs",
+    "verify:phase1ge": "node scripts/verify-phase1ge-identity.mjs",
+    "migrate:phase1ge": "node scripts/apply-phase1ge-email-verification.mjs",
+    "test:phase1ge-email": "node scripts/test-phase1ge-email-verification.mjs"
   },
   "dependencies": {
     "@auth/pg-adapter": "^1.11.3",

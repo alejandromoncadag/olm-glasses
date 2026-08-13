@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import type { OpticalDraftResponse } from "@/lib/optical/types";
+import { useAuth } from "@/hooks/useAuth";
+import OpticalPrescriptionAccess from "@/components/OpticalPrescriptionAccess";
 
 function money(value: string, currency: string) {
   return new Intl.NumberFormat("es-MX", {
@@ -18,6 +20,7 @@ function dateTime(value: string) {
 }
 
 export default function OpticalDraftPage() {
+  const { user, loading: authLoading } = useAuth();
   const params = useParams<{ draftId: string }>();
   const draftId = Array.isArray(params.draftId) ? params.draftId[0] : params.draftId;
   const [draft, setDraft] = useState<OpticalDraftResponse | null>(null);
@@ -29,9 +32,13 @@ export default function OpticalDraftPage() {
     const controller = new AbortController();
     async function load() {
       try {
-        const response = await fetch(`/api/optical/drafts/${encodeURIComponent(draftId)}`, {
+        let response = await fetch(`/api/optical/drafts/${encodeURIComponent(draftId)}`, {
           cache: "no-store", signal: controller.signal,
         });
+        if (response.status === 404 && !authLoading && user?.role === "customer") {
+          const claim = await fetch(`/api/identity/optical-drafts/${encodeURIComponent(draftId)}/claim`, { method: "POST", signal: controller.signal });
+          if (claim.ok) response = await fetch(`/api/optical/drafts/${encodeURIComponent(draftId)}`, { cache: "no-store", signal: controller.signal });
+        }
         const payload = (await response.json()) as OpticalDraftResponse & { error?: string };
         if (!response.ok) throw new Error(payload.error || "No pudimos abrir este pedido.");
         setDraft(payload);
@@ -43,7 +50,7 @@ export default function OpticalDraftPage() {
     }
     load();
     return () => controller.abort();
-  }, [draftId]);
+  }, [authLoading, draftId, user?.role]);
 
   async function cancelDraft() {
     if (!draft || !window.confirm("¿Seguro que quieres cancelar este pedido óptico temporal?")) return;
@@ -95,6 +102,7 @@ export default function OpticalDraftPage() {
         <p className="mt-4 text-sm leading-6 text-gray-600">
           Este pedido reserva únicamente el armazón. Todavía no se creó una venta, un pago ni una orden de laboratorio.
         </p>
+        {active && <OpticalPrescriptionAccess draftId={draftId} provided={draft.prescriptionStatus === "provided"} onAttached={() => setDraft((current) => current ? { ...current, prescriptionStatus: "provided", status: "listo_para_pago" } : current)} />}
         {error && <p className="mt-4 border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
         <div className="mt-7 flex flex-wrap gap-3">
           <a href="/eyeglasses" className="border border-black/20 px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em]">Seguir viendo</a>

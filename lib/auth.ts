@@ -9,6 +9,7 @@ export type User = {
   role: UserRole;
   avatarUrl?: string | null;
   adminRole?: string;
+  emailVerified?: string | null;
 };
 
 export async function getBackendAdminUser(): Promise<User | null> {

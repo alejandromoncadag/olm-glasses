@@ -159,6 +159,38 @@ CREATE TABLE customer_password_credentials (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE TABLE customer_email_verification_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT NOT NULL REFERENCES users(id),
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    consumed_at TIMESTAMPTZ,
+    invalidated_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (NOT (consumed_at IS NOT NULL AND invalidated_at IS NOT NULL))
+);
+CREATE TABLE customer_email_verification_outbox (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    verification_id UUID NOT NULL REFERENCES customer_email_verification_tokens(id),
+    recipient_email TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    html_body TEXT NOT NULL,
+    text_body TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sent', 'failed')),
+    attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+    sent_at TIMESTAMPTZ,
+    last_error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE customer_email_verification_events (
+    id BIGSERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    event_type TEXT NOT NULL,
+    provider TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}'::JSONB CHECK (jsonb_typeof(metadata) = 'object'),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 CREATE TABLE verification_token (
     identifier TEXT NOT NULL,
     expires TIMESTAMPTZ NOT NULL,
@@ -420,6 +452,9 @@ CREATE UNIQUE INDEX idx_authjs_users_email_lower ON users(LOWER(email))
 WHERE email IS NOT NULL;
 CREATE INDEX idx_authjs_accounts_user_id ON accounts("userId");
 CREATE INDEX idx_authjs_sessions_user_id ON sessions("userId");
+CREATE INDEX customer_email_verification_user_idx ON customer_email_verification_tokens(user_id, created_at DESC);
+CREATE INDEX customer_email_verification_outbox_queue_idx ON customer_email_verification_outbox(status, created_at);
+CREATE INDEX customer_email_verification_events_user_idx ON customer_email_verification_events(user_id, created_at DESC);
 CREATE INDEX idx_customer_addresses_customer_id ON customer_addresses(customer_id);
 CREATE UNIQUE INDEX idx_customer_addresses_one_default ON customer_addresses(customer_id)
 WHERE is_default;

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getMergeOwners, removeGuestCommerceCookie } from "@/lib/commerce/identity";
 import { getCommerceMode } from "@/lib/commerce/mode";
 import { commerceErrorResponse, commerceRequest } from "@/lib/commerce/serverClient";
+import { claimGuestOpticalDrafts } from "@/lib/identity/serverClient";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,8 +20,19 @@ export async function POST() {
       body: { guestOwnerHash: owners.guestOwnerHash },
       idempotencyKey: randomUUID(),
     });
-    await removeGuestCommerceCookie();
-    return Response.json({ mode, source: "opticaolm", ...result });
+    let opticalDraftsClaimed = false;
+    if (process.env.PHASE_1GE_ENABLED === "true") {
+      try {
+        await claimGuestOpticalDrafts();
+        opticalDraftsClaimed = true;
+      } catch {
+        // Keep the guest cookie so a verified account can claim optical drafts later.
+      }
+    }
+    if (process.env.PHASE_1GE_ENABLED !== "true" || opticalDraftsClaimed) {
+      await removeGuestCommerceCookie();
+    }
+    return Response.json({ mode, source: "opticaolm", opticalDraftsClaimed, ...result });
   } catch (error) {
     return commerceErrorResponse(error);
   }

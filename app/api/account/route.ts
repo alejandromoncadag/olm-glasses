@@ -137,6 +137,7 @@ export async function GET() {
         email: customer.email,
         phone: customer.phone,
         avatarUrl: customer.avatarUrl,
+        emailVerified: customer.emailVerified,
       },
       counts: {
         orders: Number(counts.orders_count),

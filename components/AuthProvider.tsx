@@ -81,6 +81,9 @@ function AuthJsBridge({ children }: { children: ReactNode }) {
       fullName: session.user.name?.trim() || "Cliente OLM",
       role: "customer",
       avatarUrl: session.user.image || null,
+      emailVerified: session.user.emailVerified
+        ? new Date(session.user.emailVerified).toISOString()
+        : null,
     };
   }, [session, status]);
 

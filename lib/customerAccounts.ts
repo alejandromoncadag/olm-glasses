@@ -12,6 +12,7 @@ export type CustomerIdentity = {
   email: string;
   fullName: string;
   avatarUrl: string | null;
+  emailVerified: string | null;
 };
 
 export type AuthenticatedCustomer = CustomerIdentity & {
@@ -36,6 +37,9 @@ function identityFromAuthSession(session: Session | null) {
     email: session.user.email.trim().toLowerCase(),
     fullName: cleanText(session.user.name) || "Cliente OLM",
     avatarUrl: cleanText(session.user.image) || null,
+    emailVerified: session.user.emailVerified
+      ? new Date(session.user.emailVerified).toISOString()
+      : null,
   } satisfies CustomerIdentity;
 }
 
@@ -306,6 +310,7 @@ export async function upsertCustomerIdentity(identity: CustomerIdentity) {
       email: identity.email,
       fullName: identity.fullName,
       avatarUrl: identity.avatarUrl,
+      emailVerified: identity.emailVerified,
       phone: cleanText(customer.phone),
       address: cleanText(customer.address),
       city: cleanText(customer.city),
