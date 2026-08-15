@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHmac } from "node:crypto";
+
 import type { CommerceOwner } from "@/lib/commerce/identity";
 
 export class FulfillmentUpstreamError extends Error {
@@ -7,6 +9,13 @@ export class FulfillmentUpstreamError extends Error {
     super(message);
     this.name = "FulfillmentUpstreamError";
   }
+}
+
+export function createIdentityAssertion(ownerHash: string, email: string) {
+  const token = (process.env.OPTICAOLM_COMMERCE_BEARER_TOKEN || "").trim();
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const payload = `${ownerHash}|${email.trim().toLowerCase()}|${timestamp}`;
+  return `${timestamp}:${createHmac("sha256", token).update(payload).digest("hex")}`;
 }
 
 function configuration() {
@@ -24,7 +33,7 @@ function configuration() {
 export async function fulfillmentRequest(
   path: string,
   owner: CommerceOwner,
-  init: { method?: "GET" | "POST"; body?: unknown; idempotencyKey?: string } = {}
+  init: { method?: "GET" | "POST"; body?: unknown; idempotencyKey?: string; identityAssertion?: string } = {}
 ) {
   const { baseUrl, token, timeoutMs } = configuration();
   const controller = new AbortController();
@@ -40,6 +49,7 @@ export async function fulfillmentRequest(
         "X-OLM-Owner-Hash": owner.ownerHash,
         ...(init.body === undefined ? {} : { "Content-Type": "application/json" }),
         ...(init.idempotencyKey ? { "Idempotency-Key": init.idempotencyKey } : {}),
+        ...(init.identityAssertion ? { "X-OLM-Identity-Assertion": init.identityAssertion } : {}),
       },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
       cache: "no-store",

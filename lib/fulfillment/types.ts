@@ -7,6 +7,7 @@ export type FulfillmentOption = {
   serviceLevel: string;
   amount: string;
   currency: string;
+  identityStatus?: "pendiente" | "resuelto" | "requiere_revision";
   minimumDeliveryDays: number;
   maximumDeliveryDays: number;
   quoteIdentifier: string;

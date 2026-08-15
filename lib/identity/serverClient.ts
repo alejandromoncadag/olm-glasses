@@ -74,6 +74,42 @@ export async function identityRequest(
   return payload as Record<string, unknown>;
 }
 
+export async function guestIdentityRequest(
+  path: string,
+  init: { method?: "GET" | "POST"; body?: unknown } = {}
+) {
+  const { baseUrl, token, timeoutMs } = settings();
+  const owner = await getCommerceOwner();
+  if (owner.ownerType !== "guest") throw new IdentityUpstreamError("La verificación de invitado no está disponible para cuentas autenticadas.", 400);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/storefront/identity/v1${path}`, {
+      method: init.method || "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+        "X-OLM-Owner-Type": "guest",
+        "X-OLM-Owner-Hash": owner.ownerHash,
+        ...(init.body === undefined ? {} : { "Content-Type": "application/json" }),
+      },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      cache: "no-store", redirect: "error", signal: controller.signal,
+    });
+  } catch { throw new IdentityUpstreamError("No pudimos conectar con el servicio de identidad."); }
+  finally { clearTimeout(timeout); }
+  let payload: unknown;
+  try { payload = await response.json(); } catch { throw new IdentityUpstreamError("La respuesta de identidad no es válida."); }
+  if (!response.ok) {
+    const detail = payload && typeof payload === "object" && "detail" in payload ? (payload as { detail?: unknown }).detail : null;
+    const message = detail && typeof detail === "object" && "message" in detail ? String((detail as { message?: unknown }).message || "No pudimos completar la verificación.") : String(detail || "No pudimos completar la verificación.");
+    throw new IdentityUpstreamError(message, response.status);
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new IdentityUpstreamError("La respuesta de identidad no es válida.");
+  return payload as Record<string, unknown>;
+}
+
 export function identityErrorResponse(error: unknown) {
   return Response.json({ error: error instanceof Error ? error.message : "No pudimos completar la acción." }, { status: error instanceof IdentityUpstreamError ? error.status : 500 });
 }

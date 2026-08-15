@@ -125,6 +125,11 @@ function CheckoutPreviewPanel({
   onReserve,
   onRelease,
   onCreateOrder,
+  emailVerificationPending,
+  verificationCode,
+  onVerificationCodeChange,
+  onVerifyEmail,
+  verificationBusy,
 }: {
   preview: CheckoutPreview;
   reservation: Reservation | null;
@@ -132,6 +137,11 @@ function CheckoutPreviewPanel({
   onReserve: () => void;
   onRelease: () => void;
   onCreateOrder: () => void;
+  emailVerificationPending: boolean;
+  verificationCode: string;
+  onVerificationCodeChange: (value: string) => void;
+  onVerifyEmail: () => void;
+  verificationBusy: boolean;
 }) {
   const option = preview.fulfillment;
   return (
@@ -188,6 +198,16 @@ function CheckoutPreviewPanel({
             >
               {reservationBusy ? "Liberando…" : "Liberar reserva"}
             </button>
+            {emailVerificationPending && (
+              <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950">
+                <p className="font-semibold">Verifica tu correo para continuar</p>
+                <p className="mt-1 text-xs">Enviamos un código de un solo uso al correo del checkout.</p>
+                <div className="mt-2 flex gap-2">
+                  <input value={verificationCode} onChange={(event) => onVerificationCodeChange(event.target.value)} inputMode="numeric" maxLength={6} placeholder="Código" className="w-32 rounded-lg border border-amber-300 px-2 py-1" />
+                  <button type="button" disabled={verificationBusy || verificationCode.length < 6} onClick={onVerifyEmail} className="rounded-lg bg-amber-800 px-3 py-1 font-semibold text-white disabled:opacity-50">{verificationBusy ? "Verificando…" : "Verificar"}</button>
+                </div>
+              </div>
+            )}
             <button
               type="button"
               disabled={reservationBusy}
@@ -240,6 +260,10 @@ export function FulfillmentRequestCard({
   const [previewBusy, setPreviewBusy] = useState(false);
   const [reservationBusy, setReservationBusy] = useState(false);
   const [error, setError] = useState("");
+  const [verificationId, setVerificationId] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verificationBusy, setVerificationBusy] = useState(false);
   const [selectedOptionId, setSelectedOptionId] = useState(
     request.selectedOptionId || ""
   );
@@ -379,6 +403,39 @@ export function FulfillmentRequestCard({
   }
 
   async function createOrder() {
+    if (!emailVerified) {
+      setVerificationBusy(true);
+      setError("");
+      try {
+        if (!verificationId) {
+          const start = await fetch("/api/guest-email/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: request.contact.email }) });
+          const startPayload = await start.json().catch(() => ({}));
+          if (start.ok) {
+            if (startPayload.status === "not_guest") {
+              setEmailVerified(true);
+            } else {
+              setVerificationId(String(startPayload.verificationId || ""));
+              setError("Verifica el correo y escribe el código recibido para continuar.");
+              return;
+            }
+          } else {
+            const code = startPayload?.code || startPayload?.detail?.code;
+            if (code !== "GUEST_ONLY") throw new Error(startPayload?.error || startPayload?.detail?.message || "No pudimos iniciar la verificación.");
+            setEmailVerified(true);
+          }
+        } else {
+          const confirm = await fetch("/api/guest-email/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ verificationId, code: verificationCode }) });
+          const confirmPayload = await confirm.json().catch(() => ({}));
+          if (!confirm.ok) throw new Error(confirmPayload?.error || confirmPayload?.detail?.message || "El código no es válido.");
+          setEmailVerified(true);
+        }
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "No pudimos verificar el correo.");
+        return;
+      } finally {
+        setVerificationBusy(false);
+      }
+    }
     setReservationBusy(true);
     setError("");
     try {
@@ -520,6 +577,11 @@ export function FulfillmentRequestCard({
           onReserve={() => void reserve()}
           onRelease={() => void release()}
           onCreateOrder={() => void createOrder()}
+          emailVerificationPending={Boolean(verificationId) && !emailVerified}
+          verificationCode={verificationCode}
+          onVerificationCodeChange={setVerificationCode}
+          onVerifyEmail={() => void createOrder()}
+          verificationBusy={verificationBusy}
         />
       )}
     </article>
