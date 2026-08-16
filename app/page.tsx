@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import FeaturedProductsFromDb from "@/components/FeaturedProductsFromDb";
 import HomeLocationFinder from "@/components/HomeLocationFinder";
+import OccasionLensGallery from "@/components/OccasionLensGallery";
+import ScrollTintBanner from "@/components/ScrollTintBanner";
 import { locations } from "@/data/locations";
 
 const outlineButton =
@@ -71,11 +73,25 @@ export default function Home() {
           <p className="mt-5 max-w-2xl text-base leading-7 text-gray-700">Elige tu armazón, tus micas y los tratamientos que necesitas en un proceso claro, paso a paso.</p>
           <div className="mt-10 grid gap-6 md:grid-cols-4">
             {[
-              ["01", "Elige el armazón"],
-              ["02", "Elige las micas"],
-              ["03", "Agrega tratamiento o tinte"],
-              ["04", "Completa tu compra"],
-            ].map(([number, title]) => <div key={number} className="border-t border-black/20 pt-4"><p className="text-sm font-semibold text-gray-500">{number}</p><p className="mt-3 text-lg font-semibold">{title}</p></div>)}
+              ["01", "Elige el armazón", "/images/customize-step-1.jpg"],
+              ["02", "Elige las micas", "/images/customize-step-2.jpg"],
+              ["03", "Agrega tratamiento o tinte", "/images/customize-step-3.jpg"],
+              ["04", "Completa tu compra", "/images/customize-step-4.jpg"],
+            ].map(([number, title, imagePath]) => (
+              <div key={number} className="group relative border-t border-black/20 pt-4 focus-within:outline-2 focus-within:outline-offset-4 focus-within:outline-[var(--brand-espresso)]">
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-1/2 top-full z-20 mt-4 hidden w-60 -translate-x-1/2 scale-95 opacity-0 shadow-lg transition duration-300 group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100 md:block"
+                >
+                  <div
+                    className="aspect-[4/3] bg-[#d9d0c8] bg-cover bg-center"
+                    style={{ backgroundImage: `url('${imagePath}')` }}
+                  />
+                </div>
+                <p className="text-sm font-semibold text-gray-500">{number}</p>
+                <p className="mt-3 text-lg font-semibold">{title}</p>
+              </div>
+            ))}
           </div>
           <Link href="/customiza-tus-lentes" className="mt-10 inline-flex h-12 items-center justify-center bg-[var(--brand-espresso)] px-7 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#1f1511]">Empezar a personalizar</Link>
         </div>
@@ -86,15 +102,15 @@ export default function Home() {
        * to public/images when the final photography is ready; the neutral
        * background remains visible until then.
        */}
-      <section
-        className="relative isolate min-h-[380px] overflow-hidden bg-[#30221d] bg-cover bg-center sm:min-h-[500px] sm:bg-fixed"
+      <ScrollTintBanner
+        className="relative isolate min-h-[520px] overflow-hidden bg-[#30221d] bg-cover bg-center sm:min-h-[700px] sm:bg-fixed"
         style={{
           backgroundImage:
             "linear-gradient(90deg, rgba(24, 16, 12, 0.78), rgba(24, 16, 12, 0.16)), url('/images/sol.png')",
         }}
         aria-label="Lentes con prescripción"
       >
-        <div className="relative z-10 mx-auto flex min-h-[380px] max-w-7xl items-end px-6 py-10 sm:min-h-[500px] sm:px-10 sm:py-14">
+        <div className="relative z-10 mx-auto flex min-h-[520px] max-w-7xl items-end px-6 py-10 sm:min-h-[700px] sm:px-10 sm:py-14">
           <div className="max-w-2xl text-white">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/75">Prescripción OLM</p>
             <h2 className="mt-3 max-w-xl text-4xl leading-[0.98] sm:text-6xl">Tu visión, a tu manera</h2>
@@ -114,7 +130,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </section>
+      </ScrollTintBanner>
 
       <section className="bg-white px-5 py-16 sm:px-6 sm:py-20">
         <div className="mx-auto max-w-7xl">
@@ -127,16 +143,16 @@ export default function Home() {
         </div>
       </section>
 
-      <section
-        className="relative isolate min-h-[380px] overflow-hidden bg-[#e6d8cb] bg-cover bg-center sm:min-h-[500px] sm:bg-fixed"
+      <ScrollTintBanner
+        className="relative isolate min-h-[520px] overflow-hidden bg-[#e6d8cb] bg-cover bg-center sm:min-h-[700px] sm:bg-fixed"
         style={{
           backgroundImage:
             "linear-gradient(90deg, rgba(24, 16, 12, 0.62), rgba(24, 16, 12, 0.08)), url('/images/opticos.png')",
         }}
         aria-label="Lentes solares"
       >
-        <div className="relative z-10 mx-auto flex min-h-[380px] max-w-7xl items-end px-6 py-10 sm:min-h-[500px] sm:px-10 sm:py-14">
-          <div className="max-w-xl text-white">
+        <div className="relative z-10 mx-auto flex min-h-[520px] max-w-7xl items-end px-6 py-10 sm:min-h-[700px] sm:px-10 sm:py-14">
+          <div className="ml-auto max-w-xl text-right text-white">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/80">Colección solar</p>
             <h2 className="mt-3 text-4xl leading-[0.98] sm:text-6xl">Lentes solares para tus días</h2>
             <Link
@@ -147,7 +163,7 @@ export default function Home() {
             </Link>
           </div>
         </div>
-      </section>
+      </ScrollTintBanner>
 
       <section className="bg-[#f7f3ee] px-5 py-16 sm:px-6 sm:py-20">
         <div className="mx-auto max-w-7xl">
@@ -157,6 +173,12 @@ export default function Home() {
             title="Lentes solares"
             showTabs={false}
           />
+        </div>
+      </section>
+
+      <section className="bg-white px-5 py-12 sm:px-6 sm:py-14">
+        <div className="mx-auto max-w-7xl">
+          <OccasionLensGallery />
         </div>
       </section>
 

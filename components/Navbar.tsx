@@ -206,7 +206,7 @@ function StoreNavbar() {
       )}
 
       <div
-        className={`overflow-hidden transition-[max-height] duration-300 ease-out ${navVisible ? "max-h-24" : "max-h-0"}`}
+        className={`transition-[max-height] duration-300 ease-out ${navVisible ? "max-h-24 overflow-visible" : "max-h-0 overflow-hidden"}`}
       >
         <nav
           className={`mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 transition-[opacity,transform] duration-300 ease-out sm:px-6 xl:gap-6 ${navVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"}`}
@@ -226,7 +226,7 @@ function StoreNavbar() {
                 <a
                   key={item.href}
                   href={item.href}
-                  className="whitespace-nowrap px-1.5 py-2 transition hover:text-[var(--brand-espresso)] 2xl:px-2.5"
+                  className="relative whitespace-nowrap px-1.5 py-2 transition hover:text-[var(--brand-espresso)] after:absolute after:bottom-0 after:left-1/2 after:h-px after:w-0 after:-translate-x-1/2 after:bg-[var(--brand-espresso)] after:transition-[width] after:duration-200 hover:after:w-[calc(100%-0.75rem)] 2xl:px-2.5"
                 >
                   {item.label}
                 </a>
