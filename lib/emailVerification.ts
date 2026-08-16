@@ -4,6 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { PoolClient } from "pg";
 
 import { pool } from "@/lib/db";
+import { deliverVerificationEmail } from "@/lib/emailDelivery";
 
 const TOKEN_LIFETIME_MINUTES = 30;
 
@@ -23,9 +24,9 @@ function baseUrl() {
 function verificationMessage(name: string, url: string) {
   const safeName = name.replace(/[<>&"']/g, "");
   return {
-    subject: "Verifica tu correo · Óptica OLM",
-    text: `Hola ${safeName},\n\nVerifica tu correo para vincular tus datos de paciente y usar recetas aprobadas:\n${url}\n\nEl enlace vence en ${TOKEN_LIFETIME_MINUTES} minutos.`,
-    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:32px"><h1>Verifica tu correo</h1><p>Hola ${safeName},</p><p>Confirma tu correo antes de vincular datos de paciente o usar recetas guardadas.</p><p><a href="${url}" style="display:inline-block;background:#4a2d23;color:white;padding:12px 20px;text-decoration:none;border-radius:999px">Verificar correo</a></p><p>El enlace vence en ${TOKEN_LIFETIME_MINUTES} minutos.</p></div>`,
+    subject: "Verifica tu correo — Óptica OLM",
+    text: `Hola ${safeName},\n\nGracias por crear tu cuenta en Óptica OLM.\n\nVerifica tu correo aquí:\n${url}\n\nEste enlace expira en ${TOKEN_LIFETIME_MINUTES} minutos.\n\nSi tú no creaste esta cuenta, puedes ignorar este mensaje.`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:32px"><h1>Verifica tu correo</h1><p>Hola ${safeName},</p><p>Gracias por crear tu cuenta en Óptica OLM.</p><p>Haz clic en el siguiente botón para verificar tu correo:</p><p><a href="${url}" style="display:inline-block;background:#4a2d23;color:white;padding:12px 20px;text-decoration:none;border-radius:2px">VERIFICAR MI CORREO</a></p><p>Este enlace expira en ${TOKEN_LIFETIME_MINUTES} minutos.</p><p>Si tú no creaste esta cuenta, puedes ignorar este mensaje.</p></div>`,
   };
 }
 
@@ -50,7 +51,7 @@ export async function createVerificationRequest(
     if (!user.rows[0]) throw new Error("Verification user not found");
     if (user.rows[0].emailVerified) {
       await client.query("COMMIT");
-      return { alreadyVerified: true, rateLimited: false, devVerificationUrl: null };
+      return { alreadyVerified: true, rateLimited: false, deliveryStatus: "sent" as const, devVerificationUrl: null };
     }
     const recent = await client.query(
       `SELECT COUNT(*)::int AS count FROM customer_email_verification_tokens
@@ -59,7 +60,7 @@ export async function createVerificationRequest(
     );
     if (Number(recent.rows[0].count) >= 5) {
       await client.query("COMMIT");
-      return { alreadyVerified: false, rateLimited: true, devVerificationUrl: null };
+      return { alreadyVerified: false, rateLimited: true, deliveryStatus: "failed" as const, devVerificationUrl: null };
     }
     await client.query(
       `UPDATE customer_email_verification_tokens
@@ -93,62 +94,18 @@ export async function createVerificationRequest(
     client.release();
   }
 
-  await tryDeliverOutbox(outboxId);
+  const delivery = await deliverVerificationEmail(outboxId);
   return {
     alreadyVerified: false,
     rateLimited: false,
+    deliveryStatus: delivery.status,
+    deliveryError: delivery.status === "failed" ? delivery.error : null,
     devVerificationUrl:
       process.env.EMAIL_VERIFICATION_DEV_LINKS === "true" &&
       process.env.NODE_ENV !== "production"
         ? url
         : null,
   };
-}
-
-async function tryDeliverOutbox(outboxId: string) {
-  const webhook = (process.env.EMAIL_VERIFICATION_WEBHOOK_URL || "").trim();
-  if (!webhook) return;
-  const result = await pool.query(
-    `SELECT recipient_email,subject,html_body,text_body
-     FROM customer_email_verification_outbox WHERE id=$1 AND status='queued'`,
-    [outboxId]
-  );
-  const message = result.rows[0];
-  if (!message) return;
-  try {
-    const response = await fetch(webhook, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(process.env.EMAIL_VERIFICATION_WEBHOOK_TOKEN
-          ? { Authorization: `Bearer ${process.env.EMAIL_VERIFICATION_WEBHOOK_TOKEN}` }
-          : {}),
-      },
-      body: JSON.stringify({
-        from: process.env.EMAIL_FROM || "Óptica OLM <no-reply@localhost>",
-        to: message.recipient_email,
-        subject: message.subject,
-        html: message.html_body,
-        text: message.text_body,
-      }),
-      cache: "no-store",
-      signal: AbortSignal.timeout(5000),
-    });
-    await pool.query(
-      `UPDATE customer_email_verification_outbox
-       SET status=$2,attempt_count=attempt_count+1,sent_at=CASE WHEN $2='sent' THEN NOW() ELSE NULL END,
-           last_error=CASE WHEN $2='failed' THEN $3 ELSE NULL END,updated_at=NOW()
-       WHERE id=$1`,
-      [outboxId, response.ok ? "sent" : "failed", response.ok ? null : `HTTP ${response.status}`]
-    );
-  } catch {
-    await pool.query(
-      `UPDATE customer_email_verification_outbox
-       SET status='failed',attempt_count=attempt_count+1,last_error='delivery unavailable',updated_at=NOW()
-       WHERE id=$1`,
-      [outboxId]
-    );
-  }
 }
 
 export async function consumeVerificationToken(token: string) {

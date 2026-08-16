@@ -21,7 +21,12 @@ export async function POST(request: Request) {
     if (result.rateLimited) {
       return Response.json({ error: "Solicitaste varios enlaces. Intenta de nuevo más tarde." }, { status: 429 });
     }
-    return Response.json({ success: true, ...result });
+    return Response.json({
+      success: true,
+      alreadyVerified: result.alreadyVerified,
+      verificationEmailFailed: result.deliveryStatus === "failed",
+      ...(result.devVerificationUrl ? { devVerificationUrl: result.devVerificationUrl } : {}),
+    });
   } catch {
     return Response.json({ error: "No pudimos preparar el correo de verificación." }, { status: 500 });
   }

@@ -103,6 +103,7 @@ function StoreNavbar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchProducts, setSearchProducts] = useState<SearchProduct[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [navVisible, setNavVisible] = useState(true);
 
   const isAdmin = user?.role === "admin";
   const isAdminArea = pathname.startsWith("/admin");
@@ -132,6 +133,40 @@ function StoreNavbar() {
 
     void loadSearchProducts();
   }, [searchLoading, searchOpen, searchProducts.length]);
+
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let lastToggleAt = 0;
+    const directionThreshold = 12;
+    const toggleCooldown = 350;
+
+    function setVisibility(nextVisible: boolean) {
+      setNavVisible((previousVisible) => {
+        if (previousVisible === nextVisible) return previousVisible;
+        lastToggleAt = performance.now();
+        return nextVisible;
+      });
+    }
+
+    function handleScroll() {
+      const currentScrollY = window.scrollY;
+      const now = performance.now();
+
+      if (currentScrollY < 24) {
+        setVisibility(true);
+      } else if (now - lastToggleAt >= toggleCooldown) {
+        if (currentScrollY > lastScrollY + directionThreshold) {
+          setVisibility(false);
+        } else if (currentScrollY < lastScrollY - directionThreshold) {
+          setVisibility(true);
+        }
+      }
+      lastScrollY = currentScrollY;
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const searchMatches = useMemo(() => {
     const normalizedQuery = normalizeSearchValue(searchQuery.trim());
@@ -170,7 +205,12 @@ function StoreNavbar() {
         <AnnouncementRotator />
       )}
 
-      <nav className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 sm:px-6 xl:gap-6">
+      <div
+        className={`overflow-hidden transition-[max-height] duration-300 ease-out ${navVisible ? "max-h-24" : "max-h-0"}`}
+      >
+        <nav
+          className={`mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 transition-[opacity,transform] duration-300 ease-out sm:px-6 xl:gap-6 ${navVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"}`}
+        >
         {!isAdminArea && (
           <div className="flex min-w-0 items-center gap-5 xl:gap-7">
             <Link
@@ -304,13 +344,6 @@ function StoreNavbar() {
                     Consultar pedido
                   </a>
 
-                  <a
-                    href="/eye-exam"
-                    className="block rounded-xl px-4 py-2 hover:bg-gray-100"
-                  >
-                    Examen de vista
-                  </a>
-
                   {isAdmin && (
                     <a
                       href="/admin"
@@ -355,7 +388,8 @@ function StoreNavbar() {
             <MenuIcon open={mobileMenuOpen} />
           </button>
         </div>
-      </nav>
+        </nav>
+      </div>
 
       {searchOpen && (
         <div
@@ -493,15 +527,26 @@ function AnnouncementRotator() {
   }, []);
 
   return (
-    <div className="bg-[#2d1f1a] text-white" aria-live="polite">
-      <div className="mx-auto flex h-9 max-w-7xl items-center justify-center px-4 text-center">
+    <div className="relative h-10 overflow-hidden bg-[#2d1f1a] text-white" aria-live="polite">
+      <video
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        src="/videos/cafe.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        aria-hidden="true"
+      />
+      <div className="relative z-10 mx-auto grid h-10 max-w-[56rem] grid-cols-[2rem_minmax(0,1fr)_2rem] items-center gap-10 px-5 text-center sm:gap-[50px]">
+        <button type="button" onClick={() => setAnnouncementIndex((currentIndex) => (currentIndex - 1 + storeAnnouncements.length) % storeAnnouncements.length)} className="justify-self-center text-lg leading-none opacity-80 transition hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label="Anuncio anterior">‹</button>
         <p
-          className={`truncate text-[10px] font-semibold uppercase tracking-[0.14em] transition-opacity duration-300 sm:text-xs ${
+          className={`max-w-[min(72vw,48rem)] truncate text-[10px] font-semibold uppercase tracking-[0.12em] transition-opacity duration-300 sm:text-xs ${
             visible ? "opacity-100" : "opacity-0"
           }`}
         >
           {storeAnnouncements[announcementIndex]}
         </p>
+        <button type="button" onClick={() => setAnnouncementIndex((currentIndex) => (currentIndex + 1) % storeAnnouncements.length)} className="justify-self-center text-lg leading-none opacity-80 transition hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label="Siguiente anuncio">›</button>
       </div>
     </div>
   );

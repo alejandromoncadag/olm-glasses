@@ -31,7 +31,8 @@ export default function CustomerAuthScreen({
   googleAuthConfigured: boolean;
 }) {
   const { customerAuthConfigured } = useAuth();
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
@@ -71,13 +72,14 @@ export default function CustomerAuthScreen({
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
           body: JSON.stringify({
-            fullName: isSignup ? fullName : undefined,
+            firstName: isSignup ? firstName : undefined,
+            lastName: isSignup ? lastName : undefined,
             email,
             password,
           }),
         }
       );
-      const data = (await response.json()) as { error?: string; verificationRequired?: boolean; devVerificationUrl?: string };
+      const data = (await response.json()) as { error?: string; verificationRequired?: boolean; verificationEmailFailed?: boolean; devVerificationUrl?: string };
 
       if (!response.ok) {
         if (!isSignup && response.status === 401) {
@@ -96,7 +98,7 @@ export default function CustomerAuthScreen({
       }
 
       if (isSignup && data.verificationRequired) {
-        window.location.assign(data.devVerificationUrl || "/verify-email?sent=1");
+        window.location.assign(data.devVerificationUrl || `/verify-email?sent=1${data.verificationEmailFailed ? "&delivery=failed" : ""}`);
         return;
       }
       window.location.assign(getSafeRedirectUrl());
@@ -171,16 +173,29 @@ export default function CustomerAuthScreen({
           >
             {isSignup && (
               <label className="block">
-                <span className="mb-2 block text-sm font-medium">
-                  Nombre completo
-                </span>
+                <span className="mb-2 block text-sm font-medium">Nombre</span>
                 <input
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
-                  autoComplete="name"
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  autoComplete="given-name"
                   required
-                  minLength={2}
-                  maxLength={120}
+                  minLength={1}
+                  maxLength={60}
+                  className="h-12 w-full rounded-2xl border border-black/15 px-4 outline-none transition focus:border-[#4a2d23] focus:ring-4 focus:ring-[#4a2d23]/10"
+                />
+              </label>
+            )}
+
+            {isSignup && (
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium">Apellido</span>
+                <input
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  autoComplete="family-name"
+                  required
+                  minLength={1}
+                  maxLength={60}
                   className="h-12 w-full rounded-2xl border border-black/15 px-4 outline-none transition focus:border-[#4a2d23] focus:ring-4 focus:ring-[#4a2d23]/10"
                 />
               </label>
@@ -209,13 +224,13 @@ export default function CustomerAuthScreen({
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete={isSignup ? "new-password" : "current-password"}
                 required
-                minLength={10}
+                minLength={5}
                 maxLength={128}
                 className="h-12 w-full rounded-2xl border border-black/15 px-4 outline-none transition focus:border-[#4a2d23] focus:ring-4 focus:ring-[#4a2d23]/10"
               />
               {isSignup && (
                 <span className="mt-2 block text-xs text-gray-500">
-                  Usa al menos 10 caracteres.
+                  Usa al menos 5 caracteres.
                 </span>
               )}
             </label>
@@ -233,7 +248,7 @@ export default function CustomerAuthScreen({
                   }
                   autoComplete="new-password"
                   required
-                  minLength={10}
+                  minLength={5}
                   maxLength={128}
                   className="h-12 w-full rounded-2xl border border-black/15 px-4 outline-none transition focus:border-[#4a2d23] focus:ring-4 focus:ring-[#4a2d23]/10"
                 />

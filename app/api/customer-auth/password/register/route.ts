@@ -27,13 +27,21 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const fullName = String(body.fullName || "").trim();
+    const firstName = String(body.firstName || "").trim();
+    const lastName = String(body.lastName || "").trim();
+    const fullName = `${firstName} ${lastName}`.trim();
     const email = normalizeCustomerEmail(body.email);
     const password = String(body.password || "");
 
-    if (fullName.length < 2 || fullName.length > 120) {
+    if (
+      firstName.length < 1 ||
+      firstName.length > 60 ||
+      lastName.length < 1 ||
+      lastName.length > 60 ||
+      fullName.length > 120
+    ) {
       return NextResponse.json(
-        { error: "Escribe tu nombre completo." },
+        { error: "Escribe tu nombre y apellido." },
         { status: 400 }
       );
     }
@@ -122,7 +130,7 @@ export async function POST(request: Request) {
     const session = await createDatabaseCustomerSession(client, userId);
     await client.query("COMMIT");
 
-    let verification: { devVerificationUrl: string | null } = { devVerificationUrl: null };
+    let verification: { devVerificationUrl: string | null; deliveryStatus: "sent" | "failed" } = { devVerificationUrl: null, deliveryStatus: "failed" };
     try {
       verification = await createVerificationRequest(userId, email, fullName);
     } catch {
@@ -133,6 +141,7 @@ export async function POST(request: Request) {
       {
         success: true,
         verificationRequired: true,
+        ...(verification.deliveryStatus === "failed" ? { verificationEmailFailed: true } : {}),
         ...(verification.devVerificationUrl
           ? { devVerificationUrl: verification.devVerificationUrl }
           : {}),

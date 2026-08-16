@@ -45,8 +45,8 @@ export function isValidCustomerEmail(email: string) {
 }
 
 export function validateCustomerPassword(password: string) {
-  if (password.length < 10) {
-    return "La contraseña debe tener al menos 10 caracteres.";
+  if (password.length < 5) {
+    return "Usa al menos 5 caracteres.";
   }
 
   if (password.length > 128) {

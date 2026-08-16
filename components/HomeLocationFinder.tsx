@@ -2,192 +2,58 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Location } from "@/data/locations";
 
 type HomeLocationFinderProps = { locations: Location[] };
 
 export default function HomeLocationFinder({ locations }: HomeLocationFinderProps) {
-  const [selectedSlug, setSelectedSlug] = useState(locations[0]?.slug ?? "");
-  const locationRailRef = useRef<HTMLDivElement>(null);
-  const selectedLocation =
-    locations.find((location) => location.slug === selectedSlug) ?? locations[0];
+  const [startIndex, setStartIndex] = useState(0);
+  const visibleLocations = useMemo(() => {
+    if (locations.length <= 2) return locations;
+    return [0, 1].map((offset) => locations[(startIndex + offset) % locations.length]);
+  }, [locations, startIndex]);
 
-  function selectAdjacentLocation(direction: "previous" | "next") {
+  function move(direction: "previous" | "next") {
     if (locations.length < 2) return;
-
-    const currentIndex = Math.max(
-      0,
-      locations.findIndex((location) => location.slug === selectedLocation.slug)
-    );
-    const offset = direction === "previous" ? -1 : 1;
-    const nextIndex = (currentIndex + offset + locations.length) % locations.length;
-    const nextLocation = locations[nextIndex];
-
-    setSelectedSlug(nextLocation.slug);
-
-    window.requestAnimationFrame(() => {
-      const nextButton = locationRailRef.current?.children.item(nextIndex);
-
-      if (nextButton instanceof HTMLElement) {
-        nextButton.scrollIntoView({
-          behavior: "smooth",
-          block: "nearest",
-          inline: "center",
-        });
-      }
-    });
+    setStartIndex((current) => (current + (direction === "next" ? 1 : -1) + locations.length) % locations.length);
   }
 
-  if (!selectedLocation) return null;
+  if (!locations.length) return null;
 
   return (
     <div className="mt-10">
-      <div className="flex items-center justify-between gap-6 border-y border-black/15">
-        <div
-          ref={locationRailRef}
-          className="product-carousel flex min-w-0 flex-1 gap-8 overflow-x-auto py-1"
-          aria-label="Seleccionar ubicación"
-        >
-          {locations.map((location, index) => {
-            const isActive = location.slug === selectedLocation.slug;
-
-            return (
-              <button
-                key={location.slug}
-                type="button"
-                onClick={() => setSelectedSlug(location.slug)}
-                className={
-                  "group relative min-w-max py-5 text-left transition " +
-                  (isActive ? "text-black" : "text-black/45 hover:text-black")
-                }
-                aria-pressed={isActive}
-                aria-controls="selected-location"
-              >
-                <span className="mr-3 text-xs tabular-nums">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <span className="text-lg font-semibold">{location.neighborhood}</span>
-                <span
-                  className={
-                    "absolute inset-x-0 bottom-0 h-0.5 bg-black transition-transform " +
-                    (isActive ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100")
-                  }
-                />
-              </button>
-            );
-          })}
+      <div className="mb-5 flex items-center justify-between gap-5 border-b border-black/10 pb-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">Nuestras sucursales</p>
+          <p className="mt-1 text-lg font-semibold sm:text-xl">Encuentra tu tienda OLM</p>
         </div>
-
         <div className="flex shrink-0 gap-2">
-          <button
-            type="button"
-            onClick={() => selectAdjacentLocation("previous")}
-            className="grid h-10 w-10 place-items-center border border-black/20 transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white"
-            aria-label="Ver ubicaciones anteriores"
-          >
-            <ArrowIcon direction="left" />
-          </button>
-          <button
-            type="button"
-            onClick={() => selectAdjacentLocation("next")}
-            className="grid h-10 w-10 place-items-center border border-black/20 transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white"
-            aria-label="Ver más ubicaciones"
-          >
-            <ArrowIcon direction="right" />
-          </button>
+          <button type="button" onClick={() => move("previous")} disabled={locations.length < 2} className="grid h-10 w-10 place-items-center border border-black/15 bg-white text-[var(--brand-espresso)] transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-espresso)] disabled:cursor-not-allowed disabled:opacity-35" aria-label="Sucursales anteriores"><ArrowIcon direction="left" /></button>
+          <button type="button" onClick={() => move("next")} disabled={locations.length < 2} className="grid h-10 w-10 place-items-center border border-black/15 bg-white text-[var(--brand-espresso)] transition hover:border-[var(--brand-espresso)] hover:bg-[var(--brand-espresso)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-espresso)] disabled:cursor-not-allowed disabled:opacity-35" aria-label="Siguientes sucursales"><ArrowIcon direction="right" /></button>
         </div>
       </div>
 
-      <div
-        id="selected-location"
-        className="relative mt-6 min-h-[520px] overflow-hidden border border-black/10 bg-[#eee9e2]"
-        aria-live="polite"
-      >
-        <Image
-          key={selectedLocation.image}
-          src={selectedLocation.image}
-          alt={`Vista editorial inspirada en ${selectedLocation.neighborhood}`}
-          fill
-          sizes="(min-width: 1280px) 1152px, 100vw"
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent" />
-
-        <div className="relative flex min-h-[520px] items-end p-4 sm:p-7 md:p-9">
-          <div className="w-full max-w-xl border border-black/10 bg-white/95 p-6 backdrop-blur-sm sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">
-              {selectedLocation.city}, {selectedLocation.state}
-            </p>
-            <h3 className="mt-3 text-3xl">
-              {selectedLocation.name}
-            </h3>
-            <p className="mt-4 leading-relaxed text-gray-600">
-              {selectedLocation.address}
-            </p>
-
-            <div className="mt-6 grid gap-5 border-t border-black/10 pt-5 sm:grid-cols-2">
-              <div className="text-sm leading-relaxed text-gray-600">
-                <p className="font-semibold text-black">Horario</p>
-                <p className="mt-1">{selectedLocation.hours[0]?.day}</p>
-                <p>{selectedLocation.hours[0]?.time}</p>
-              </div>
-              <div className="flex flex-col items-start gap-3 sm:items-end">
-                {selectedLocation.phone ? (
-                  <a
-                    href={"tel:" + selectedLocation.phone.replace(/\s/g, "")}
-                    className="text-sm underline underline-offset-4"
-                  >
-                    {selectedLocation.phone}
-                  </a>
-                ) : (
-                  <span className="text-sm text-gray-500">
-                    Teléfono próximamente
-                  </span>
-                )}
-                <Link
-                  href={"/locations/" + selectedLocation.slug}
-                  className="inline-flex h-11 items-center justify-center border border-[var(--brand-espresso)] bg-transparent px-5 text-sm font-semibold text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white"
-                >
-                  Conocer tienda
-                </Link>
-              </div>
+      <div className="grid gap-5 sm:grid-cols-2 sm:gap-6" aria-live="polite">
+        {visibleLocations.map((location) => (
+          <article key={location.slug} className="group min-w-0">
+            <Link href={`/locations/${location.slug}`} className="relative block aspect-[4/3] overflow-hidden bg-[#eee9e2] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-espresso)]" aria-label={`Conocer ${location.name}`}>
+              <Image src={location.image} alt={`Interior y entorno de ${location.name}`} fill sizes="(min-width: 640px) 50vw, 94vw" className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]" />
+              <span className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-500 group-hover:bg-black/5" />
+            </Link>
+            <div className="border-b border-black/10 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{location.city}, {location.state}</p>
+              <h3 className="mt-2 text-xl tracking-[-0.02em] sm:text-2xl">{location.name}</h3>
+              <p className="mt-2 text-sm leading-6 text-gray-600">{location.address}</p>
+              <Link href={`/locations/${location.slug}`} className="mt-3 inline-flex text-xs font-semibold uppercase tracking-[0.14em] text-[var(--brand-espresso)] underline decoration-black/25 underline-offset-4 transition hover:decoration-[var(--brand-espresso)]">Conocer tienda</Link>
             </div>
-          </div>
-
-          <p className="absolute bottom-3 right-5 hidden text-xs text-white/85 md:block">
-            Imagen de ambiente inspirada en la zona
-          </p>
-        </div>
+          </article>
+        ))}
       </div>
     </div>
   );
 }
 
 function ArrowIcon({ direction }: { direction: "left" | "right" }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="18"
-      height="18"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      {direction === "left" ? (
-        <>
-          <path d="m14.5 6-6 6 6 6" />
-          <path d="M9 12h10" />
-        </>
-      ) : (
-        <>
-          <path d="m9.5 6 6 6-6 6" />
-          <path d="M5 12h10" />
-        </>
-      )}
-    </svg>
-  );
+  return <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{direction === "left" ? <path d="M15 5 8 12l7 7M9 12h9" /> : <path d="m9 5 7 7-7 7M15 12H6" />}</svg>;
 }

@@ -6,6 +6,8 @@ import Link from "next/link";
 
 import { useAuth } from "@/hooks/useAuth";
 import PatientIdentityPanel from "@/components/PatientIdentityPanel";
+import GoogleAddressAutocomplete from "@/components/GoogleAddressAutocomplete";
+import { locations } from "@/data/locations";
 
 type Address = {
   id: string;
@@ -72,6 +74,8 @@ type AddressForm = {
   country: string;
   isDefault: boolean;
 };
+
+type AccountTab = "inicio" | "pedidos" | "recetas" | "direcciones";
 
 const emptyAddress: AddressForm = {
   label: "Casa",
@@ -144,6 +148,7 @@ export default function AccountDashboard() {
   const [savingAddress, setSavingAddress] = useState(false);
   const [phone, setPhone] = useState("");
   const [savingPhone, setSavingPhone] = useState(false);
+  const [activeTab, setActiveTab] = useState<AccountTab>("inicio");
 
   const loadAccount = useCallback(async () => {
     if (user?.role !== "customer") return;
@@ -359,7 +364,7 @@ export default function AccountDashboard() {
   if (!overview) return null;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-5xl">
       <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-start">
         <div className="flex items-center gap-5">
           {overview.profile.avatarUrl ? (
@@ -369,19 +374,16 @@ export default function AccountDashboard() {
               width={64}
               height={64}
               unoptimized
-              className="h-16 w-16 rounded-full object-cover"
+              className="h-12 w-12 rounded-full object-cover"
             />
           ) : (
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#4a2d23] text-2xl font-semibold text-white">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#4a2d23] text-xl font-semibold text-white">
               {overview.profile.fullName.charAt(0).toUpperCase()}
             </span>
           )}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#6b4a3f]">
-              Mi cuenta
-            </p>
-            <h1 className="mt-2 text-4xl font-semibold">
-              Hola, {overview.profile.fullName.split(" ")[0]}
+            <h1 className="text-3xl font-semibold">
+              Hola, {overview.profile.fullName}
             </h1>
             <p className="mt-1 text-gray-600">{overview.profile.email}</p>
           </div>
@@ -397,40 +399,28 @@ export default function AccountDashboard() {
         </div>
       </div>
 
+      <nav className="mt-8 flex gap-6 overflow-x-auto border-b border-black/15 text-sm" aria-label="Navegación de cuenta">
+        {[
+          ["inicio", "Inicio"],
+          ["pedidos", "Pedidos"],
+          ["recetas", "Recetas"],
+          ["direcciones", "Direcciones"],
+        ].map(([tab, label]) => (
+          <button key={tab} type="button" onClick={() => setActiveTab(tab as AccountTab)} className={`whitespace-nowrap border-b-2 px-1 pb-3 transition ${activeTab === tab ? "border-[#4a2d23] text-[#4a2d23]" : "border-transparent text-gray-600 hover:border-[#4a2d23] hover:text-[#4a2d23]"}`}>
+            {label}
+          </button>
+        ))}
+        <Link href="/likes" className="whitespace-nowrap border-b-2 border-transparent px-1 pb-3 text-gray-600 transition hover:border-[#4a2d23] hover:text-[#4a2d23]">Favoritos</Link>
+      </nav>
+
       {error && (
         <p className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </p>
       )}
 
-      <PatientIdentityPanel
-        emailVerified={Boolean(overview.profile.emailVerified)}
-        hasPhone={Boolean(overview.profile.phone)}
-      />
-
-      <div className="mt-10 grid gap-5 md:grid-cols-3">
-        <AccountStat
-          href="#pedidos"
-          label="Pedidos"
-          value={overview.counts.orders}
-          detail="Compras y seguimiento"
-        />
-        <AccountStat
-          href="/likes"
-          label="Favoritos"
-          value={overview.counts.favorites}
-          detail="Modelos guardados"
-        />
-        <AccountStat
-          href="#citas"
-          label="Citas"
-          value={overview.counts.bookings}
-          detail="Exámenes de la vista"
-        />
-      </div>
-
-      <div className="mt-10 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
-        <section id="pedidos" className="rounded-3xl border bg-white p-6 sm:p-8">
+      {(activeTab === "inicio" || activeTab === "pedidos") && <div id={activeTab} className="mt-8 grid gap-8 lg:grid-cols-[1.35fr_0.65fr]">
+        <section id="pedidos" className="border-t border-black/15 bg-white p-6 sm:p-8">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h2 className="text-2xl font-semibold">Pedidos recientes</h2>
@@ -487,11 +477,9 @@ export default function AccountDashboard() {
           )}
         </section>
 
-        <section className="rounded-3xl bg-[#4a2d23] p-6 text-white sm:p-8">
-          <h2 className="text-2xl font-semibold">Datos de contacto</h2>
-          <p className="mt-2 text-sm text-white/70">
-            Usaremos este teléfono para confirmar pedidos y citas.
-          </p>
+        {activeTab === "inicio" && <section className="border-t border-black/15 bg-white p-6 sm:p-8">
+          <h2 className="text-xl font-semibold">Datos personales</h2>
+          <p className="mt-2 text-sm text-gray-600">{overview.profile.email}</p>
           <form onSubmit={savePhone} className="mt-6">
             <label className="text-sm font-medium">Teléfono</label>
             <input
@@ -499,20 +487,26 @@ export default function AccountDashboard() {
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               placeholder="55 1234 5678"
-              className="mt-2 w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white outline-none placeholder:text-white/40 focus:border-white"
+              className="mt-2 w-full border border-black/20 bg-white px-4 py-3 outline-none placeholder:text-gray-400 focus:border-[#4a2d23]"
             />
             <button
               type="submit"
               disabled={savingPhone}
-              className="mt-4 w-full rounded-full bg-white px-5 py-3 text-sm font-medium text-[#4a2d23] disabled:opacity-60"
+              className="mt-4 border border-[#4a2d23] px-5 py-3 text-sm font-medium text-[#4a2d23] transition hover:bg-[#4a2d23] hover:text-white disabled:opacity-60"
             >
               {savingPhone ? "Guardando…" : "Guardar teléfono"}
             </button>
           </form>
-        </section>
-      </div>
+        </section>}
+      </div>}
 
-      <section className="mt-6 rounded-3xl border bg-white p-6 sm:p-8">
+      {activeTab === "recetas" && <section id="recetas" className="mt-8 border-t border-black/15 bg-white p-6 sm:p-8">
+        <h2 className="text-xl font-semibold">Recetas</h2>
+        <p className="mt-2 text-sm text-gray-600">Consulta una receta aprobada o agrega una nueva cuando la tengas disponible.</p>
+        <PatientIdentityPanel emailVerified={Boolean(overview.profile.emailVerified)} hasPhone={Boolean(overview.profile.phone)} />
+      </section>}
+
+      {activeTab === "direcciones" && <section id="direcciones" className="mt-8 border-t border-black/15 bg-white p-6 sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold">Direcciones</h2>
@@ -594,84 +588,24 @@ export default function AccountDashboard() {
             ))}
           </div>
         )}
-      </section>
+      </section>}
 
-      <section
-        id="citas"
-        className="mt-6 rounded-3xl border bg-white p-6 sm:p-8"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold">Exámenes de la vista</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Tus citas vinculadas con el correo de la cuenta.
-            </p>
-          </div>
-          <Link
-            href="/eye-exam"
-            className="rounded-full bg-[#4a2d23] px-5 py-2.5 text-sm text-white"
-          >
-            Agendar examen
-          </Link>
+      {activeTab === "inicio" && <section className="mt-8 border-t border-black/15 bg-white p-6 sm:p-8">
+        <h2 className="text-xl font-semibold">Tiendas cercanas</h2>
+        <p className="mt-2 text-sm text-gray-600">Visita una sucursal OLM. Mostramos las ubicaciones disponibles; no calculamos distancias sin una ubicación confiable.</p>
+        <div className="mt-5 divide-y divide-black/10">
+          {locations.map((location) => (
+            <article key={location.slug} className="flex flex-wrap items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
+              <div>
+                <h3 className="font-semibold">{location.name}</h3>
+                <p className="mt-1 text-sm text-gray-600">{location.address}, {location.city}, {location.state} · C.P. {location.zipCode}</p>
+              </div>
+              <Link href={`/locations/${location.slug}`} className="text-sm font-medium text-[#4a2d23] underline underline-offset-4">Ver tienda</Link>
+            </article>
+          ))}
         </div>
-
-        {overview.bookings.length === 0 ? (
-          <p className="mt-6 text-sm text-gray-600">
-            No tienes citas registradas.
-          </p>
-        ) : (
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {overview.bookings.map((booking) => (
-              <article
-                key={booking.bookingNumber}
-                className="rounded-2xl bg-[#f7f3ee] p-5"
-              >
-                <div className="flex justify-between gap-4">
-                  <div>
-                    <p className="font-semibold">{booking.serviceName}</p>
-                    <p className="mt-1 text-sm text-gray-600">
-                      {booking.locationName}
-                    </p>
-                  </div>
-                  <span className="text-xs text-gray-500">
-                    {statusLabel(booking.status)}
-                  </span>
-                </div>
-                <p className="mt-4 text-sm">
-                  {formatDate(booking.appointmentDate)} ·{" "}
-                  {booking.appointmentTime}
-                </p>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+      </section>}
     </div>
-  );
-}
-
-function AccountStat({
-  href,
-  label,
-  value,
-  detail,
-}: {
-  href: string;
-  label: string;
-  value: number;
-  detail: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="rounded-3xl border bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-md"
-    >
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
-        {label}
-      </p>
-      <p className="mt-3 text-4xl font-semibold">{value}</p>
-      <p className="mt-2 text-sm text-gray-600">{detail}</p>
-    </Link>
   );
 }
 
@@ -714,12 +648,21 @@ function AddressEditor({
     onChange({ ...value, [field]: nextValue });
   }
 
+  function applyGoogleAddress(parts: { addressLine1: string; city: string; state: string; postalCode: string }) {
+    onChange({ ...value, ...parts });
+  }
+
   return (
     <form
       onSubmit={onSubmit}
       className="mt-6 rounded-2xl border border-[#d9cfc8] bg-[#fdfaf7] p-5"
     >
       <div className="grid gap-4 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <p className="text-sm font-medium">Buscar dirección</p>
+          <GoogleAddressAutocomplete onSelect={applyGoogleAddress} />
+          <p className="mt-2 text-xs text-gray-500">Puedes escribirla manualmente si no aparece una sugerencia.</p>
+        </div>
         <AddressField
           label="Etiqueta"
           value={value.label}
