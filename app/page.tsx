@@ -3,6 +3,7 @@ import Link from "next/link";
 import FeaturedProductsFromDb from "@/components/FeaturedProductsFromDb";
 import HomeLocationFinder from "@/components/HomeLocationFinder";
 import OccasionLensGallery from "@/components/OccasionLensGallery";
+import ScrollParallaxContent from "@/components/ScrollParallaxContent";
 import ScrollTintBanner from "@/components/ScrollTintBanner";
 import { locations } from "@/data/locations";
 
@@ -14,7 +15,7 @@ export default function Home() {
     <main className="editorial-sharp bg-white text-black">
       <section className="relative isolate min-h-[680px] overflow-hidden">
         <Image
-          src="/images/intro.png"
+          src="/images/perfil.png"
           alt="Armazones ópticos OLM en tonos oliva y carey"
           fill
           preload
@@ -53,9 +54,7 @@ export default function Home() {
 
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-14 sm:px-6 sm:py-16">
-        <FeaturedProductsFromDb />
-      </section>
+      <FeaturedProductsFromDb appearance="new-arrivals" />
 
       <section className="relative isolate overflow-hidden bg-[#edf4f5] px-6 py-20 sm:py-24">
         <video
@@ -73,23 +72,25 @@ export default function Home() {
           <p className="mt-5 max-w-2xl text-base leading-7 text-gray-700">Elige tu armazón, tus micas y los tratamientos que necesitas en un proceso claro, paso a paso.</p>
           <div className="mt-10 grid gap-6 md:grid-cols-4">
             {[
-              ["01", "Elige el armazón", "/images/customize-step-1.jpg"],
-              ["02", "Elige las micas", "/images/customize-step-2.jpg"],
-              ["03", "Agrega tratamiento o tinte", "/images/customize-step-3.jpg"],
-              ["04", "Completa tu compra", "/images/customize-step-4.jpg"],
+              ["01", "Elige el armazón", "/images/armazon.png"],
+              ["02", "Elige las micas", "/images/micas.png"],
+              ["03", "Agrega tratamiento o tinte", "/images/tinte.png"],
+              ["04", "Completa tu compra", "/images/compra.png"],
             ].map(([number, title, imagePath]) => (
               <div key={number} className="group relative border-t border-black/20 pt-4 focus-within:outline-2 focus-within:outline-offset-4 focus-within:outline-[var(--brand-espresso)]">
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute left-1/2 top-full z-20 mt-4 hidden w-60 -translate-x-1/2 scale-95 opacity-0 shadow-lg transition duration-300 group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100 md:block"
-                >
-                  <div
-                    className="aspect-[4/3] bg-[#d9d0c8] bg-cover bg-center"
-                    style={{ backgroundImage: `url('${imagePath}')` }}
-                  />
-                </div>
                 <p className="text-sm font-semibold text-gray-500">{number}</p>
-                <p className="mt-3 text-lg font-semibold">{title}</p>
+                <div className="relative mt-3 inline-block">
+                  <p className="text-lg font-semibold">{title}</p>
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-0 left-full z-20 ml-2 hidden h-[210px] w-[230px] origin-bottom-left scale-95 opacity-0 shadow-lg transition duration-300 group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100 md:block"
+                  >
+                    <div
+                      className="h-full w-full bg-[#d9d0c8] bg-cover bg-center"
+                      style={{ backgroundImage: `url('${imagePath}')` }}
+                    />
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -111,7 +112,7 @@ export default function Home() {
         aria-label="Lentes con prescripción"
       >
         <div className="relative z-10 mx-auto flex min-h-[520px] max-w-7xl items-end px-6 py-10 sm:min-h-[700px] sm:px-10 sm:py-14">
-          <div className="max-w-2xl text-white">
+          <ScrollParallaxContent className="relative top-0 max-w-2xl text-white">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/75">Prescripción OLM</p>
             <h2 className="mt-3 max-w-xl text-4xl leading-[0.98] sm:text-6xl">Tu visión, a tu manera</h2>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -128,7 +129,7 @@ export default function Home() {
                 Comprar ópticos con prescripción
               </Link>
             </div>
-          </div>
+          </ScrollParallaxContent>
         </div>
       </ScrollTintBanner>
 
@@ -143,27 +144,28 @@ export default function Home() {
         </div>
       </section>
 
-      <ScrollTintBanner
-        className="relative isolate min-h-[520px] overflow-hidden bg-[#e6d8cb] bg-cover bg-center sm:min-h-[700px] sm:bg-fixed"
-        style={{
-          backgroundImage:
-            "linear-gradient(90deg, rgba(24, 16, 12, 0.62), rgba(24, 16, 12, 0.08)), url('/images/opticos.png')",
-        }}
-        aria-label="Lentes solares"
-      >
-        <div className="relative z-10 mx-auto flex min-h-[520px] max-w-7xl items-end px-6 py-10 sm:min-h-[700px] sm:px-10 sm:py-14">
-          <div className="ml-auto max-w-xl text-right text-white">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/80">Colección solar</p>
-            <h2 className="mt-3 text-4xl leading-[0.98] sm:text-6xl">Lentes solares para tus días</h2>
-            <Link
-              href="/sunglasses"
-              className="mt-8 inline-flex min-h-12 items-center justify-center border border-white/80 bg-white px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white"
-            >
-              Comprar lentes solares
-            </Link>
-          </div>
+      <section aria-label="Lentes solares para tus días" className="bg-[#f7f3ee]">
+        <div className="grid grid-cols-1 md:grid-cols-3">
+          {[
+            ["/images/opticos.png", "Otoño fotocromático", "Descubre lentes que se adaptan a tu luz.", "/eyeglasses"],
+            ["/images/modelo.png", "Comfort con clip-on", "Versatilidad para cada momento del día.", "/clip-ons"],
+            ["/images/solar.png", "Solares para brillar aún más", "Encuentra tu próxima forma favorita.", "/sunglasses"],
+          ].map(([image, title, description, href]) => (
+            <article key={title} className="flex flex-col">
+              <div className="relative h-[590px] w-full overflow-hidden bg-[#e6d8cb] sm:h-[610px] md:h-[590px]">
+                <Image src={image} alt="" fill sizes="(min-width: 768px) 33vw, 100vw" className="object-cover" />
+              </div>
+              <div className="px-6 py-8 text-center sm:px-8 sm:py-10">
+                <h2 className="text-2xl leading-tight sm:text-3xl">{title}</h2>
+                <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-gray-600">{description}</p>
+                <Link href={href} className="mt-5 inline-block text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-espresso)] underline underline-offset-4">
+                  Descubrir
+                </Link>
+              </div>
+            </article>
+          ))}
         </div>
-      </ScrollTintBanner>
+      </section>
 
       <section className="bg-[#f7f3ee] px-5 py-16 sm:px-6 sm:py-20">
         <div className="mx-auto max-w-7xl">
@@ -179,6 +181,34 @@ export default function Home() {
       <section className="bg-white px-5 py-12 sm:px-6 sm:py-14">
         <div className="mx-auto max-w-7xl">
           <OccasionLensGallery />
+        </div>
+      </section>
+
+      <section aria-label="Nuestra historia" className="bg-white py-16 sm:py-20">
+        <div className="grid md:grid-cols-2">
+          <div className="relative aspect-[1.9/1] overflow-hidden bg-[#f7f3ee]">
+            <Image
+              src="/images/cuautitlan.png"
+              alt="Óptica OLM en Cuautitlán"
+              fill
+              sizes="(min-width: 768px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
+          <div className="relative aspect-[1.9/1] overflow-hidden bg-[#f7f3ee]">
+            <Image
+              src="/images/historia.png"
+              alt="Historia de Óptica OLM"
+              fill
+              sizes="(min-width: 768px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
+        </div>
+        <div className="mt-6 flex justify-center px-5 sm:px-6">
+          <Link href="/historia" className={outlineButton}>
+            Conoce nuestra historia
+          </Link>
         </div>
       </section>
 

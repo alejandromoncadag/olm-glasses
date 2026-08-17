@@ -10,6 +10,8 @@ type ApiProduct = {
   name: string;
   price: number;
   category: string;
+  subcategory: string | null;
+  clipOnCompatible: boolean | null;
   frameColor: string | null;
   stock: number;
   isAvailable: boolean;
@@ -24,6 +26,7 @@ type FeaturedProductsFromDbProps = {
   eyebrow?: string;
   title?: string;
   showTabs?: boolean;
+  appearance?: "default" | "new-arrivals";
 };
 
 function getCardColor(frameColor: string | null) {
@@ -40,6 +43,7 @@ export default function FeaturedProductsFromDb({
   eyebrow,
   title,
   showTabs,
+  appearance,
 }: FeaturedProductsFromDbProps) {
   const [products, setProducts] = useState<FeaturedShowcaseProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +69,8 @@ export default function FeaturedProductsFromDb({
             name: product.name,
             price: product.price,
             category: product.category,
+            subcategory: product.subcategory,
+            clipOnCompatible: product.clipOnCompatible,
             color: getCardColor(product.frameColor),
             stock: product.stock,
             isAvailable: product.isAvailable,
@@ -92,9 +98,10 @@ export default function FeaturedProductsFromDb({
     <FeaturedProductShowcase
       products={products}
       initialCategory={initialCategory}
-      eyebrow={eyebrow}
-      title={title}
-      showTabs={showTabs}
-    />
-  );
+    eyebrow={eyebrow}
+    title={title}
+    showTabs={showTabs}
+    appearance={appearance}
+  />
+);
 }

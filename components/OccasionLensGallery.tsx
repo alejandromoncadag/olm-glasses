@@ -16,10 +16,11 @@ export default function OccasionLensGallery() {
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500">Elige tu ocasión</p>
         <h2 id="occasion-lens-title" className="mt-2 text-3xl sm:text-4xl">Lentes para cada momento</h2>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+      {/* Give the six-up desktop gallery a little more breathing room so each card reads larger. */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:-mx-4 sm:grid-cols-3 lg:-mx-16 lg:grid-cols-6 lg:gap-x-3">
         {occasions.map((occasion) => (
-          <article key={occasion.src} className="group min-w-0">
-            <div className="relative aspect-[3/4] overflow-hidden bg-[#f7f3ee]">
+          <article key={occasion.src} className="group min-w-0 text-center">
+            <div className="relative aspect-[3/4] overflow-hidden bg-[#f7f3ee] lg:aspect-[3/5]">
               <Image
                 src={occasion.src}
                 alt={occasion.alt}
@@ -27,11 +28,10 @@ export default function OccasionLensGallery() {
                 sizes="(min-width: 1024px) 16.666vw, (min-width: 640px) 33.333vw, 50vw"
                 className="object-cover transition-transform duration-500 ease-out group-hover:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
               />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-black/10" />
-              <p className="pointer-events-none absolute inset-0 flex items-center justify-center px-2 text-center text-xs font-semibold uppercase tracking-[0.1em] text-white drop-shadow-sm sm:text-sm">
-                {occasion.label}
-              </p>
             </div>
+            <p className="mt-3 text-sm font-semibold uppercase tracking-[0.1em] text-black sm:text-base">
+              {occasion.label}
+            </p>
           </article>
         ))}
       </div>

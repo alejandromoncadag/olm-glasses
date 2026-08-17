@@ -234,9 +234,9 @@ const questionIds = questions.map((question) => question.id);
 
 const productVisuals: Partial<Record<QuestionId, Record<string, string>>> = {
   productType: {
-    eyeglasses: "/products/olm/modelo-premium.webp",
-    sunglasses: "/products/olm/sol-urbano.webp",
-    both: "/images/style-quiz-editorial.png",
+    eyeglasses: "/images/lentesopticos.png",
+    sunglasses: "/images/sunglasses.png",
+    both: "/images/ambos.png",
   },
   style: {
     classic: "/products/olm/modelo-clasico.webp",

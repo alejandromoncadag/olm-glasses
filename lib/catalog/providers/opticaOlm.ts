@@ -223,7 +223,9 @@ function parseProduct(value: unknown, origins: Set<string>): CatalogProduct {
     frameColor: null,
     frameSize: null,
     frameMaterial: null,
-    clipOnCompatible: null,
+    clipOnCompatible:
+      category === "lentes_opticos" &&
+      nullableString(item.subcategory, "product.subcategory") === "clip_on",
     stock: availability.totalOnlineAvailability || 0,
     isAvailable: availability.availableOnline,
     isActive: true,

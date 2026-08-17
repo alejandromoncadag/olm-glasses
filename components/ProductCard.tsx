@@ -17,6 +17,7 @@ type ProductCardProps = {
   availableOnline?: boolean;
   purchasableOnline?: boolean;
   favoritable?: boolean;
+  visualVariant?: "default" | "optical";
 };
 
 export default function ProductCard({
@@ -33,15 +34,16 @@ export default function ProductCard({
   availableOnline,
   purchasableOnline = true,
   favoritable = true,
+  visualVariant = "default",
 }: ProductCardProps) {
   const isOutOfStock = availableOnline === undefined ? stock <= 0 : !availableOnline;
 
   return (
-    <article className="group flex h-full flex-col rounded-[28px] border border-black/10 bg-white p-3 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+    <article className={visualVariant === "optical" ? "group flex h-full flex-col bg-transparent transition duration-300 hover:-translate-y-0.5" : "group flex h-full flex-col rounded-[28px] border border-black/10 bg-white p-3 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(0,0,0,0.08)]"}>
       <div className="relative">
         {favoritable && (
           <div className="absolute right-4 top-4 z-10">
-            <LikeButton slug={slug} size="md" />
+            <LikeButton slug={slug} size={visualVariant === "optical" ? "sm" : "md"} />
           </div>
         )}
 
@@ -63,7 +65,7 @@ export default function ProductCard({
 
         <a href={href} className="block" aria-label={`Ver ${name}`}>
           <div
-            className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[22px]"
+            className={visualVariant === "optical" ? "relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#f4f1ed]" : "relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[22px]"}
             style={{ backgroundColor: color }}
           >
             {imageUrl ? (
@@ -85,15 +87,15 @@ export default function ProductCard({
         </a>
       </div>
 
-      <div className="flex flex-1 flex-col px-2 pb-2 pt-5">
+      <div className={visualVariant === "optical" ? "flex flex-1 flex-col px-1 pb-2 pt-5" : "flex flex-1 flex-col px-2 pb-2 pt-5"}>
         <div className="flex flex-col gap-2">
           <a href={href} className="min-w-0">
-            <h2 className="text-xl font-semibold tracking-[-0.02em] transition group-hover:underline group-hover:underline-offset-4">
+            <h2 className={visualVariant === "optical" ? "text-lg font-medium tracking-[-0.01em] transition group-hover:underline group-hover:underline-offset-4" : "text-xl font-semibold tracking-[-0.02em] transition group-hover:underline group-hover:underline-offset-4"}>
               {name}
             </h2>
           </a>
 
-          <p className="text-lg font-semibold tracking-[-0.02em]">
+          <p className={visualVariant === "optical" ? "text-sm font-medium tracking-normal text-[#4b5563]" : "text-lg font-semibold tracking-[-0.02em]"}>
             ${price.toLocaleString("es-MX")}{" "}
             <span className="text-xs font-medium text-gray-500">MXN</span>
           </p>
@@ -108,7 +110,7 @@ export default function ProductCard({
             <QuickAddToCartButton
               slug={slug}
               label={actionLabel}
-              className="w-full"
+              className={visualVariant === "optical" ? "w-full rounded-none" : "w-full"}
             />
           ) : (
             <div className="flex min-h-11 w-full items-center justify-center rounded-full border border-black/15 bg-[#f7f3ee] px-4 text-center text-sm font-semibold text-[var(--brand-espresso)]">

@@ -257,6 +257,10 @@ export default function ProductPage() {
     product.type === "eyeglasses" || product.type === "sunglasses";
   const needsOpticalConfiguration = requiresOpticalConfiguration(product);
   const supportsFrameOnlyPurchase = supportsDirectFramePurchase(product);
+  const isClipOnProduct =
+    product.type === "eyeglasses" &&
+    product.category === "lentes_opticos" &&
+    product.subcategory === "clip_on";
   const isAvailable = product.isActive && product.isAvailable;
 
   return (
@@ -424,6 +428,17 @@ export default function ProductPage() {
                 >
                   Seleccionar micas y tratamientos
                 </a>
+              </div>
+            ) : isClipOnProduct ? (
+              <div className="mt-8 bg-[#f4f3f0] p-5 sm:p-6">
+                <p className="text-sm leading-6 text-gray-600">
+                  Este clip-on se agrega directamente al carrito. No requiere graduación ni configuración óptica.
+                </p>
+                <QuickAddToCartButton
+                  slug={product.slug}
+                  label="Agregar al carrito"
+                  className="mt-5 h-12 w-full"
+                />
               </div>
             ) : supportsFrameOnlyPurchase ? (
               <div className="mt-8 space-y-4 border-y border-black/15 py-7">

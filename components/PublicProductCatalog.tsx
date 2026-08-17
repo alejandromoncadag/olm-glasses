@@ -61,6 +61,7 @@ type PublicProductCatalogProps = {
   heroImagePosition?: string;
   restrictToClipOn?: boolean;
   showClipOnFilter?: boolean;
+  visualVariant?: "default" | "optical";
 };
 
 type CatalogFilterControlsProps = {
@@ -173,13 +174,15 @@ function isProductNew(createdAt: string) {
 function FilterSection({
   title,
   children,
+  optical = false,
 }: {
   title: string;
   children: ReactNode;
+  optical?: boolean;
 }) {
   return (
-    <div className="border-b border-black/10 py-6 first:pt-0">
-      <h3 className="text-sm font-semibold">{title}</h3>
+    <div className={`border-b py-6 first:pt-0 ${optical ? "border-[#d9cfc8]" : "border-black/10"}`}>
+      <h3 className={optical ? "text-xs font-semibold uppercase tracking-[0.16em] text-gray-600" : "text-sm font-semibold"}>{title}</h3>
       <div className="mt-4">{children}</div>
     </div>
   );
@@ -189,20 +192,24 @@ function FilterButton({
   active,
   label,
   onClick,
+  optical = false,
 }: {
   active: boolean;
   label: string;
   onClick: () => void;
+  optical?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full border px-3 py-2 text-xs font-medium transition ${
+      className={`${optical ? "rounded-none border-[#d9cfc8]" : "rounded-full border"} px-3 py-2 text-xs font-medium transition ${
         active
           ? "border-[var(--brand-espresso)] bg-[var(--brand-espresso)] text-white"
-          : "border-black/15 bg-white text-gray-700 hover:border-[var(--brand-espresso)] hover:text-[var(--brand-espresso)]"
+          : optical
+            ? "bg-white text-gray-700 hover:border-[var(--brand-espresso)] hover:bg-[#f4efe9]"
+            : "border-black/15 bg-white text-gray-700 hover:border-[var(--brand-espresso)] hover:text-[var(--brand-espresso)]"
       }`}
     >
       {label}
@@ -276,7 +283,8 @@ function CatalogFilterControls({
   onClipOnChange,
   onReset,
   showClipOnFilter,
-}: CatalogFilterControlsProps) {
+  optical = false,
+}: CatalogFilterControlsProps & { optical?: boolean }) {
   return (
     <>
       <FilterSection title="Buscar">
@@ -299,6 +307,7 @@ function CatalogFilterControls({
               active={genderFilter === option.value}
               label={option.label}
               onClick={() => onGenderChange(option.value)}
+              optical={optical}
             />
           ))}
         </div>
@@ -343,6 +352,7 @@ function CatalogFilterControls({
             active={sizeFilter === "all"}
             label="Todos"
             onClick={() => onSizeChange("all")}
+            optical={optical}
           />
           {sizeOptions.map((option) => (
             <FilterButton
@@ -350,6 +360,7 @@ function CatalogFilterControls({
               active={sizeFilter === option.value}
               label={option.label}
               onClick={() => onSizeChange(option.value)}
+              optical={optical}
             />
           ))}
         </div>
@@ -361,6 +372,7 @@ function CatalogFilterControls({
             active={materialFilter === "all"}
             label="Todos"
             onClick={() => onMaterialChange("all")}
+            optical={optical}
           />
           {materialOptions.map((option) => (
             <FilterButton
@@ -368,6 +380,7 @@ function CatalogFilterControls({
               active={materialFilter === option.value}
               label={option.label}
               onClick={() => onMaterialChange(option.value)}
+              optical={optical}
             />
           ))}
         </div>
@@ -487,6 +500,7 @@ export default function PublicProductCatalog({
   heroImagePosition = "center",
   restrictToClipOn = false,
   showClipOnFilter = true,
+  visualVariant = "default",
 }: PublicProductCatalogProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -519,7 +533,9 @@ export default function PublicProductCatalog({
           (product: Product) =>
             product.type === type &&
             product.isActive &&
-            (!restrictToClipOn || product.clipOnCompatible)
+            (restrictToClipOn
+              ? product.clipOnCompatible === true
+              : type !== "eyeglasses" || product.clipOnCompatible !== true)
         );
 
         setProducts(activeProducts);
@@ -638,6 +654,7 @@ export default function PublicProductCatalog({
         onClipOnChange={setClipOnOnly}
         onReset={resetFilters}
         showClipOnFilter={showClipOnFilter}
+        optical={visualVariant === "optical"}
       />
     );
   }
@@ -744,6 +761,7 @@ export default function PublicProductCatalog({
           imageAltText={product.mainImage?.altText}
           actionLabel={actionLabel}
           isNew={showNewBadge && isProductNew(product.createdAt)}
+          visualVariant={visualVariant}
         />
       ))}
     </div>
@@ -773,10 +791,12 @@ export default function PublicProductCatalog({
     </div>
   );
 
+  const isOptical = visualVariant === "optical";
+
   return (
-    <main className="min-h-screen bg-white text-black">
-      <section className="relative isolate min-h-[330px] overflow-hidden border-b border-black/10 bg-[#f7f3ee] md:min-h-[390px]">
-        {heroImage && (
+    <main className={isOptical ? "min-h-screen bg-[#f7f3ee] text-[#171717]" : "min-h-screen bg-white text-black"}>
+      <section className={isOptical ? "border-b border-[#d9cfc8] bg-[#f7f3ee]" : "relative isolate min-h-[330px] overflow-hidden border-b border-black/10 bg-[#f7f3ee] md:min-h-[390px]"}>
+        {!isOptical && heroImage && (
           <Image
             src={heroImage}
             alt=""
@@ -788,14 +808,14 @@ export default function PublicProductCatalog({
             style={{ objectPosition: heroImagePosition }}
           />
         )}
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(247,243,238,0.97)_0%,rgba(247,243,238,0.9)_38%,rgba(247,243,238,0.35)_65%,rgba(247,243,238,0.05)_100%)]" />
-        <div className="relative mx-auto flex min-h-[330px] max-w-[1440px] items-center px-6 py-14 md:min-h-[390px] md:px-10 md:py-20">
+        {!isOptical && <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(247,243,238,0.97)_0%,rgba(247,243,238,0.9)_38%,rgba(247,243,238,0.35)_65%,rgba(247,243,238,0.05)_100%)]" />}
+        <div className={isOptical ? "mx-auto max-w-[1440px] px-5 pb-10 pt-16 sm:px-6 md:pb-14 md:pt-24" : "relative mx-auto flex min-h-[330px] max-w-[1440px] items-center px-6 py-14 md:min-h-[390px] md:px-10 md:py-20"}>
           <div className="max-w-xl text-left">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-500">
-              Colección OLM
+              {isOptical ? "ÓPTICOS" : "Colección OLM"}
             </p>
-            <h1 className="mt-3 text-5xl font-bold tracking-[-0.04em] md:text-6xl lg:text-7xl">
-              {title}
+            <h1 className={isOptical ? "mt-4 text-4xl font-medium tracking-[-0.03em] md:text-6xl" : "mt-3 text-5xl font-bold tracking-[-0.04em] md:text-6xl lg:text-7xl"}>
+              {isOptical ? "Lentes para todos los días" : title}
             </h1>
             <p className="mt-4 max-w-lg text-base leading-relaxed text-gray-700 md:text-lg">
               {description}
@@ -807,7 +827,7 @@ export default function PublicProductCatalog({
       <section className="mx-auto max-w-[1440px] px-5 py-10 sm:px-6 md:py-14">
         {filterLayout === "sidebar" ? (
           <div className="grid gap-10 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)] xl:gap-12">
-            <aside className="hidden border-r border-black/10 pr-8 lg:block">
+            <aside className={`hidden border-r pr-8 lg:block ${isOptical ? "border-[#d9cfc8]" : "border-black/10"}`}>
               <div>
                 <div className="mb-7 flex items-center justify-between">
                   <h2 className="text-lg font-semibold">Filtrar por</h2>

@@ -19,6 +19,25 @@ function dateTime(value: string) {
   }).format(new Date(value));
 }
 
+function draftStatusLabel(value: string) {
+  return {
+    pendiente_receta: "Receta pendiente",
+    listo_para_pago: "Lista para continuar",
+    pendiente_pago: "Pago pendiente",
+    cancelado: "Cancelado",
+    expirado: "Expirado",
+  }[value] || value.replaceAll("_", " ");
+}
+
+function prescriptionStatusLabel(method: "later" | "exam", status: "pending" | "provided") {
+  if (status === "provided") return "Receta seleccionada";
+  return method === "exam" ? "Examen solicitado" : "Receta pendiente";
+}
+
+function reservationStatusLabel(status: "activa" | "cancelada" | "expirada") {
+  return { activa: "Activa", cancelada: "Cancelada", expirada: "Vencida" }[status];
+}
+
 export default function OpticalDraftPage() {
   const { user, loading: authLoading } = useAuth();
   const params = useParams<{ draftId: string }>();
@@ -77,22 +96,23 @@ export default function OpticalDraftPage() {
   return (
     <main className="min-h-screen bg-[#f7f3ee] px-5 py-12 text-[#2d1f1a] sm:px-8">
       <section className="mx-auto max-w-3xl border border-black/10 bg-white p-6 shadow-sm sm:p-10">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#765b50]">Pedido óptico temporal</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#765b50]">Configuración óptica reservada</p>
         <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
           <h1 className="font-[Georgia,'Times_New_Roman',serif] text-4xl">Resumen de tus micas</h1>
           <span className={`px-3 py-2 text-xs font-semibold ${active ? "bg-emerald-100 text-emerald-900" : "bg-gray-200 text-gray-700"}`}>
-            {draft.status.replaceAll("_", " ")}
+            {draftStatusLabel(draft.status)}
           </span>
         </div>
 
         <div className="mt-8 divide-y divide-black/10 border-y border-black/15">
           <Line label="Armazón" value={config.frame.name} amount={money(config.frame.price, draft.currency)} />
-          <Line label="Diseño" value={config.lensDesign.name} amount={`+${money(config.lensDesign.adjustment, draft.currency)}`} />
+          <Line label="Tipo de mica" value={config.lensDesign.name} amount={`+${money(config.lensDesign.adjustment, draft.currency)}`} />
           <Line label="Tratamiento" value={config.treatment?.name || "Sin tratamiento"} amount={`+${money(config.treatment?.adjustment || "0", draft.currency)}`} />
-          {config.variant && <Line label="Variante" value={config.variant.name} />}
+          <Line label="Variante/color" value={config.variant?.name || "No aplica"} />
           <Line label="Sucursal" value={draft.branch.name} />
-          <Line label="Receta" value={draft.prescriptionMethod === "exam" ? "Examen de la vista pendiente" : "Se enviará después"} />
-          <Line label="Reserva" value={active ? `Vence ${dateTime(draft.reservation.expiresAt)}` : draft.reservation.status} />
+          <Line label="Método de receta" value={draft.prescriptionMethod === "exam" ? "Solicitar examen" : "Enviar receta después"} />
+          <Line label="Estado de receta" value={prescriptionStatusLabel(draft.prescriptionMethod, draft.prescriptionStatus)} />
+          <Line label="Reserva activa hasta" value={active ? dateTime(draft.reservation.expiresAt) : reservationStatusLabel(draft.reservation.status)} />
         </div>
 
         <div className="mt-8 flex items-end justify-between border bg-[#2d1f1a] p-6 text-white">
@@ -100,9 +120,9 @@ export default function OpticalDraftPage() {
           <strong className="font-[Georgia,'Times_New_Roman',serif] text-3xl">{money(draft.configuredTotal, draft.currency)}</strong>
         </div>
         <p className="mt-4 text-sm leading-6 text-gray-600">
-          Este pedido reserva únicamente el armazón. Todavía no se creó una venta, un pago ni una orden de laboratorio.
+          Tu armazón está reservado temporalmente. La configuración ya fue registrada en el flujo óptico interno; todavía no se ha realizado el pago ni se ha creado una venta.
         </p>
-        {active && <OpticalPrescriptionAccess draftId={draftId} provided={draft.prescriptionStatus === "provided"} onAttached={() => setDraft((current) => current ? { ...current, prescriptionStatus: "provided", status: "listo_para_pago" } : current)} />}
+        {active && <OpticalPrescriptionAccess draftId={draftId} provided={draft.prescriptionStatus === "provided"} prescriptionMethod={draft.prescriptionMethod} onAttached={() => setDraft((current) => current ? { ...current, prescriptionStatus: "provided", status: "listo_para_pago" } : current)} />}
         {error && <p className="mt-4 border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
         <div className="mt-7 flex flex-wrap gap-3">
           <a href="/eyeglasses" className="border border-black/20 px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em]">Seguir viendo</a>

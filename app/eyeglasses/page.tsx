@@ -11,6 +11,7 @@ export default function EyeglassesPage() {
       showNewBadge
       heroImage="/images/home-hero-eyewear.png"
       heroImagePosition="center"
+      visualVariant="optical"
     />
   );
 }

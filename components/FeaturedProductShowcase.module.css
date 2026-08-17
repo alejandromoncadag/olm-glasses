@@ -1,0 +1,51 @@
+.newArrivals {
+  position: relative;
+  isolation: isolate;
+  background: #fffdf9;
+  margin: 0;
+  padding: 0;
+}
+
+.newArrivalsContent {
+  position: relative;
+  z-index: 1;
+}
+
+.talaveraButton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0;
+  background: var(--brand-espresso);
+  box-shadow: none;
+  color: #fffaf0;
+  transition: background-color 400ms ease, color 400ms ease;
+}
+
+.talaveraButton::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: #1f4972;
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 400ms ease;
+}
+
+.talaveraButton:hover {
+  background: #2b1912;
+}
+
+.talaveraButton:hover::after,
+.talaveraButton:focus-visible::after {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .talaveraButton,
+  .talaveraButton::after {
+    transition: none;
+  }
+}

@@ -6,8 +6,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 type Prescription = { prescriptionRef: string; date: string | null; validUntil: string | null; label: string };
+type PrescriptionMethod = "later" | "exam";
 
-export default function OpticalPrescriptionAccess({ draftId, provided, onAttached }: { draftId: string; provided: boolean; onAttached: () => void }) {
+export default function OpticalPrescriptionAccess({ draftId, provided, prescriptionMethod, onAttached }: { draftId: string; provided: boolean; prescriptionMethod: PrescriptionMethod; onAttached: () => void }) {
   const { user, loading } = useAuth();
   const [items, setItems] = useState<Prescription[]>([]);
   const [selected, setSelected] = useState("");
@@ -36,15 +37,33 @@ export default function OpticalPrescriptionAccess({ draftId, provided, onAttache
     setMessage("Receta aprobada seleccionada. El pago sigue pendiente y la producción continúa bloqueada."); onAttached();
   }
 
-  if (provided) return <p className="mt-5 border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">Receta aprobada seleccionada. Esto no confirma el pago ni libera producción.</p>;
-  if (loading) return null;
-  if (user?.role !== "customer") return <div className="mt-5 border border-black/10 p-4 text-sm"><Link className="underline" href={`/login?redirect_url=${encodeURIComponent(`/optical-order/${draftId}`)}`}>Inicia sesión</Link> para vincular una receta guardada. También puedes conservar la opción de enviarla después.</div>;
-  if (!user.emailVerified) return <div className="mt-5 border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Verifica tu correo desde <Link href="/account" className="underline">Mi cuenta</Link> antes de vincular un expediente.</div>;
-  if (linkStatus === "not_linked") return <div className="mt-5 border border-black/10 p-4 text-sm">Vincula tu expediente desde <Link href="/account" className="underline">Mi cuenta</Link>. La vinculación por sí sola no completa la receta.</div>;
+  const statusLabel = provided ? "Receta seleccionada" : prescriptionMethod === "exam" ? "Examen solicitado" : "Receta pendiente";
 
   return <div className="mt-5 border border-black/10 p-4">
-    <h3 className="font-semibold">Usar una receta guardada</h3>
-    {items.length === 0 ? <p className="mt-2 text-sm text-gray-600">No hay recetas ópticas aprobadas para uso en línea. Las historias clínicas no se publican automáticamente.</p> : <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h3 className="font-semibold">Receta</h3>
+      <span className={`px-3 py-1 text-xs font-semibold ${provided ? "bg-emerald-100 text-emerald-900" : prescriptionMethod === "exam" ? "bg-amber-100 text-amber-900" : "bg-[#f4efe9] text-[#4a2d23]"}`}>{statusLabel}</span>
+    </div>
+    <p className="mt-2 text-sm text-gray-600">Elige cómo quieres completar la receta de esta configuración.</p>
+    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+      <div className={`border p-3 text-sm ${provided ? "border-emerald-300 bg-emerald-50" : "border-black/10"}`}>
+        <p className="font-medium">Usar receta guardada</p>
+        <p className="mt-1 text-xs text-gray-600">Selecciona una receta aprobada vinculada a tu cuenta.</p>
+      </div>
+      <div className="border border-black/10 p-3 text-sm">
+        <p className="font-medium">Subir/agregar receta</p>
+        <p className="mt-1 text-xs text-gray-600">Puedes vincular una receta aprobada desde <Link className="underline" href="/account#recetas">Mi cuenta</Link>. La carga directa de archivos todavía no está disponible.</p>
+      </div>
+      <div className={`border p-3 text-sm ${prescriptionMethod === "later" && !provided ? "border-[#4a2d23] bg-[#f7f3ee]" : "border-black/10"}`}>
+        <p className="font-medium">Enviar receta después</p>
+        <p className="mt-1 text-xs text-gray-600">Tu configuración permanece pendiente de receta.</p>
+      </div>
+      <div className={`border p-3 text-sm ${prescriptionMethod === "exam" ? "border-amber-300 bg-amber-50" : "border-black/10"}`}>
+        <p className="font-medium">Solicitar examen</p>
+        <p className="mt-1 text-xs text-gray-600">Registramos que necesitas coordinar un examen de la vista.</p>
+      </div>
+    </div>
+    {loading ? <p className="mt-4 text-sm text-gray-600">Cargando recetas guardadas…</p> : user?.role !== "customer" ? <p className="mt-4 text-sm"> <Link className="underline" href={`/login?redirect_url=${encodeURIComponent(`/optical-order/${draftId}`)}`}>Inicia sesión</Link> para usar una receta guardada.</p> : !user.emailVerified ? <p className="mt-4 text-sm text-amber-900">Verifica tu correo desde <Link href="/account" className="underline">Mi cuenta</Link> antes de usar una receta guardada.</p> : linkStatus === "not_linked" ? <p className="mt-4 text-sm">Vincula una receta aprobada desde <Link href="/account#recetas" className="underline">Mi cuenta</Link>.</p> : items.length === 0 ? <p className="mt-4 text-sm text-gray-600">No hay recetas aprobadas disponibles.</p> : <div className="mt-4 flex flex-col gap-3 sm:flex-row">
       <select value={selected} onChange={(event) => setSelected(event.target.value)} className="min-h-11 flex-1 border border-black/20 bg-white px-3 text-sm">
         <option value="">Selecciona una receta aprobada</option>
         {items.map((item) => <option key={item.prescriptionRef} value={item.prescriptionRef}>{item.label}{item.date ? ` · ${item.date}` : ""}</option>)}
