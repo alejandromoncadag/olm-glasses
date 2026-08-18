@@ -74,6 +74,39 @@ export async function identityRequest(
   return payload as Record<string, unknown>;
 }
 
+export async function identityUploadRequest(path: string, accountHash: string, content: Uint8Array,
+  filename: string, contentType: string, idempotencyKey: string) {
+  const { baseUrl, token, timeoutMs } = settings();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/storefront/identity/v1${path}`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json", Authorization: `Bearer ${token}`,
+        "X-OLM-Account-Hash": accountHash, "X-OLM-Email-Verified": "true",
+        "Idempotency-Key": idempotencyKey, "X-Filename": filename,
+        "Content-Type": contentType,
+      }, body: Buffer.from(content), cache: "no-store", redirect: "error", signal: controller.signal,
+    });
+  } catch { throw new IdentityUpstreamError("No pudimos conectar con el servicio de identidad."); }
+  finally { clearTimeout(timeout); }
+  let payload: unknown;
+  try { payload = await response.json(); } catch { throw new IdentityUpstreamError("La respuesta de identidad no es válida."); }
+  if (!response.ok) {
+    let message = "No pudimos subir la receta.";
+    if (payload && typeof payload === "object" && "detail" in payload) {
+      const detail = (payload as { detail?: unknown }).detail;
+      if (typeof detail === "string") message = detail;
+      else if (detail && typeof detail === "object" && "message" in detail) message = String((detail as { message?: unknown }).message || message);
+    }
+    throw new IdentityUpstreamError(message, response.status);
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new IdentityUpstreamError("La respuesta de identidad no es válida.");
+  return payload as Record<string, unknown>;
+}
+
 export async function guestIdentityRequest(
   path: string,
   init: { method?: "GET" | "POST"; body?: unknown } = {}

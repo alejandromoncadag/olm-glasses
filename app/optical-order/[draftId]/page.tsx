@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 import type { OpticalDraftResponse } from "@/lib/optical/types";
@@ -29,13 +29,19 @@ function draftStatusLabel(value: string) {
   }[value] || value.replaceAll("_", " ");
 }
 
-function prescriptionStatusLabel(method: "later" | "exam", status: "pending" | "provided") {
-  if (status === "provided") return "Receta seleccionada";
+function prescriptionStatusLabel(method: "later" | "exam", status: "pending" | "provided" | "received_pending_validation" | "exam_requested") {
+  if (status === "provided") return "Receta guardada";
+  if (status === "received_pending_validation") return "Receta recibida";
+  if (status === "exam_requested") return "Examen solicitado";
   return method === "exam" ? "Examen solicitado" : "Receta pendiente";
 }
 
 function reservationStatusLabel(status: "activa" | "cancelada" | "expirada") {
   return { activa: "Activa", cancelada: "Cancelada", expirada: "Vencida" }[status];
+}
+
+function prescriptionAllowsCart(status: OpticalDraftResponse["prescriptionStatus"]) {
+  return ["provided", "received_pending_validation", "pending", "exam_requested"].includes(status);
 }
 
 export default function OpticalDraftPage() {
@@ -46,6 +52,8 @@ export default function OpticalDraftPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const attachKey = useRef<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -87,6 +95,26 @@ export default function OpticalDraftPage() {
     }
   }
 
+  async function continueToCart() {
+    if (!draft || !active || !prescriptionAllowsCart(draft.prescriptionStatus) || addingToCart) return;
+    setAddingToCart(true);
+    setError("");
+    try {
+      if (!attachKey.current) attachKey.current = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${draftId}-cart-attach`;
+      const response = await fetch(`/api/optical/drafts/${encodeURIComponent(draftId)}/cart`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": attachKey.current },
+        body: JSON.stringify({ previewFingerprint: draft.previewFingerprint, configuredTotal: draft.configuredTotal }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string; details?: { message?: string } };
+      if (!response.ok) throw new Error(payload.details?.message || payload.error || "La reserva óptica ya no está disponible. Revisa tu configuración.");
+      window.location.assign("/cart");
+    } catch (attachError) {
+      setError((attachError as Error).message);
+      setAddingToCart(false);
+    }
+  }
+
   if (loading) return <main className="min-h-screen bg-[#f7f3ee] p-8"><p>Cargando pedido óptico…</p></main>;
   if (error && !draft) return <main className="min-h-screen bg-[#f7f3ee] p-8"><h1 className="text-3xl">No pudimos abrir este pedido</h1><p className="mt-3 text-red-700">{error}</p></main>;
   if (!draft) return null;
@@ -122,10 +150,21 @@ export default function OpticalDraftPage() {
         <p className="mt-4 text-sm leading-6 text-gray-600">
           Tu armazón está reservado temporalmente. La configuración ya fue registrada en el flujo óptico interno; todavía no se ha realizado el pago ni se ha creado una venta.
         </p>
-        {active && <OpticalPrescriptionAccess draftId={draftId} provided={draft.prescriptionStatus === "provided"} prescriptionMethod={draft.prescriptionMethod} onAttached={() => setDraft((current) => current ? { ...current, prescriptionStatus: "provided", status: "listo_para_pago" } : current)} />}
+        {active && <OpticalPrescriptionAccess draftId={draftId} provided={draft.prescriptionStatus === "provided"} prescriptionStatus={draft.prescriptionStatus} prescriptionMethod={draft.prescriptionMethod} onAttached={(status) => setDraft((current) => current ? { ...current, prescriptionStatus: status || "provided", status: status === "provided" ? "listo_para_pago" : "pendiente_receta" } : current)} />}
         {error && <p className="mt-4 border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
         <div className="mt-7 flex flex-wrap gap-3">
           <a href="/eyeglasses" className="border border-black/20 px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em]">Seguir viendo</a>
+          {active && prescriptionAllowsCart(draft.prescriptionStatus) && (
+            <div className="w-full border border-[#d9cfc8] bg-[#f7f3ee] p-4">
+              <p className="text-sm font-semibold text-[#2d1f1a]">Continuar al checkout</p>
+              <p className="mt-1 text-sm leading-6 text-gray-600">
+                Tu configuración se agregará al carrito normal, junto con cualquier otro producto. Desde ahí podrás continuar con envío o recolección.
+              </p>
+              <button type="button" disabled={addingToCart} onClick={continueToCart} className="mt-4 h-11 bg-[#2d1f1a] px-5 text-xs font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-[#1f1511] disabled:cursor-wait disabled:opacity-60">
+                {addingToCart ? "Preparando carrito…" : "Continuar con este pedido"}
+              </button>
+            </div>
+          )}
           {active && (
             <button type="button" disabled={cancelling} onClick={cancelDraft} className="border border-red-300 px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-red-800 disabled:opacity-50">
               {cancelling ? "Cancelando…" : "Cancelar pedido temporal"}

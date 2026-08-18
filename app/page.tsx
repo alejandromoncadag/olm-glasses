@@ -54,7 +54,11 @@ export default function Home() {
 
       </section>
 
-      <FeaturedProductsFromDb appearance="new-arrivals" />
+      <section className="bg-white px-5 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-16">
+        <div className="mx-auto max-w-7xl">
+          <FeaturedProductsFromDb appearance="new-arrivals" layout="simple" />
+        </div>
+      </section>
 
       <section className="relative isolate overflow-hidden bg-[#edf4f5] px-6 py-20 sm:py-24">
         <video
@@ -112,10 +116,12 @@ export default function Home() {
         aria-label="Lentes con prescripción"
       >
         <div className="relative z-10 mx-auto flex min-h-[520px] max-w-7xl items-end px-6 py-10 sm:min-h-[700px] sm:px-10 sm:py-14">
-          <ScrollParallaxContent className="relative top-0 max-w-2xl text-white">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/75">Prescripción OLM</p>
-            <h2 className="mt-3 max-w-xl text-4xl leading-[0.98] sm:text-6xl">Tu visión, a tu manera</h2>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <ScrollParallaxContent className="relative top-0 max-w-2xl text-white">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/75">Prescripción OLM</p>
+              <h2 className="mt-3 max-w-xl text-4xl leading-[0.98] sm:text-6xl">
+                Tu visión, a tu manera
+              </h2>
+              <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/sunglasses"
                 className="inline-flex min-h-12 items-center justify-center border border-white/80 bg-white px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-espresso)] transition hover:bg-[var(--brand-espresso)] hover:text-white"
@@ -140,6 +146,7 @@ export default function Home() {
             eyebrow="Colección óptica"
             title="Modelos ópticos"
             showTabs={false}
+            layout="simple"
           />
         </div>
       </section>
@@ -174,6 +181,7 @@ export default function Home() {
             eyebrow="Colección solar"
             title="Lentes solares"
             showTabs={false}
+            layout="simple"
           />
         </div>
       </section>

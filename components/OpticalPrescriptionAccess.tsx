@@ -7,8 +7,9 @@ import { useAuth } from "@/hooks/useAuth";
 
 type Prescription = { prescriptionRef: string; date: string | null; validUntil: string | null; label: string };
 type PrescriptionMethod = "later" | "exam";
+type PrescriptionStatus = "pending" | "provided" | "received_pending_validation" | "exam_requested";
 
-export default function OpticalPrescriptionAccess({ draftId, provided, prescriptionMethod, onAttached }: { draftId: string; provided: boolean; prescriptionMethod: PrescriptionMethod; onAttached: () => void }) {
+export default function OpticalPrescriptionAccess({ draftId, provided, prescriptionStatus = provided ? "provided" : "pending", prescriptionMethod, onAttached }: { draftId: string; provided: boolean; prescriptionStatus?: PrescriptionStatus; prescriptionMethod: PrescriptionMethod; onAttached: (status?: PrescriptionStatus) => void }) {
   const { user, loading } = useAuth();
   const [items, setItems] = useState<Prescription[]>([]);
   const [selected, setSelected] = useState("");
@@ -34,10 +35,22 @@ export default function OpticalPrescriptionAccess({ draftId, provided, prescript
     const data = await response.json() as { error?: string };
     setWorking(false);
     if (!response.ok) { setMessage(data.error || "No pudimos usar la receta."); return; }
-    setMessage("Receta aprobada seleccionada. El pago sigue pendiente y la producción continúa bloqueada."); onAttached();
+    setMessage("Receta guardada."); onAttached("provided");
   }
 
-  const statusLabel = provided ? "Receta seleccionada" : prescriptionMethod === "exam" ? "Examen solicitado" : "Receta pendiente";
+  async function upload(file: File | undefined) {
+    if (!file) return;
+    setWorking(true); setMessage("");
+    const response = await fetch(`/api/identity/optical-drafts/${encodeURIComponent(draftId)}/prescription`, {
+      method: "POST", headers: { "Content-Type": file.type, "X-Filename": file.name }, body: file,
+    });
+    const data = await response.json() as { error?: string };
+    setWorking(false);
+    if (!response.ok) { setMessage(data.error || "No pudimos recibir la receta."); return; }
+    setMessage("Receta recibida, pendiente de validación."); onAttached("received_pending_validation");
+  }
+
+  const statusLabel = prescriptionStatus === "provided" ? "Receta guardada" : prescriptionStatus === "received_pending_validation" ? "Receta recibida" : prescriptionStatus === "exam_requested" || prescriptionMethod === "exam" ? "Examen solicitado" : "Receta pendiente";
 
   return <div className="mt-5 border border-black/10 p-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -50,10 +63,11 @@ export default function OpticalPrescriptionAccess({ draftId, provided, prescript
         <p className="font-medium">Usar receta guardada</p>
         <p className="mt-1 text-xs text-gray-600">Selecciona una receta aprobada vinculada a tu cuenta.</p>
       </div>
-      <div className="border border-black/10 p-3 text-sm">
-        <p className="font-medium">Subir/agregar receta</p>
-        <p className="mt-1 text-xs text-gray-600">Puedes vincular una receta aprobada desde <Link className="underline" href="/account#recetas">Mi cuenta</Link>. La carga directa de archivos todavía no está disponible.</p>
-      </div>
+      <label className="cursor-pointer border border-black/10 p-3 text-sm">
+        <p className="font-medium">Subir receta</p>
+        <p className="mt-1 text-xs text-gray-600">PDF, JPG, PNG o WEBP · máximo 10 MB.</p>
+        <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="mt-3 block w-full text-xs" disabled={working || prescriptionStatus === "provided"} onChange={(event) => void upload(event.target.files?.[0])} />
+      </label>
       <div className={`border p-3 text-sm ${prescriptionMethod === "later" && !provided ? "border-[#4a2d23] bg-[#f7f3ee]" : "border-black/10"}`}>
         <p className="font-medium">Enviar receta después</p>
         <p className="mt-1 text-xs text-gray-600">Tu configuración permanece pendiente de receta.</p>
@@ -68,7 +82,7 @@ export default function OpticalPrescriptionAccess({ draftId, provided, prescript
         <option value="">Selecciona una receta aprobada</option>
         {items.map((item) => <option key={item.prescriptionRef} value={item.prescriptionRef}>{item.label}{item.date ? ` · ${item.date}` : ""}</option>)}
       </select>
-      <button type="button" onClick={() => void attach()} disabled={!selected || working} className="bg-[#4a2d23] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{working ? "Guardando…" : "Usar esta receta"}</button>
+      <button type="button" onClick={() => void attach()} disabled={!selected || working || prescriptionStatus === "provided"} className="bg-[#4a2d23] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{working ? "Guardando…" : "Usar esta receta"}</button>
     </div>}
     {message && <p className="mt-3 text-sm text-gray-700">{message}</p>}
   </div>;

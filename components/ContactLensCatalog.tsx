@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import StorefrontProductCard from "@/components/StorefrontProductCard";
+import ProductCard from "@/components/ProductCard";
 import type { ContactLensProduct } from "@/data/secondaryCatalog";
 
 type DisplayContactLensProduct = Omit<
@@ -44,10 +44,10 @@ function FilterButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`w-full rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+      className={`w-full border px-3 py-2.5 text-left text-sm transition ${
         active
-          ? "border-[var(--brand-espresso)] bg-[#f2ede8] font-semibold text-[var(--brand-espresso)]"
-          : "border-black/10 bg-white text-gray-700 hover:border-[var(--brand-espresso)]"
+          ? "border-[#2d1f1a] bg-[#2d1f1a] font-semibold text-white"
+          : "border-[#d9cfc8] bg-white text-[#2d1f1a] hover:border-[#2d1f1a] hover:bg-[#f7f3ee]"
       }`}
     >
       {children}
@@ -62,6 +62,7 @@ export default function ContactLensCatalog() {
   const [replacement, setReplacement] = useState("all");
   const [lensType, setLensType] = useState("all");
   const [maxPrice, setMaxPrice] = useState(MAX_PRICE);
+  const [sortOption, setSortOption] = useState<"newest" | "price-asc" | "price-desc" | "name">("newest");
 
   const brands = Array.from(
     new Set(products.map((product) => product.brand).filter(Boolean))
@@ -132,6 +133,8 @@ export default function ContactLensCatalog() {
       }),
     [brand, lensType, maxPrice, normalizedSearch, products, replacement]
   );
+
+  const sortedProducts = [...visibleProducts].sort((first, second) => sortOption === "price-asc" ? first.price - second.price : sortOption === "price-desc" ? second.price - first.price : sortOption === "name" ? first.name.localeCompare(second.name, "es") : 0);
 
   const hasFilters =
     search.trim() !== "" ||
@@ -242,9 +245,9 @@ export default function ContactLensCatalog() {
   );
 
   return (
-    <section className="mx-auto max-w-[1440px] px-5 py-10 sm:px-6 md:py-14">
+    <section className="mx-auto max-w-[1440px] bg-[#f7f3ee] px-5 py-10 text-[#171717] sm:px-6 md:py-14">
       <div className="grid gap-10 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)] xl:gap-12">
-        <aside className="hidden border-r border-black/10 pr-8 lg:block">
+        <aside className="hidden border-r border-[#d9cfc8] pr-8 lg:block">
           <h2 className="mb-7 text-lg font-semibold">Filtrar por</h2>
           {filters}
         </aside>
@@ -262,17 +265,12 @@ export default function ContactLensCatalog() {
             <div className="mt-6 border-t border-black/10 pt-6">{filters}</div>
           </details>
 
-          <div className="flex items-center justify-between border-b border-black/10 pb-5">
+          <div className="flex items-center justify-between border-b border-[#d9cfc8] pb-5">
             <p className="text-sm text-gray-600">
-              {visibleProducts.length}{" "}
-              {visibleProducts.length === 1 ? "producto" : "productos"}
+              {sortedProducts.length}{" "}
+              {sortedProducts.length === 1 ? "producto" : "productos"}
             </p>
-            <a
-              href="/eye-exam/book"
-              className="text-sm font-semibold underline underline-offset-4"
-            >
-              ¿Necesitas una adaptación?
-            </a>
+            <label className="flex items-center gap-3 text-sm"><span className="font-medium">Ordenar por</span><select value={sortOption} onChange={(event) => setSortOption(event.target.value as typeof sortOption)} className="border border-[#d9cfc8] bg-white px-4 py-2 outline-none focus:border-[#2d1f1a]"><option value="newest">Más nuevos</option><option value="price-asc">Precio: menor a mayor</option><option value="price-desc">Precio: mayor a menor</option><option value="name">Nombre</option></select></label>
           </div>
 
           {visibleProducts.length === 0 ? (
@@ -291,25 +289,23 @@ export default function ContactLensCatalog() {
             </div>
           ) : (
             <div className="mt-8 grid items-stretch gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {visibleProducts.map((product, index) => (
-                <StorefrontProductCard
+              {sortedProducts.map((product) => (
+                <ProductCard
                   key={product.slug}
                   slug={product.slug}
                   name={product.name}
-                  eyebrow={product.brand}
-                  description={product.description}
                   price={product.price}
-                  image={product.image}
-                  details={[
-                    product.packSize,
-                    product.replacement,
-                    product.lensType,
-                  ]}
+                  category="Lentes de contacto"
+                  color="#f4f1ed"
+                  href={`/product/${product.slug}`}
+                  stock={product.availableOnline ? 1 : 0}
+                  imageUrl={product.image}
+                  imageAltText={product.name}
                   actionLabel="Agregar al carrito"
-                  priority={index === 0}
                   availableOnline={product.availableOnline}
                   purchasableOnline={product.purchasableOnline}
                   favoritable={product.favoritable}
+                  visualVariant="optical"
                 />
               ))}
             </div>

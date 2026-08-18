@@ -8,19 +8,12 @@ export const metadata = {
 
 export default function ContactLensesPage() {
   return (
-    <main className="min-h-screen bg-white text-black">
-      <section className="border-b border-black/10 bg-[#eef5f2] px-6 py-14 md:py-20">
-        <div className="mx-auto max-w-[1440px]">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-500">
-            Comodidad y visión clara
-          </p>
-          <h1 className="mt-3 text-5xl font-bold tracking-[-0.04em] md:text-7xl">
-            Lentes de contacto
-          </h1>
-          <p className="mt-4 max-w-2xl text-lg leading-8 text-gray-600">
-            Elige tu marca y tipo de reemplazo. Confirma tu graduación antes de
-            comprar.
-          </p>
+    <main className="min-h-screen bg-[#f7f3ee] text-[#171717]">
+      <section className="border-b border-[#d9cfc8] bg-[#f7f3ee]">
+        <div className="mx-auto max-w-[1440px] px-5 pb-10 pt-16 sm:px-6 md:pb-14 md:pt-24">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-500">CONTACTOS</p>
+          <h1 className="mt-4 text-4xl font-medium tracking-[-0.03em] md:text-6xl">Lentes de contacto</h1>
+          <p className="mt-4 max-w-lg text-base leading-relaxed text-gray-700 md:text-lg">Elige tu marca y tipo de reemplazo. Confirma tu graduación antes de comprar.</p>
         </div>
       </section>
 

@@ -19,6 +19,7 @@ export default function ClipOnPage() {
       heroImagePosition="70% center"
       restrictToClipOn
       showClipOnFilter={false}
+      visualVariant="optical"
     />
   );
 }

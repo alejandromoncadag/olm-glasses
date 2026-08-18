@@ -238,7 +238,7 @@ function CheckoutPreviewPanel({
         <p className="font-semibold">No sale or shipment has been created.</p>
         <p className="pt-2 text-emerald-800">
           Puedes elegir otra cotización mientras siga activa. El checkout final
-          estará disponible en una fase posterior.
+            estará disponible en una fase posterior.
         </p>
         <a
           href="/cart"

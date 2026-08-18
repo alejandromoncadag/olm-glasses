@@ -27,6 +27,7 @@ type FeaturedProductsFromDbProps = {
   title?: string;
   showTabs?: boolean;
   appearance?: "default" | "new-arrivals";
+  layout?: "default" | "simple";
 };
 
 function getCardColor(frameColor: string | null) {
@@ -44,6 +45,7 @@ export default function FeaturedProductsFromDb({
   title,
   showTabs,
   appearance,
+  layout = "default",
 }: FeaturedProductsFromDbProps) {
   const [products, setProducts] = useState<FeaturedShowcaseProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,6 +104,7 @@ export default function FeaturedProductsFromDb({
     title={title}
     showTabs={showTabs}
     appearance={appearance}
+    layout={layout}
   />
 );
 }

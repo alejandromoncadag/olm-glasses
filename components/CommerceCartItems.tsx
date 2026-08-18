@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 
 import CartItems from "@/components/CartItems";
-import ShippingRequestFlow from "@/components/ShippingRequestFlow";
 import { CART_UPDATED_EVENT } from "@/lib/cart";
 import type {
   AuthoritativeCart,
@@ -18,6 +17,12 @@ function money(value: string, currency = "MXN") {
   }).format(Number(value || 0));
 }
 
+function opticalText(value: unknown, key: "name" | "code" = "name") {
+  if (!value || typeof value !== "object") return null;
+  const text = (value as Record<string, unknown>)[key];
+  return typeof text === "string" && text.trim() ? text : null;
+}
+
 const issueLabels: Record<AuthoritativeCartIssue, string> = {
   inactive: "Producto inactivo",
   unpublished: "Ya no está publicado",
@@ -27,6 +32,30 @@ const issueLabels: Record<AuthoritativeCartIssue, string> = {
   price_changed: "El precio cambió",
   requires_review: "Requiere revisión",
 };
+
+const BLOCKING_ISSUES = new Set<AuthoritativeCartIssue>([
+  "inactive",
+  "unpublished",
+  "purchase_disabled",
+  "unavailable",
+  "quantity_exceeds_total_availability",
+  "price_changed",
+]);
+
+function hasBlockingIssue(item: AuthoritativeCart["items"][number]) {
+  const reservation = item.configuration?.reservation;
+  const hasActiveOpticalReservation = Boolean(
+    item.configuration?.opticalDraftId &&
+    reservation && typeof reservation === "object" &&
+    ((reservation as Record<string, unknown>).status === "active" || (reservation as Record<string, unknown>).status === "activa") &&
+    typeof (reservation as Record<string, unknown>).expiresAt === "string" &&
+    new Date(String((reservation as Record<string, unknown>).expiresAt)).getTime() > Date.now()
+  );
+  return item.issues.some((issue) => {
+    if (hasActiveOpticalReservation && (issue === "unavailable" || issue === "quantity_exceeds_total_availability")) return false;
+    return BLOCKING_ISSUES.has(issue);
+  });
+}
 
 function announceCount(cart: AuthoritativeCart) {
   window.dispatchEvent(
@@ -129,17 +158,26 @@ export default function CommerceCartItems({ returnTo }: { returnTo: string }) {
                   <p className="text-xs uppercase tracking-widest text-gray-500">{item.category.replaceAll("_", " ")}</p>
                   <h2 className="mt-1 text-xl font-semibold">{item.name}</h2>
                   <p className="mt-1 text-xs text-gray-500">SKU {item.sku}</p>
-                  {item.issues.length > 0 && (
+                  {Boolean(item.configuration?.opticalDraftId) && (
+                    <div className="mt-3 space-y-0.5 text-sm text-[#2d1f1a]">
+                      {opticalText(item.configuration.lensDesign) && <p>{opticalText(item.configuration.lensDesign)}</p>}
+                      <p>{opticalText(item.configuration.treatment) || "Sin tratamiento"}</p>
+                      {opticalText(item.configuration.variant) && <p>{opticalText(item.configuration.variant)}</p>}
+                      <p>Receta: {item.configuration.prescriptionStatus === "provided" ? "guardada" : item.configuration.prescriptionStatus === "received_pending_validation" ? "recibida" : item.configuration.prescriptionStatus === "exam_requested" || item.configuration.prescriptionMethod === "exam" ? "examen solicitado" : "pendiente"}</p>
+                      <p className="text-xs text-[#765b50]">Armazón reservado temporalmente</p>
+                    </div>
+                  )}
+                  {!item.configuration?.opticalDraftId && item.issues.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {item.issues.map((issue) => <span key={issue} className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">{issueLabels[issue]}</span>)}
                     </div>
                   )}
-                  <p className="mt-3 text-sm text-gray-600">Disponibilidad total informativa: {item.totalOnlineAvailability}</p>
-                  {item.maximumQuantityPerLine === null ? (
+                  {!item.configuration?.opticalDraftId && <p className="mt-3 text-sm text-gray-600">Disponibilidad total informativa: {item.totalOnlineAvailability}</p>}
+                  {!item.configuration?.opticalDraftId && (item.maximumQuantityPerLine === null ? (
                     <p className="mt-1 text-xs text-gray-500">Sin límite configurado; sujeto a existencias disponibles.</p>
                   ) : (
                     <p className="mt-1 text-xs text-gray-500">Máximo especial configurado: {item.maximumQuantityPerLine}</p>
-                  )}
+                  ))}
                   {item.priceChanged && (
                     <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm">
                       <p>Precio anterior observado: <strong>{money(item.previouslyObservedPrice, item.currency)}</strong></p>
@@ -163,16 +201,24 @@ export default function CommerceCartItems({ returnTo }: { returnTo: string }) {
           ))}
           <button type="button" onClick={async () => { if (!confirm("¿Seguro que quieres vaciar el carrito?")) return; setBusyItem("clear"); try { await mutate("/api/commerce/cart", "DELETE"); } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); } finally { setBusyItem(null); } }} className="text-sm text-gray-500 underline hover:text-red-600">Vaciar carrito</button>
         </div>
-        <aside className="h-fit rounded-2xl border p-6 lg:sticky lg:top-24">
-          <h2 className="text-2xl font-semibold">Resumen</h2>
+        <aside className="h-fit rounded-2xl border border-[#d9cfc8] bg-[#faf8f5] p-6 lg:sticky lg:top-24">
+          <h2 className="text-2xl font-semibold">Resumen del pedido</h2>
           <p className="mt-2 text-sm text-gray-500">{cart.itemCount} {cart.itemCount === 1 ? "producto" : "productos"}</p>
-          <div className="mt-6 flex justify-between border-t pt-5 text-lg font-semibold"><span>Subtotal actual</span><span>{money(cart.subtotal, cart.currency)}</span></div>
-          {!cart.readyForFutureCheckout ? (
-            <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">Revisa los avisos del carrito antes de solicitar entrega o recolección.</div>
-          ) : (
-            <ShippingRequestFlow />
-          )}
-          <p className="mt-5 text-sm text-gray-600">La óptica valida una sola sucursal para todo el carrito. En esta fase no se cobra, no se crea una orden y no se reserva inventario.</p>
+          {(() => {
+            const subtotal = Number(cart.subtotal || 0);
+            const remaining = Math.max(0, 1100 - subtotal);
+            return <>
+              <dl className="mt-6 space-y-4 border-t border-[#d9cfc8] pt-5 text-sm">
+                <div className="flex justify-between"><dt>Subtotal</dt><dd className="font-medium">{money(cart.subtotal, cart.currency)}</dd></div>
+                <div className="flex justify-between"><dt>Envío</dt><dd className="font-medium">{remaining === 0 ? "Gratis" : money("99")}</dd></div>
+              </dl>
+              {remaining > 0 ? <p className="mt-4 text-sm text-[#765b50]">Agrega {money(String(remaining), cart.currency)} más para obtener envío estándar gratis. Mientras tanto, el envío cuesta {money("99", cart.currency)}.</p> : <p className="mt-4 text-sm text-[#765b50]">Envío estándar gratis en compras desde $1,100 MXN.</p>}
+              {cart.items.some(hasBlockingIssue) && <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Revisa los avisos de tus productos antes de continuar.</div>}
+              <div className="mt-6 border-t border-[#d9cfc8] pt-5"><div className="flex justify-between text-lg font-semibold"><span>Total estimado</span><span>{money(cart.subtotal, cart.currency)}</span></div><p className="mt-1 text-xs text-gray-500">El total final se confirma al elegir la entrega.</p></div>
+              <div className="mt-6"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#765b50]">Pagos aceptados</p><div className="mt-3 flex flex-wrap items-center gap-2">{["visa.png", "mastercard.png", "AE.png", "oxxo.png", "spei.png", "paypal.png"].map((logo) => <div key={logo} className="flex h-7 w-12 items-center justify-center rounded border border-[#d9cfc8] bg-white p-1"><Image src={`/payments/${logo}`} alt={logo === "AE.png" ? "American Express" : logo.replace(".png", "")} width={44} height={24} className="h-auto max-h-5 w-auto object-contain" /></div>)}</div><p className="mt-3 text-xs text-gray-500">Tu información se procesa de forma segura.</p></div>
+              <button type="button" disabled={cart.items.some(hasBlockingIssue)} onClick={() => { window.location.href = "/checkout"; }} className="mt-7 w-full bg-[#2d1f1a] px-5 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#1f1511] disabled:cursor-not-allowed disabled:bg-[#b8ada6]">Continuar</button>
+            </>;
+          })()}
         </aside>
       </div>
     </div>

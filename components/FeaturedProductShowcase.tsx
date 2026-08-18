@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/refs */
 
 import Image from "next/image";
 import Link from "next/link";
@@ -29,6 +30,7 @@ type FeaturedProductShowcaseProps = {
   title?: string;
   showTabs?: boolean;
   appearance?: "default" | "new-arrivals";
+  layout?: "default" | "simple";
 };
 
 const categoryTabs = [
@@ -37,6 +39,57 @@ const categoryTabs = [
   { id: "clip-on", label: "Clip-on", matches: ["clip_on", "clip-on", "clip on"] },
   { id: "contactos", label: "Contactos", matches: ["lentes_de_contacto", "lentes de contacto", "contacto"] },
 ] as const;
+
+function productsForCategory(products: FeaturedShowcaseProduct[], categoryId: CategoryId) {
+  const tab = categoryTabs.find((item) => item.id === categoryId);
+  if (!tab) return products;
+  return products.filter((product) => {
+    const category = product.category.toLowerCase().replace(/-/g, "_");
+    const subcategory = (product.subcategory || "").toLowerCase().replace(/-/g, "_");
+    const isClipOn = product.clipOnCompatible === true || subcategory === "clip_on";
+    const matches = category.includes(tab.matches[0].replace(/-/g, "_")) || tab.matches.some((match) => category.includes(match.replace(/-/g, "_")));
+    const included = tab.id === "clip-on" ? isClipOn : tab.id === "opticos" ? !isClipOn && matches : matches;
+    return included && product.isAvailable && product.stock > 0;
+  });
+}
+
+function SimpleProductCarousel({ products, initialCategory = "opticos", eyebrow = "Colección", title = "Productos" }: { products: FeaturedShowcaseProduct[]; initialCategory?: CategoryId; eyebrow?: string; title?: string }) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ startX: number; scrollLeft: number } | null>(null);
+  const didDragRef = useRef(false);
+  const [dragging, setDragging] = useState(false);
+  const categoryProducts = useMemo(() => productsForCategory(products, initialCategory), [products, initialCategory]);
+  const destination = initialCategory === "solares" ? "/sunglasses" : initialCategory === "clip-on" ? "/clip-ons" : "/eyeglasses";
+
+  function scroll(direction: "previous" | "next") {
+    rowRef.current?.scrollBy({ left: direction === "next" ? rowRef.current.clientWidth * 0.82 : -rowRef.current.clientWidth * 0.82, behavior: "smooth" });
+  }
+
+  function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (!rowRef.current) return;
+    dragRef.current = { startX: event.clientX, scrollLeft: rowRef.current.scrollLeft };
+    didDragRef.current = false;
+    setDragging(true);
+  }
+
+  function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (!dragRef.current || !rowRef.current) return;
+    if (Math.abs(event.clientX - dragRef.current.startX) > 8) {
+      didDragRef.current = true;
+      rowRef.current.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    }
+    rowRef.current.scrollLeft = dragRef.current.scrollLeft - (event.clientX - dragRef.current.startX);
+  }
+
+  function endDrag(event: React.PointerEvent<HTMLDivElement>) {
+    if (rowRef.current?.hasPointerCapture(event.pointerId)) rowRef.current.releasePointerCapture(event.pointerId);
+    dragRef.current = null;
+    setDragging(false);
+  }
+
+ return <section aria-label={title} className="relative outline-none"><header className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#765b50]">{eyebrow}</p><h2 className="mt-2 text-3xl text-[#2d1f1a] md:text-4xl">{title}</h2><Link href={destination} className="mt-3 inline-flex text-xs font-semibold uppercase tracking-[0.16em] text-[#2d1f1a] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2d1f1a]">Ver todos</Link></header><div className="mt-8 flex justify-end gap-2"><button type="button" onClick={() => scroll("previous")} disabled={categoryProducts.length < 2} aria-label="Productos anteriores" className="grid h-10 w-10 place-items-center border border-[#d9cfc8] text-[#2d1f1a] transition hover:bg-[#f4efe9] disabled:cursor-not-allowed disabled:opacity-35"><ArrowIcon direction="left" /></button><button type="button" onClick={() => scroll("next")} disabled={categoryProducts.length < 2} aria-label="Siguientes productos" className="grid h-10 w-10 place-items-center border border-[#d9cfc8] text-[#2d1f1a] transition hover:bg-[#f4efe9] disabled:cursor-not-allowed disabled:opacity-35"><ArrowIcon direction="right" /></button></div><div ref={rowRef} tabIndex={0} role="region" aria-label={`Carrusel de ${title}`} onKeyDown={(event) => { if (event.key === "ArrowLeft") { event.preventDefault(); scroll("previous"); } if (event.key === "ArrowRight") { event.preventDefault(); scroll("next"); } }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} className={`product-carousel mt-3 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 touch-pan-x select-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2d1f1a] ${dragging ? "cursor-grabbing" : "cursor-grab"}`}>{categoryProducts.length === 0 ? <p className="w-full py-16 text-center text-sm text-stone-500">No hay productos disponibles por el momento.</p> : categoryProducts.map((product) => <article key={product.slug} className="w-[68vw] shrink-0 snap-start sm:w-[31%] lg:w-[22%]"><Link href={`/product/${product.slug}`} className="block" aria-label={`Ver ${product.name}`} draggable={false} onClick={(event) => { if (didDragRef.current) { event.preventDefault(); event.stopPropagation(); didDragRef.current = false; } }}><div className="relative h-48 bg-[#faf8f5] sm:h-56">{product.mainImage ? <Image src={product.mainImage.imageUrl} alt={product.mainImage.altText || product.name} fill sizes="(min-width: 1024px) 22vw, (min-width: 640px) 31vw, 68vw" unoptimized={product.mainImage.imageUrl.startsWith("http")} className="object-contain p-4" /> : <div className="grid h-full place-items-center text-xs uppercase tracking-[0.14em] text-stone-400">Imagen próximamente</div>}</div><h3 className="mt-3 text-center text-sm font-semibold text-[#2d1f1a] hover:underline hover:underline-offset-4">{product.name}</h3><p className="mt-1 text-center text-sm font-medium text-[#2d1f1a]">${product.price.toLocaleString("es-MX")} <span className="text-[10px] text-stone-500">MXN</span></p></Link></article>)}</div></section>;
+}
 
 function ArrowIcon({ direction }: { direction: "left" | "right" }) {
   return (
@@ -53,6 +106,21 @@ function ArrowIcon({ direction }: { direction: "left" | "right" }) {
   );
 }
 
+function SimpleProductCarouselWithTabs({ products, initialCategory = "opticos", eyebrow = "Recién llegados", title = "Productos nuevos" }: { products: FeaturedShowcaseProduct[]; initialCategory?: CategoryId; eyebrow?: string; title?: string }) {
+  const [activeCategory, setActiveCategory] = useState<CategoryId>(initialCategory);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ startX: number; scrollLeft: number } | null>(null);
+  const dragged = useRef(false);
+  const [, setDragging] = useState(false);
+  const categoryProducts = useMemo(() => productsForCategory(products, activeCategory), [products, activeCategory]);
+  const destination = activeCategory === "solares" ? "/sunglasses" : activeCategory === "clip-on" ? "/clip-ons" : activeCategory === "contactos" ? "/contacts" : "/eyeglasses";
+  const scroll = (direction: "previous" | "next") => rowRef.current?.scrollBy({ left: (direction === "next" ? 1 : -1) * (rowRef.current.clientWidth * 0.82), behavior: "smooth" });
+  const start = (event: React.PointerEvent<HTMLDivElement>) => { if (!rowRef.current) return; dragRef.current = { startX: event.clientX, scrollLeft: rowRef.current.scrollLeft }; dragged.current = false; setDragging(true); };
+  const move = (event: React.PointerEvent<HTMLDivElement>) => { if (!dragRef.current || !rowRef.current) return; if (Math.abs(event.clientX - dragRef.current.startX) > 8) { dragged.current = true; setDragging(true); rowRef.current.setPointerCapture(event.pointerId); event.preventDefault(); } rowRef.current.scrollLeft = dragRef.current.scrollLeft - (event.clientX - dragRef.current.startX); };
+  const end = (event: React.PointerEvent<HTMLDivElement>) => { if (rowRef.current?.hasPointerCapture(event.pointerId)) rowRef.current.releasePointerCapture(event.pointerId); dragRef.current = null; setDragging(false); };
+  return <section aria-label={title} className="relative outline-none"><header className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#765b50]">{eyebrow}</p><h2 className="mt-2 text-3xl text-[#2d1f1a] md:text-4xl">{title}</h2><Link href={destination} className="mt-3 inline-flex text-xs font-semibold uppercase tracking-[0.16em] text-[#2d1f1a] underline underline-offset-4">Ver todos</Link></header><div className="mt-5 flex flex-wrap justify-center gap-x-7 gap-y-3 border-b border-black/10" role="tablist" aria-label="Categorías de productos">{categoryTabs.map((tab) => <button key={tab.id} type="button" role="tab" aria-selected={activeCategory === tab.id} onClick={() => { setActiveCategory(tab.id); rowRef.current?.scrollTo({ left: 0, behavior: "smooth" }); }} className={`border-b-2 pb-2 text-sm font-semibold uppercase tracking-[0.12em] ${activeCategory === tab.id ? "border-[#2d1f1a] text-[#2d1f1a]" : "border-transparent text-gray-500 hover:text-[#2d1f1a]"}`}>{tab.label}</button>)}</div><div className="mt-8 flex justify-end gap-2"><button type="button" onClick={() => scroll("previous")} disabled={categoryProducts.length < 2} aria-label="Productos anteriores" className="grid h-10 w-10 place-items-center border border-[#d9cfc8] text-[#2d1f1a] disabled:opacity-35"><ArrowIcon direction="left" /></button><button type="button" onClick={() => scroll("next")} disabled={categoryProducts.length < 2} aria-label="Siguientes productos" className="grid h-10 w-10 place-items-center border border-[#d9cfc8] text-[#2d1f1a] disabled:opacity-35"><ArrowIcon direction="right" /></button></div><div ref={rowRef} tabIndex={0} role="region" aria-label={`Carrusel de ${title}`} onKeyDown={(event) => { if (event.key === "ArrowLeft") { event.preventDefault(); scroll("previous"); } if (event.key === "ArrowRight") { event.preventDefault(); scroll("next"); } }} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end} className={`product-carousel mt-3 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 touch-pan-x select-none ${dragged.current ? "cursor-grabbing" : "cursor-grab"}`}>{categoryProducts.map((product) => <article key={product.slug} className="w-[68vw] shrink-0 snap-start sm:w-[31%] lg:w-[22%]"><Link href={`/product/${product.slug}`} draggable={false} onClick={(event) => { if (dragged.current) { event.preventDefault(); event.stopPropagation(); dragged.current = false; } }} className="block" aria-label={`Ver ${product.name}`}><div className="relative h-48 bg-[#faf8f5] sm:h-56">{product.mainImage ? <Image src={product.mainImage.imageUrl} alt={product.mainImage.altText || product.name} fill sizes="(min-width: 1024px) 22vw, (min-width: 640px) 31vw, 68vw" unoptimized={product.mainImage.imageUrl.startsWith("http")} className="object-contain p-4" /> : <div className="grid h-full place-items-center text-xs text-stone-400">Imagen próximamente</div>}</div><h3 className="mt-3 text-center text-base font-medium text-[#2d1f1a] sm:text-lg">{product.name}</h3><p className="mt-1 text-center text-base font-semibold text-[#2d1f1a]">${product.price.toLocaleString("es-MX")} <span className="text-[10px] font-medium text-stone-500">MXN</span></p></Link></article>)}</div></section>;
+}
+
 export default function FeaturedProductShowcase({
   products,
   initialCategory = "opticos",
@@ -60,12 +128,14 @@ export default function FeaturedProductShowcase({
   title = "Productos nuevos",
   showTabs = true,
   appearance = "default",
+  layout = "default",
 }: FeaturedProductShowcaseProps) {
   const [activeCategory, setActiveCategory] = useState<CategoryId>(initialCategory);
   const [activeIndex, setActiveIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const isNewArrivals = appearance === "new-arrivals";
+
 
   const categoryProducts = useMemo(() => {
     const tab = categoryTabs.find((item) => item.id === activeCategory);
@@ -106,6 +176,12 @@ export default function FeaturedProductShowcase({
       { product: categoryProducts[(normalizedActiveIndex + 1) % categoryProducts.length], offset: 1 },
     ];
   }, [normalizedActiveIndex, activeProduct, categoryProducts]);
+
+  if (layout === "simple") {
+    return showTabs
+      ? <SimpleProductCarouselWithTabs products={products} initialCategory={initialCategory} eyebrow={eyebrow} title={title} />
+      : <SimpleProductCarousel products={products} initialCategory={initialCategory} eyebrow={eyebrow} title={title} />;
+  }
 
   function move(direction: "previous" | "next") {
     if (categoryProducts.length < 2) return;

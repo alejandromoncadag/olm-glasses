@@ -69,7 +69,7 @@ export type OpticalDraftResponse = {
   status: "pendiente_receta" | "listo_para_pago" | "pendiente_pago" | "cancelado" | "expirado";
   paymentStatus: "sin_pago";
   prescriptionMethod: OpticalPrescriptionMethod;
-  prescriptionStatus: "pending" | "provided";
+  prescriptionStatus: "pending" | "provided" | "received_pending_validation" | "exam_requested";
   intendedUse: string | null;
   branch: { code: string; name: string };
   configuration: {

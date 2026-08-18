@@ -205,7 +205,20 @@ export default function AuthoritativeOpticalPreviewPanel({ product }: Props) {
         if (payload.details?.currentPreview) setPreview(payload.details.currentPreview);
         throw new Error(payload.error || "No se pudo reservar temporalmente el armazón.");
       }
-      router.push(`/optical-order/${encodeURIComponent(payload.draftPublicId)}`);
+      const attach = await fetch(`/api/optical/drafts/${encodeURIComponent(payload.draftPublicId)}/cart`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": `optical-cart-${payload.draftPublicId}`,
+        },
+        body: JSON.stringify({
+          previewFingerprint: preview.previewFingerprint,
+          configuredTotal: preview.configuredTotal,
+        }),
+      });
+      const attachPayload = (await attach.json().catch(() => ({}))) as { error?: string; details?: { message?: string } };
+      if (!attach.ok) throw new Error(attachPayload.details?.message || attachPayload.error || "No pudimos agregar la configuración al carrito.");
+      router.push("/cart");
     } catch (draftError) {
       setError((draftError as Error).message);
     } finally {
