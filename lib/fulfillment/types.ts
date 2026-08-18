@@ -127,6 +127,9 @@ export type CheckoutPreview = {
   requestId: string;
   fulfillment: FulfillmentOption;
   subtotal: string;
+  discount: string;
+  discountCode: string | null;
+  netSubtotal: string;
   shipping: string;
   total: string;
   currency: string;

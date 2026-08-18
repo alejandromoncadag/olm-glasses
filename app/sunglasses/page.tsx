@@ -7,7 +7,7 @@ export default function SunglassesPage() {
       title="Lentes de sol"
       description="Explora nuestra colección de lentes de sol para todos los días."
       filterLayout="sidebar"
-      actionLabel="Agregar al carrito"
+      actionLabel="SELECCIONAR MICAS Y COMPRAR"
       showNewBadge
       heroImage="/images/sunglasses-collection-hero.png"
       heroImagePosition="center"

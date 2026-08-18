@@ -257,10 +257,11 @@ export default function ProductPage() {
     product.type === "eyeglasses" || product.type === "sunglasses";
   const needsOpticalConfiguration = requiresOpticalConfiguration(product);
   const supportsFrameOnlyPurchase = supportsDirectFramePurchase(product);
-  const isClipOnProduct =
-    product.type === "eyeglasses" &&
-    product.category === "lentes_opticos" &&
-    product.subcategory === "clip_on";
+  const sharedConfiguratorEligible =
+    (product.type === "sunglasses" && product.subcategory === "armazon") ||
+    (product.type === "eyeglasses" &&
+      product.category === "lentes_opticos" &&
+      (product.subcategory === "armazon" || product.subcategory === "clip_on"));
   const isAvailable = product.isActive && product.isAvailable;
 
   return (
@@ -416,29 +417,31 @@ export default function ProductPage() {
                   producto.
                 </p>
               </div>
-            ) : needsOpticalConfiguration && !supportsFrameOnlyPurchase ? (
+            ) : sharedConfiguratorEligible ? (
               <div className="mt-8 border-y border-black/15 py-7">
                 <p className="max-w-lg text-sm leading-6 text-gray-600">
-                  Elige tus micas, tratamiento y revisa el precio final en un
-                  proceso separado para este modelo.
+                  Elige tus micas, tratamientos y variantes, y revisa el precio
+                  final antes de agregar este modelo al carrito.
                 </p>
                 <a
                   href={`/product/${product.slug}/configurar`}
                   className="mt-5 inline-flex h-12 w-full items-center justify-center bg-[var(--brand-espresso)] px-6 text-sm font-semibold text-white transition hover:bg-[#1f1511]"
                 >
-                  Seleccionar micas y tratamientos
+                  SELECCIONAR MICAS Y COMPRAR
                 </a>
               </div>
-            ) : isClipOnProduct ? (
-              <div className="mt-8 bg-[#f4f3f0] p-5 sm:p-6">
-                <p className="text-sm leading-6 text-gray-600">
-                  Este clip-on se agrega directamente al carrito. No requiere graduación ni configuración óptica.
+            ) : needsOpticalConfiguration && !supportsFrameOnlyPurchase ? (
+              <div className="mt-8 border-y border-black/15 py-7">
+                <p className="max-w-lg text-sm leading-6 text-gray-600">
+                  Elige tus micas, tratamientos y revisa el precio final antes
+                  de agregar este modelo al carrito.
                 </p>
-                <QuickAddToCartButton
-                  slug={product.slug}
-                  label="Agregar al carrito"
-                  className="mt-5 h-12 w-full"
-                />
+                <a
+                  href={`/product/${product.slug}/configurar`}
+                  className="mt-5 inline-flex h-12 w-full items-center justify-center bg-[var(--brand-espresso)] px-6 text-sm font-semibold text-white transition hover:bg-[#1f1511]"
+                >
+                  SELECCIONAR MICAS Y COMPRAR
+                </a>
               </div>
             ) : supportsFrameOnlyPurchase ? (
               <div className="mt-8 space-y-4 border-y border-black/15 py-7">

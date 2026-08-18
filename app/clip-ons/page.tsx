@@ -13,7 +13,7 @@ export default function ClipOnPage() {
       title="Lentes con clip‑on"
       description="Un armazón óptico y una vista solar en segundos. Explora modelos diseñados para usar con clip-on."
       filterLayout="sidebar"
-      actionLabel="Agregar al carrito"
+      actionLabel="SELECCIONAR MICAS Y COMPRAR"
       showNewBadge
       heroImage="/products/clip-ons/nomada.webp"
       heroImagePosition="70% center"

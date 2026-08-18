@@ -31,6 +31,7 @@ type Product = {
   description: string;
   price: number;
   category: string;
+  subcategory: string | null;
   type: ProductType;
   gender: string | null;
   shape: string | null;
@@ -760,6 +761,16 @@ export default function PublicProductCatalog({
           imageUrl={product.mainImage?.imageUrl}
           imageAltText={product.mainImage?.altText}
           actionLabel={actionLabel}
+          configurationHref={
+            visualVariant === "optical" &&
+            ((product.type === "sunglasses" &&
+              product.subcategory === "armazon") ||
+              (product.category === "lentes_opticos" &&
+                (product.subcategory === "armazon" ||
+                  product.subcategory === "clip_on")))
+              ? `/product/${product.slug}/configurar`
+              : null
+          }
           isNew={showNewBadge && isProductNew(product.createdAt)}
           visualVariant={visualVariant}
         />

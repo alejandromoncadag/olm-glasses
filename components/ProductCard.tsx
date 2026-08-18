@@ -18,6 +18,7 @@ type ProductCardProps = {
   purchasableOnline?: boolean;
   favoritable?: boolean;
   visualVariant?: "default" | "optical";
+  configurationHref?: string | null;
 };
 
 export default function ProductCard({
@@ -35,6 +36,7 @@ export default function ProductCard({
   purchasableOnline = true,
   favoritable = true,
   visualVariant = "default",
+  configurationHref = null,
 }: ProductCardProps) {
   const isOutOfStock = availableOnline === undefined ? stock <= 0 : !availableOnline;
 
@@ -106,6 +108,13 @@ export default function ProductCard({
             <div className="flex min-h-11 w-full items-center justify-center rounded-full border border-black/15 bg-[#f7f3ee] px-4 text-sm font-semibold text-gray-600">
               Agotado
             </div>
+          ) : purchasableOnline && configurationHref ? (
+            <a
+              href={configurationHref}
+              className={visualVariant === "optical" ? "flex min-h-11 w-full items-center justify-center rounded-none bg-[var(--brand-espresso)] px-4 text-center text-sm font-semibold text-white transition hover:bg-[#1f1511]" : "flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--brand-espresso)] px-4 text-center text-sm font-semibold text-white transition hover:bg-[#1f1511]"}
+            >
+              {actionLabel}
+            </a>
           ) : purchasableOnline ? (
             <QuickAddToCartButton
               slug={slug}
